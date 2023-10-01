@@ -1,8 +1,9 @@
 build/* 
-teste/build/* 
+teste/build/*
 dist/*
 .DS_Store
 .vscode/*
 Pipfile
 *.d
 *.o
+morphoTreeAdjust/teste/build/*
