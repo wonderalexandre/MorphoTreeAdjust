@@ -4,34 +4,25 @@
 #include <iostream>
 
 
-void ComponentTreeAdjustment::addNodesOfPath(NodeCT* nodeNL, NodeCT* nodeTauL, std::unordered_set<NodeCT*, NodeCT::NodeHashFunction>* F) {
-    std::cout << "=> adjustMinTree [addNodesOfPath - 1] \t ";
+void ComponentTreeAdjustment::addNodesOfPath(NodeCT* nodeNL, NodeCT* nodeTauL) {
 	for (NodeCT* n : nodeNL->getNodesOfPathToRoot()) {
-		/*if(mapF[n->getLevel()]){
-			mapF[n->getLevel()] = true;
-			std::unordered_set<NodeCT*, NodeCT::NodeHashFunction> set;
-			F[n->getLevel()] = set;
-		}*/
-		F[n->getLevel()].insert(n);
+		std::unordered_set<NodeCT*, NodeCT::NodeHashFunction>* F = getF(n->getLevel());
+		F->insert(n);
         if (n == nodeTauL){ 
-            break;
+            break; 
         }
     }
-	std::cout << "=> adjustMinTree [addNodesOfPath - 2]\n";
-
 }
 
 
 
 void ComponentTreeAdjustment::adjustMinTree(ComponentTree &mintree, NodeCT *Lmax) {
-	std::cout << "=> adjustMinTree\n";
 	AdjacencyRelation* adj = mintree.getAdjacencyRelation();
 
     int newGrayLmax = Lmax->getParent()->getLevel(); //g(p)
     int grayLmax = Lmax->getLevel(); //f(p)
 
 	std::list<int> cnpsL = Lmax->getCNPs();
-
 
 	NodeCT* nodeTauL = mintree.getSC( cnpsL.front() );
 	bool nodeTauCNPsIsIgualsL = (cnpsL.size() == nodeTauL->getCNPs().size());	
@@ -44,77 +35,68 @@ void ComponentTreeAdjustment::adjustMinTree(ComponentTree &mintree, NodeCT *Lmax
 		    }
 	    }
 	}
-	std::cout << "=> adjustMinTree [nodesNL - OK]:" << nodesNL.size() << "\n";
 	
-	
-	std::unordered_set<NodeCT*, NodeCT::NodeHashFunction>* F = new std::unordered_set<NodeCT*, NodeCT::NodeHashFunction>[255];
-	
-	std::cout << "=> adjustMinTree [alocacao F]\n";
-
-	
-    std::list<NodeCT*> subtrees;
+	//std::unordered_set<NodeCT*, NodeCT::NodeHashFunction>* F = new std::unordered_set<NodeCT*, NodeCT::NodeHashFunction>[255];
+	std::unordered_set<NodeCT*, NodeCT::NodeHashFunction> B_L;
     for (NodeCT *nodeNL : nodesNL) {
-		std::cout << "=> adjustMinTree [for (NodeCT *nodeNL : nodesNL)] 1 \n";
 	    if (newGrayLmax <= nodeNL->getLevel()) { //o nodeNL está entre g(p) e f(p)
-			std::cout << "=> adjustMinTree [for (NodeCT *nodeNL : nodesNL)] 2 \n";
-		    this->addNodesOfPath(nodeNL, nodeTauL, F);
+		    this->addNodesOfPath(nodeNL, nodeTauL);
 	    } 
 	    else { //o nodeNL está abaixo de g(p)
             // é armazenado somente a raiz da subtree antes de atingir o nivel g(p)
-			std::cout << "=> adjustMinTree [for (NodeCT *nodeNL : nodesNL)] 3 \n";
-            NodeCT* nodeSubtree = nodeNL;
+	        NodeCT* nodeSubtree = nodeNL;
             for (NodeCT *n : nodeNL->getNodesOfPathToRoot()) {
                 if (n->getLevel() > newGrayLmax) {
                     break;
                 }
                 nodeSubtree = n;
             }
-			std::cout << "=> adjustMinTree [for (NodeCT *nodeNL : nodesNL)] 3.1 \n";
-            // se a subtree tiver level = g(p), então ela entra em F[\lambda]
+	        // se a subtree tiver level = g(p), então ela entra em F[\lambda]
             if (nodeSubtree->getLevel() == newGrayLmax) {
-				std::cout << "=> adjustMinTree [for (NodeCT *nodeNL : nodesNL)] 3.2 \n";
-				std::cout <<"nodeSubtree:" <<nodeSubtree->getIndex() << "\tnodeTauL:" << nodeTauL->getIndex()<< "\n";
-				
-
-                this->addNodesOfPath(nodeSubtree, nodeTauL, F);
+                this->addNodesOfPath(nodeSubtree, nodeTauL);
             } 
             else {
-				std::cout << "=> adjustMinTree [for (NodeCT *nodeNL : nodesNL)] 3.3 \n";
-                subtrees.push_back(nodeSubtree);
+                B_L.insert(nodeSubtree);
             }
 	    }
 
 	}
-    std::cout << "=> adjustMinTree [F[i] e subtrees - OK]\n";
-	
     // merge
 	int lambda = newGrayLmax; //g(p)
 	NodeCT* nodeUnion = nullptr;
 	NodeCT* nodeUnionPrevious = nullptr;
-	std::cout << "lambda:" <<lambda << "\tF[lambda]:" << F[lambda].size() << "\n";
 	while (lambda < grayLmax) {
-	    if (!F[lambda].empty()) {
-		    nodeUnion = *F[lambda].begin();
-		    nodeUnion->getParent()->getChildren().remove(nodeUnion);
-		    nodeUnion->setParent(nullptr);
-		    for (NodeCT* n : F[lambda]) {
+	    if (existsInF(lambda)) {
+			std::unordered_set<NodeCT*, NodeCT::NodeHashFunction>* F_lambda = getF(lambda);
+		    nodeUnion = *F_lambda->begin();
+			disconnect(nodeUnion);
+		    for (NodeCT* n : *F_lambda) {
                 if (n != nodeUnion) {
-                    nodeUnion->getCNPs().splice(nodeUnion->getCNPs().end(), n->getCNPs());
+                    
                     for (int p : n->getCNPs()) { //para manter atualizado o mapeamento SC: pixels -> nodes
                         mintree.setSC(p, nodeUnion);
                     }
-                    nodeUnion->getChildren().splice(nodeUnion->getChildren().end(), n->getChildren());
+					nodeUnion->getCNPs().splice(nodeUnion->getCNPs().end(), n->getCNPs());
+
                     for (NodeCT* son : n->getChildren()) {
                         son->setParent(nodeUnion);
                     }
-                    n->getParent()->getChildren().remove(n);
+					nodeUnion->getChildren().splice(nodeUnion->getChildren().end(), n->getChildren());
+
+					disconnect(n);
+					delete n; n = nullptr;
                 }
 		    }
 		    if (lambda == newGrayLmax) {
-		        nodeUnion->getCNPs().splice(nodeUnion->getCNPs().end(), cnpsL);
-		        for (NodeCT* n : subtrees) {
+		        
+				for (int p : cnpsL) { //para manter atualizado o mapeamento SC: pixels -> nodes
+                    mintree.setSC(p, nodeUnion);
+                }
+				nodeUnion->getCNPs().splice(nodeUnion->getCNPs().end(), cnpsL);
+				
+		        for (NodeCT* n : B_L) {
+					disconnect(n);
 			        nodeUnion->addChild(n);
-			        n->getParent()->getChildren().remove(n);
 			        n->setParent(nodeUnion);
 		        }
 		    }
@@ -126,30 +108,32 @@ void ComponentTreeAdjustment::adjustMinTree(ComponentTree &mintree, NodeCT *Lmax
 	    }
 	    lambda++;
 	}
-	std::cout << "=> adjustMinTree [merges - OK]\n";
     if (nodeTauCNPsIsIgualsL) {
-	    nodeUnion->setParent(nodeTauL->getParent());
-	    if (nodeTauL->getParent() != nullptr) {
-		    nodeTauL->getParent()->addChild(nodeUnion);
-		    nodeTauL->getParent()->getChildren().remove(nodeTauL);
-	    } 
-	    else { // novo root
+		NodeCT* parentNodeTauL = nodeTauL->getParent();
+		nodeUnion->setParent(parentNodeTauL);
+		if (parentNodeTauL == nullptr) {// novo root
 		    mintree.setRoot(nodeUnion);
-	    }
+	    }else{
+			parentNodeTauL->addChild(nodeUnion);
+		}
 	    for (NodeCT* n : nodeTauL->getChildren()) {
 		    if (n != nodeUnion && !nodeUnion->isChild(n)){
 		        nodeUnion->getChildren().push_back(n);
 		        n->setParent(nodeUnion);
 		    }
 	    }
-		delete nodeTauL;
+		disconnect(nodeTauL);
+		delete nodeTauL; nodeTauL = nullptr;
 
 	} else {
 	    nodeUnion->setParent(nodeTauL);
 	    nodeTauL->addChild(nodeUnion);
+		std::list<int> newCNPs;
+  		for (int p : nodeTauL->getCNPs()) {
+			if(mintree.getSC(p) == nodeTauL)
+				newCNPs.push_back(p);
+			}
+	    nodeTauL->setCNPs(newCNPs);
 	}
-
-
-	delete[] F;
-	F = nullptr;
+	clearCollectionF();
 }

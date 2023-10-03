@@ -20,6 +20,7 @@ public:
     NodeCT();
     NodeCT(int index, NodeCT* parent, int level);
     void addCNPs(int p);
+	void setCNPs(std::list<int> cnps);
     void addChild(NodeCT* child);
 	int getIndex();
 	int getLevel();
@@ -84,9 +85,9 @@ public:
 			InternalIteratorNodesOfPathToRoot begin(){ return InternalIteratorNodesOfPathToRoot(instance, instance->index); }
             InternalIteratorNodesOfPathToRoot end(){ return InternalIteratorNodesOfPathToRoot(instance, 0); }
 	};
-	IteratorNodesOfPathToRoot& getNodesOfPathToRoot(){
-	    IteratorNodesOfPathToRoot *iter = new IteratorNodesOfPathToRoot(this);
-    	return *iter;
+	IteratorNodesOfPathToRoot getNodesOfPathToRoot(){
+	    IteratorNodesOfPathToRoot iter(this);
+    	return iter;
 	}
 
 	

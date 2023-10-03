@@ -1,5 +1,6 @@
 #include <list>
 #include <vector>
+#include <array>
 
 #include "../include/NodeCT.hpp"
 #include "../include/AdjacencyRelation.hpp"
@@ -13,9 +14,8 @@ protected:
 		
 	NodeCT* root;
 	int numNodes;
-	std::vector<NodeCT*> nodes;
+	NodeCT** nodes;
 	
-
 	int numCols;
 	int numRows;
 	bool maxtreeTreeType;

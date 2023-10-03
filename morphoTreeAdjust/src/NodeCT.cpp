@@ -2,6 +2,7 @@
 #include "../include/AdjacencyRelation.hpp"
 
 #include <list>
+#include <iostream>
 
 NodeCT::NodeCT(){}
 
@@ -13,6 +14,10 @@ NodeCT::NodeCT(int index,  NodeCT* parent, int level) {
 
 void NodeCT::addCNPs(int p) {
     this->cnps.push_back(p);
+}
+
+void NodeCT::setCNPs(std::list<int> cnps){
+    this->cnps = cnps;
 }
 
 void NodeCT::addChild(NodeCT* child) {

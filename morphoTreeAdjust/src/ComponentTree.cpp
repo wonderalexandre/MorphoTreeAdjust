@@ -1,4 +1,5 @@
 #include <list>
+#include <array>
 #include <vector>
 #include <stack>
 #include <unordered_map>
@@ -123,14 +124,17 @@ ComponentTree::~ComponentTree(){
 		for (NodeCT *child: node->getChildren()){
 			s.push(child);
 		}
+		node = nullptr;
 		delete node;
 	}
+	delete[] nodes;
+	nodes = nullptr;
  }
 
 void ComponentTree::build(int* img){
  
 	int n = this->numRows * this->numCols;
-	this->nodes = std::vector<NodeCT*>(n);
+	this->nodes = new NodeCT*[numRows*numCols];
 	
 	int* orderedPixels = countingSort(img);
 	int* parent = createTreeByUnionFind(orderedPixels, img);
@@ -150,7 +154,11 @@ void ComponentTree::build(int* img){
 		else if (img[p] == img[parent[p]]) {
 			nodes[parent[p]]->addCNPs(p);
 			nodes[p] = nodes[parent[p]];
+		}else{
+			std::cerr << "\n\n\n\nOps...falhou geral\n\n\n\n";
+			break;
 		}
+
 	}
 
 
