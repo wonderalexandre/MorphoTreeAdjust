@@ -40,3 +40,32 @@ py::array_t<int> PyBindComponentTree::reconstructionImage(){
 	return img_numpy;
 
 }
+
+py::array_t<int> PyBindComponentTree::reconstructionNode(NodeCT* _node){
+	int n = this->numRows * this->numCols;
+	auto img_numpy = py::array(py::buffer_info(
+			nullptr,            /* Pointer to data (nullptr -> ask NumPy to allocate!) */
+			sizeof(int),     /* Size of one item */
+			py::format_descriptor<int>::value, /* Buffer format */
+			1,          /* How many dimensions? */
+			{ ( n ) },  /* Number of elements for each dimension */
+			{ sizeof(int) }  /* Strides for each dimension */
+	));
+	auto buf_img = img_numpy.request();
+	int *imgOut = (int *) buf_img.ptr;
+	
+	for(int p=0; p < n; p++)
+		imgOut[p] = 0;
+	
+	std::stack<NodeCT*> s;
+	s.push(_node);
+	while(!s.empty()){
+    	NodeCT* node = s.top(); s.pop();
+		for(int p: node->getCNPs())
+			imgOut[p] = 255;
+		for (NodeCT *child: node->getChildren()){
+			s.push(child);
+		}
+	}
+	return img_numpy;
+}

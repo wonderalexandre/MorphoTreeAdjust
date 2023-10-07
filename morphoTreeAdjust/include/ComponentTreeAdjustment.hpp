@@ -1,5 +1,6 @@
 #include <unordered_set>
 #include <map>
+#include<iterator>
 
 #include "../include/AdjacencyRelation.hpp"
 #include "../include/NodeCT.hpp"
@@ -8,12 +9,9 @@
 #ifndef COMPONENT_TREE_ADJUSTMENT_H
 #define COMPONENT_TREE_ADJUSTMENT_H
 
-
-
-
 class ComponentTreeAdjustment {
 
-private:
+protected:
     
 
     std::map <int, std::unordered_set<NodeCT*, NodeCT::NodeHashFunction>* > collectionF;
@@ -47,13 +45,20 @@ private:
         }
     }
     
+    void addNodesOfPath(NodeCT* nodeNL, NodeCT* nodeTauL) {
+        for (NodeCT* n : nodeNL->getNodesOfPathToRoot()) {
+            std::unordered_set<NodeCT*, NodeCT::NodeHashFunction>* F = getF(n->getLevel());
+            F->insert(n);
+            if (n == nodeTauL){ 
+                break; 
+            }
+        }
+    }
+
 public:
 
-    void addNodesOfPath(NodeCT* nodeNL, NodeCT* nodeTauL);
-
+    
     void adjustMinTree(ComponentTree &mintree, NodeCT *Lmax);
-
-
 
 
 };

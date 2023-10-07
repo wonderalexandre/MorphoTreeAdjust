@@ -2,7 +2,7 @@
 #include "include/NodeCT.hpp"
 #include "pybind/PyBindComponentTree.hpp"
 #include "include/AdjacencyRelation.hpp"
-#include "include/ComponentTreeAdjustment.hpp"
+#include "pybind/PyBindComponentTreeAdjustment.hpp"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -45,6 +45,7 @@ void init_ComponentTree(py::module &m){
         .def(py::init<py::array_t<int> &, int, int, bool, double>())
         .def(py::init<py::array_t<int> &, int, int, bool>())
         .def("reconstructionImage", &PyBindComponentTree::reconstructionImage )
+        .def("recNode", &PyBindComponentTree::reconstructionNode )
         .def("getSC", &PyBindComponentTree::getSC )
         .def("prunning", &PyBindComponentTree::prunning )
         .def("leaves", &PyBindComponentTree::getLeaves )
@@ -54,9 +55,9 @@ void init_ComponentTree(py::module &m){
 }
 
 void init_ComponentTreeAdjustment(py::module &m){
-    py::class_<ComponentTreeAdjustment>(m, "ComponentTreeAdjustment")
+    py::class_<PyBindComponentTreeAdjustment>(m, "ComponentTreeAdjustment")
     .def(py::init<>())
-    .def("adjustMinTree", &ComponentTreeAdjustment::adjustMinTree );
+    .def("adjustMinTree", &PyBindComponentTreeAdjustment::adjustPyBindMinTree );
 }
 
 

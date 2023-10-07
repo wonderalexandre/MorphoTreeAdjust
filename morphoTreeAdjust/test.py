@@ -1,7 +1,7 @@
 import numpy as np
 import morphoTreeAdjust as mta
 
-img = np.array([
+img_f = np.array([
 [122,127,166,201,152, 96, 54, 44, 40, 41, 42, 43, 44, 44, 37],
 [133,143,213,246,236,196,137, 85, 55, 43, 44, 45, 35, 40, 42],
 [133,168,231,242,246,246,228,172,111, 74, 76, 80, 54, 52, 41],
@@ -21,14 +21,21 @@ img = np.array([
 [ 49, 45, 44, 48, 71, 89, 49, 47, 71, 95,162,156,119,122,111]
 ])
 
-num_rows, num_cols = img.shape
-img_vector = img.ravel()
+num_rows, num_cols = img_f.shape
+img_f_vector = img_f.ravel()
 
-maxtree = mta.ComponentTree(img_vector, num_rows, num_cols, True, 1.5)
-mintree = mta.ComponentTree(img_vector, num_rows, num_cols, False, 1.5)
+maxtree = mta.ComponentTree(img_f_vector, num_rows, num_cols, True, 1.5)
+mintree = mta.ComponentTree(img_f_vector, num_rows, num_cols, False, 1.5)
 
 adjust = mta.ComponentTreeAdjustment()
-Lmax = maxtree.leaves()[0]
+leaves = maxtree.leaves()
+Lmax = leaves[0]
 
 adjust = mta.ComponentTreeAdjustment()
 adjust.adjustMinTree(mintree, Lmax)
+maxtree.prunning(Lmax)
+img_g_vector_maxtree = maxtree.reconstructionImage()
+img_g_vector_mintree = mintree.reconstructionImage()
+
+print("is equals:", (img_g_vector_maxtree == img_g_vector_mintree).all() )
+

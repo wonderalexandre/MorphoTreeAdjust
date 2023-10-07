@@ -4,25 +4,18 @@
 #include <iostream>
 
 
-void ComponentTreeAdjustment::addNodesOfPath(NodeCT* nodeNL, NodeCT* nodeTauL) {
-	for (NodeCT* n : nodeNL->getNodesOfPathToRoot()) {
-		std::unordered_set<NodeCT*, NodeCT::NodeHashFunction>* F = getF(n->getLevel());
-		F->insert(n);
-        if (n == nodeTauL){ 
-            break; 
-        }
-    }
-}
-
-
-
 void ComponentTreeAdjustment::adjustMinTree(ComponentTree &mintree, NodeCT *Lmax) {
+	if(Lmax == nullptr){
+		std::cout << "Lmax is nullptr";
+		return;
+	}
+
 	AdjacencyRelation* adj = mintree.getAdjacencyRelation();
 
     int newGrayLmax = Lmax->getParent()->getLevel(); //g(p)
     int grayLmax = Lmax->getLevel(); //f(p)
 
-	std::list<int> cnpsL = Lmax->getCNPs();
+	std::list<int> cnpsL = Lmax->getCNPsCopy();
 
 	NodeCT* nodeTauL = mintree.getSC( cnpsL.front() );
 	bool nodeTauCNPsIsIgualsL = (cnpsL.size() == nodeTauL->getCNPs().size());	
@@ -36,7 +29,6 @@ void ComponentTreeAdjustment::adjustMinTree(ComponentTree &mintree, NodeCT *Lmax
 	    }
 	}
 	
-	//std::unordered_set<NodeCT*, NodeCT::NodeHashFunction>* F = new std::unordered_set<NodeCT*, NodeCT::NodeHashFunction>[255];
 	std::unordered_set<NodeCT*, NodeCT::NodeHashFunction> B_L;
     for (NodeCT *nodeNL : nodesNL) {
 	    if (newGrayLmax <= nodeNL->getLevel()) { //o nodeNL está entre g(p) e f(p)

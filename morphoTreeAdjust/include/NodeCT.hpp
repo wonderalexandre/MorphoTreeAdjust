@@ -29,6 +29,7 @@ public:
 	NodeCT* getParent();
 	void setParent(NodeCT* parent);
 	std::list<int>& getCNPs();
+	std::list<int> getCNPsCopy();
 	std::list<NodeCT*>& getChildren();
 	int getNumSiblings();
 

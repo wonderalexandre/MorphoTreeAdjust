@@ -24,6 +24,8 @@ public:
 
 	py::array_t<int> reconstructionImage();
 
+	py::array_t<int> reconstructionNode(NodeCT* node);
+
 };
 
 #endif

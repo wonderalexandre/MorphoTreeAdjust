@@ -39,6 +39,12 @@ void NodeCT::setParent(NodeCT* parent){ this->parent = parent; }
 
 std::list<int>& NodeCT::getCNPs(){  return this->cnps; }
 
+std::list<int> NodeCT::getCNPsCopy(){ 
+    std::list<int> cnpsCopy;
+    std::copy( this->cnps.begin(), this->cnps.end(), std::back_inserter(cnpsCopy) );
+    return cnpsCopy; 
+}
+
 std::list<NodeCT*>& NodeCT::getChildren(){  return this->children; }
 
 int NodeCT::getNumSiblings() {

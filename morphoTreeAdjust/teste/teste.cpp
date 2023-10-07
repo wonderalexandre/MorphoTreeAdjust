@@ -62,7 +62,7 @@ int main()
                 break;
             }
         }
-        std::cout <<"i: " << i << "\tNumNodes:" << maxtree.getNumNodes() << "\t São iguais: " << isEquals << "\n";
+        std::cout <<"i: " << i << "\tNumNodes:" << maxtree.getNumNodes() << "\t Sao iguais: " << isEquals << "\n";
         delete[] imgOutMaxtree;
     delete[] imgOutMintree;
     
