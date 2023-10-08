@@ -59,6 +59,8 @@ public:
 	bool prunning(NodeCT* node);
 
 	std::list<NodeCT*> getLeaves();
+
+	std::list<NodeCT*> getDescendantsInPostOrder(NodeCT* rootSubtree);
 };
 
 #endif

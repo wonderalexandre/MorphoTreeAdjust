@@ -238,6 +238,20 @@ bool ComponentTree::prunning(NodeCT* node){
 		
 }
 
+std::list<NodeCT*> ComponentTree::getDescendantsInPostOrder(NodeCT* rootSubtree){
+	std::list<NodeCT*> desc;
+	std::stack<NodeCT*> s;
+	s.push(rootSubtree);
+	while (!s.empty()) {
+        NodeCT* current = s.top(); s.pop();	
+        desc.push_front(current);
+        for (NodeCT* child : current->getChildren()) {
+            s.push(child);
+        }
+    }
+	return desc;
+}
+
 std::list<NodeCT*> ComponentTree::getLeaves(){
 	std::list<NodeCT*> leaves;
 	std::stack<NodeCT*> s;

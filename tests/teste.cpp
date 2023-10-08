@@ -3,10 +3,10 @@
 #include <list>
 
 
-#include "../include/NodeCT.hpp"
-#include "../include/ComponentTree.hpp"
-#include "../include/AdjacencyRelation.hpp"
-#include "../include/ComponentTreeAdjustment.hpp"
+#include "../morphoTreeAdjust/include/NodeCT.hpp"
+#include "../morphoTreeAdjust/include/ComponentTree.hpp"
+#include "../morphoTreeAdjust/include/AdjacencyRelation.hpp"
+#include "../morphoTreeAdjust/include/ComponentTreeAdjustment.hpp"
 
 
 int main()

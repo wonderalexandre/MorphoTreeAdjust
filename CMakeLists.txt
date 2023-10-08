@@ -2,10 +2,10 @@
 # cmake -DPYTHON_LIBRARY_DIR=$(python3 -c "import sysconfig; print(sysconfig.get_config_var('LIBDIR'))") -DPYTHON_EXECUTABLE=$(python3 -c "import sys; print(sys.executable)") ../
 # make
 # make install
+cmake_minimum_required(VERSION 3.12)
 
-cmake_minimum_required(VERSION 3.1)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -15,6 +15,7 @@ endif()
 
 set(CMAKE_CXX_FLAGS "-O3")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+
 
 project(morphoTreeAdjust)
 

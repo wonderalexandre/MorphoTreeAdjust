@@ -49,6 +49,7 @@ void init_ComponentTree(py::module &m){
         .def("getSC", &PyBindComponentTree::getSC )
         .def("prunning", &PyBindComponentTree::prunning )
         .def("leaves", &PyBindComponentTree::getLeaves )
+        .def("descendants", &PyBindComponentTree::getDescendantsInPostOrder )
 		.def_property_readonly("numNodes", &PyBindComponentTree::getNumNodes )
         .def_property_readonly("root", &PyBindComponentTree::getRoot );
 

@@ -1,10 +1,9 @@
-build/* 
-teste/build/*
+build/*
+morphoTreeAdjust.egg-info/* 
+tests/build/*
 dist/*
 .DS_Store
 .vscode/*
 Pipfile
 *.d
 *.o
-morphoTreeAdjust/teste/build/*
-morphoTreeAdjust/teste/build/cmake_install.cmake
