@@ -60,6 +60,11 @@ public:
     
     void adjustMinTree(ComponentTree &mintree, NodeCT *Lmax);
 
+    void adjustMaxTree(ComponentTree &maxtree, NodeCT *Lmin);
+
+    void adjustMinTree(ComponentTree &mintree, ComponentTree &maxtree, std::list<NodeCT*> nodesToPruning);
+    
+    void adjustMaxTree(ComponentTree &maxtree, ComponentTree &mintree, std::list<NodeCT*> nodesToPruning);
 
 };
 

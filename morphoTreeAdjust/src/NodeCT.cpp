@@ -4,12 +4,13 @@
 #include <list>
 #include <iostream>
 
-NodeCT::NodeCT(){}
+NodeCT::NodeCT(): children(), cnps(){}
 
 NodeCT::NodeCT(int index,  NodeCT* parent, int level) {
 		this->index = index;
         this->parent = parent;
         this->level = level;
+        this->areaCC = 0;
 }
 
 void NodeCT::addCNPs(int p) {
@@ -32,6 +33,10 @@ bool NodeCT::isChild(NodeCT* child){
 int NodeCT::getIndex(){ return this->index; }
 
 int NodeCT::getLevel(){ return this->level; }
+
+void NodeCT::setArea(long int area){this->areaCC = area;}
+
+long int NodeCT::getArea(){return this->areaCC;} 
 
 NodeCT* NodeCT::getParent(){  return this->parent; }
 

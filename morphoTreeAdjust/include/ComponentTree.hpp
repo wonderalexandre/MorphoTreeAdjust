@@ -50,6 +50,8 @@ public:
 
 	int getNumColsOfImage();
 
+	void computerArea(NodeCT* node);
+
 	int* reconstructionImage();
 
 	AdjacencyRelation* getAdjacencyRelation();
@@ -61,6 +63,8 @@ public:
 	std::list<NodeCT*> getLeaves();
 
 	std::list<NodeCT*> getDescendantsInPostOrder(NodeCT* rootSubtree);
+
+    std::list<NodeCT*> getNodesThreshold(int threshold);
 };
 
 #endif

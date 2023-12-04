@@ -1,4 +1,9 @@
 
+/* Debugar
+1. cmake .. -DCMAKE_BUILD_TYPE=Debug
+2. make
+*/
+
 #include <iostream>
 #include <list>
 
@@ -45,12 +50,12 @@ int main()
     ComponentTree maxtree(img, numRows, numCols, true, radioAdj);
     ComponentTree mintree(img, numRows, numCols, false, radioAdj);
     ComponentTreeAdjustment adjust;
-    std::cout << "NunNodes:" << maxtree.getNumNodes() << "\n";
-    for(int i=0; i < maxtree.getNumNodes()-1; i++){
-        NodeCT* Lmax = maxtree.getLeaves().front();
+    std::cout << "NunNodes:" << mintree.getNumNodes() << "\n";
+    for(int i=0; i < mintree.getNumNodes()-1; i++){
+        NodeCT* Lmax = mintree.getLeaves().front();
         
-        adjust.adjustMinTree(mintree, Lmax);
-        maxtree.prunning(Lmax);
+        adjust.adjustMaxTree(maxtree, Lmax);
+        mintree.prunning(Lmax);
 
         int* imgOutMaxtree = maxtree.reconstructionImage();
         int* imgOutMintree = mintree.reconstructionImage();
