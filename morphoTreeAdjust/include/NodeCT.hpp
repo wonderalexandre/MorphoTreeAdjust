@@ -10,6 +10,7 @@ class NodeCT {
 private:
 	int index; 
     int level;
+	long int areaCC;
 	
 	NodeCT* parent;
 	std::list<int> cnps;
@@ -21,6 +22,8 @@ public:
     NodeCT(int index, NodeCT* parent, int level);
     void addCNPs(int p);
 	void setCNPs(std::list<int> cnps);
+	void setArea(long int area);
+	long int getArea();
     void addChild(NodeCT* child);
 	int getIndex();
 	int getLevel();

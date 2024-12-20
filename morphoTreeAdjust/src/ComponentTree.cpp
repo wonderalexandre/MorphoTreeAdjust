@@ -161,11 +161,21 @@ void ComponentTree::build(int* img){
 
 	}
 
+	//computer area
+	computerArea(this->root);
 
 	delete[] parent;
 	delete[] orderedPixels;
 }
 
+void ComponentTree::computerArea(NodeCT* node){
+	long int area = node->getCNPs().size();
+	for(NodeCT* child: node->getChildren()){
+		computerArea(child);
+		area += child->getArea();
+	}
+	node->setArea(area);
+}
 
 	
 NodeCT* ComponentTree::getRoot() {
@@ -213,6 +223,8 @@ bool ComponentTree::prunning(NodeCT* node){
 	if(node != this->root){
 		NodeCT* parent = node->getParent();
 		parent->getChildren().remove(node);
+		node->setParent(nullptr);
+
 		std::stack<NodeCT*> s;
 		s.push(node);
 		while(!s.empty()){
@@ -222,11 +234,10 @@ bool ComponentTree::prunning(NodeCT* node){
 				this->nodes[p] = parent;
 			}
 			parent->getCNPs().splice(parent->getCNPs().end(), child->getCNPs());
+			
 			for(NodeCT* n: child->getChildren()){
-				child->getChildren().remove(n);
 				s.push(n);
 			}
-			child->setParent(nullptr);
 			delete child;
 			child = nullptr;
 		}
@@ -250,6 +261,24 @@ std::list<NodeCT*> ComponentTree::getDescendantsInPostOrder(NodeCT* rootSubtree)
         }
     }
 	return desc;
+}
+std::list<NodeCT*> ComponentTree::getNodesThreshold(int areaThreshold){
+	std::list<NodeCT*> lista;
+	std::stack<NodeCT*> pilha;
+	pilha.push(this->getRoot());
+
+	while(!pilha.empty()) {
+	    NodeCT* node = pilha.top(); pilha.pop();
+	    if(node->getArea() > areaThreshold) {
+			for(NodeCT* child: node->getChildren()) {
+    			pilha.push(child);
+    	    }
+	    }
+	    else {
+			lista.push_back(node);
+	    }
+	}
+	return lista;
 }
 
 std::list<NodeCT*> ComponentTree::getLeaves(){
