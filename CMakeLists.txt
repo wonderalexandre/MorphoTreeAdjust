@@ -1,5 +1,5 @@
 #compilar
-# cmake -DPYTHON_LIBRARY_DIR=$(python3 -c "import sysconfig; print(sysconfig.get_config_var('LIBDIR'))") -DPYTHON_EXECUTABLE=$(python3 -c "import sys; print(sys.executable)") ../
+# cmake -DPYTHON_LIBRARY_DIR=$(python -c "import sysconfig; print(sysconfig.get_config_var('LIBDIR'))") -DPYTHON_EXECUTABLE=$(python -c "import sys; print(sys.executable)") ../
 # make
 # make install
 cmake_minimum_required(VERSION 3.12)
