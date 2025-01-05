@@ -9,24 +9,28 @@
 class NodeCT {
 private:
 	int index; 
-    int level;
+    int threshold2; //for maxtree: maximal threshold, same that "level"
+	int threshold1;  //for maxtree: minimal threshold
 	long int areaCC;
 	
 	NodeCT* parent;
-	std::list<int> cnps;
+	std::list<int> cnps; //pixels of the proper part
     std::list<NodeCT*> children;
     
 public:
 	
     NodeCT();
-    NodeCT(int index, NodeCT* parent, int level);
+    NodeCT(int index, NodeCT* parent, int threshold1, int threshold2);
     void addCNPs(int p);
 	void setCNPs(std::list<int> cnps);
 	void setArea(long int area);
 	long int getArea();
     void addChild(NodeCT* child);
 	int getIndex();
+	int getThreshold1();
+	int getThreshold2();
 	int getLevel();
+	void setLevel(int level);
 	bool isChild(NodeCT* node);
 	void setNumDescendants(int num);
 	NodeCT* getParent();

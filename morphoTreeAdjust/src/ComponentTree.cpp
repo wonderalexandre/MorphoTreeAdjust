@@ -138,16 +138,20 @@ void ComponentTree::build(int* img){
 	
 	int* orderedPixels = countingSort(img);
 	int* parent = createTreeByUnionFind(orderedPixels, img);
-
+	
 	this->numNodes = 0;
 	for (int i = 0; i < n; i++) {
 		int p = orderedPixels[i];
 		if (p == parent[p]) { //representante do node raiz
-			this->root = nodes[p] = new NodeCT(this->numNodes++, nullptr, img[p]);
+			int threshold1 = this->isMaxtree()? 0 : 255;
+			int threshold2 = img[p];
+			this->root = nodes[p] = new NodeCT(this->numNodes++, nullptr, threshold1, threshold2);
 			nodes[p]->addCNPs(p);
 		}
 		else if (img[p] != img[parent[p]]) { //representante de um node
-			nodes[p] = new NodeCT(this->numNodes++, nodes[parent[p]], img[p]);
+			int threshold1 = this->isMaxtree()? img[parent[p]]+1 : img[parent[p]]-1;
+			int threshold2 = img[p];
+			nodes[p] = new NodeCT(this->numNodes++, nodes[parent[p]], threshold1, threshold2);
 			nodes[p]->addCNPs(p);
 			nodes[parent[p]]->addChild(nodes[p]);
 		}

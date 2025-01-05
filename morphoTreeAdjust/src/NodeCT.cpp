@@ -6,10 +6,11 @@
 
 NodeCT::NodeCT(): children(), cnps(){}
 
-NodeCT::NodeCT(int index,  NodeCT* parent, int level) {
+NodeCT::NodeCT(int index,  NodeCT* parent, int threshold1, int threshold2) {
 		this->index = index;
         this->parent = parent;
-        this->level = level;
+        this->threshold2 = threshold2;
+        this->threshold1 = threshold1;
         this->areaCC = 0;
 }
 
@@ -32,7 +33,14 @@ bool NodeCT::isChild(NodeCT* child){
 
 int NodeCT::getIndex(){ return this->index; }
 
-int NodeCT::getLevel(){ return this->level; }
+int NodeCT::getThreshold1(){ return this->threshold1; }
+
+int NodeCT::getThreshold2(){ return this->threshold1; }
+
+int NodeCT::getLevel(){ return this->threshold2; }
+
+void NodeCT::setLevel(int level){ this->threshold2 = level; }
+
 
 void NodeCT::setArea(long int area){this->areaCC = area;}
 
