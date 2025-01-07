@@ -2,7 +2,7 @@
 #include <map>
 #include<iterator>
 
-#include "../include/Adjac encyRelation.hpp"
+#include "../include/AdjacencyRelation.hpp"
 #include "../include/NodeCT.hpp"
 #include "../include/ComponentTree.hpp"
 
