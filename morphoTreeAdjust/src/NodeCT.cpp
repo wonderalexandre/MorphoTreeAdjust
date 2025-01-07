@@ -22,6 +22,14 @@ void NodeCT::setCNPs(std::list<int> cnps){
     this->cnps = cnps;
 }
 
+void NodeCT::removeCNPs(std::list<int> cnps) {
+    this->cnps.remove_if([&cnps](int p) {
+        return std::find(cnps.begin(), cnps.end(), p) != cnps.end();
+    });
+}
+
+
+
 void NodeCT::addChild(NodeCT* child) {
 	this->children.push_back(child);
 } 
