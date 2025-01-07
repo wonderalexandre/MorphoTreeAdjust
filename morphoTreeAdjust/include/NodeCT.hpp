@@ -37,6 +37,7 @@ public:
 	void setParent(NodeCT* parent);
 	std::list<int>& getCNPs();
 	std::list<int> getCNPsCopy();
+	void removeCNPs(std::list<int> cnps);
 	std::list<NodeCT*>& getChildren();
 	int getNumSiblings();
 
