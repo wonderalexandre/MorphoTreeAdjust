@@ -43,7 +43,7 @@ int NodeCT::getIndex(){ return this->index; }
 
 int NodeCT::getThreshold1(){ return this->threshold1; }
 
-int NodeCT::getThreshold2(){ return this->threshold1; }
+int NodeCT::getThreshold2(){ return this->threshold2; }
 
 int NodeCT::getLevel(){ return this->threshold2; }
 

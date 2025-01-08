@@ -8,7 +8,7 @@
 
 class NodeCT {
 private:
-	int index; 
+	int index=-1; 
     int threshold2; //for maxtree: maximal threshold, same that "level"
 	int threshold1;  //for maxtree: minimal threshold
 	long int areaCC;

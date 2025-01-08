@@ -106,7 +106,7 @@ ComponentTree::ComponentTree(int numRows, int numCols, bool isMaxtree, double ra
 	this->numRows = numRows;
 	this->numCols = numCols;
 	this->maxtreeTreeType = isMaxtree;
-	this->adj = new AdjacencyRelation(numRows, numCols, 1.5);	
+	this->adj = new AdjacencyRelation(numRows, numCols, radiusOfAdjacencyRelation);	
  }
 
 ComponentTree::ComponentTree(int* img, int numRows, int numCols, bool isMaxtree, double radiusOfAdjacencyRelation)
