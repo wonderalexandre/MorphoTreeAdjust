@@ -23,6 +23,14 @@ add_executable(teste teste.cpp
     ../morphoTreeAdjust/src/ComponentTreeAdjustment.cpp
 )
 
+
+add_executable(testeComponentTreeGeneralAdjustment testeComponentTreeGeneralAdjustment.cpp
+    ../morphoTreeAdjust/src/AdjacencyRelation.cpp
+    ../morphoTreeAdjust/src/NodeCT.cpp
+    ../morphoTreeAdjust/src/ComponentTree.cpp
+    ../morphoTreeAdjust/src/ComponentTreeGeneralAdjustment.cpp
+)
+
 # Exemplos com a morphotree
 add_executable(dgmm gdmm2024.cpp
     ../morphoTreeAdjust/src/AdjacencyRelation.cpp
