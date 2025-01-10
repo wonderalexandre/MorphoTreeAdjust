@@ -63,7 +63,7 @@ int main()
     
     
     ComponentTreeGeneralAdjustment alg1;
-    int newGrayLevel = maxtree.getSC(indexPixelFZ)->getLevel() + 1;
+    int newGrayLevel = 7;
     alg1.adjustMaxTree(maxtree, flatZone, newGrayLevel);
     
     
