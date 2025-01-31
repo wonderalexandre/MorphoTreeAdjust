@@ -7,3 +7,4 @@ dist/*
 Pipfile
 *.d
 *.o
+/.eggs

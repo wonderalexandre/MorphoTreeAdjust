@@ -109,7 +109,7 @@ else:
 
 setup(
     name="morphoTreeAdjust",
-    version="0.0.5",
+    version="0.0.6",
     description="MorphoTreeAdjust is a C++/Python implementation for adjusting the morpholofical trees.",
     long_description="",
     author="Wonder Alexandre Luz Alves",
