@@ -129,11 +129,11 @@ setup(
     ext_modules=[CMakeExtension('morphoTreeAdjust')],
     cmdclass=dict(build_ext=CMakeBuild),
     zip_safe=False,
-    packages=["maf"],  # Definindo o pacote maf
-    package_dir={"maf": "python"},  # Atribuindo o diretório "python" ao pacote "maf"
-    package_data={
-        "maf": ["*.py", native_ext],  # Incluindo todos os arquivos Python no pacote e os modelos c++/pybinds
-    },
+    #packages=["maf"],  # Definindo o pacote maf
+    #package_dir={"maf": "python"},  # Atribuindo o diretório "python" ao pacote "maf"
+    #package_data={
+    #    "maf": ["*.py", native_ext],  # Incluindo todos os arquivos Python no pacote e os modelos c++/pybinds
+    #},
 )
 
 #send to pypi
