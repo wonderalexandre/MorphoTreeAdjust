@@ -3,6 +3,7 @@
 
 #include <list>
 #include <iostream>
+#include <algorithm>
 
 NodeCT::NodeCT(): children(), cnps(){}
 
