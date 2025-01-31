@@ -31,7 +31,12 @@ void ComponentTreeGeneralAdjustment::adjustMaxTree(ComponentTree &maxtree, std::
 
 	//lines between 1 and 6
 	std::unordered_set<NodeCT*, NodeCT::NodeHashFunction> neighborNodesAdded; // Conjunto para evitar duplicatas nos nós adicionados
-	auto comparator = [](NodeCT* a, NodeCT* b) { return a->getLevel() > b->getLevel(); }; // Definição de comparador para ordenar a fila de prioridade pelo nível (getLevel)
+	auto comparator = [](NodeCT* a, NodeCT* b) {
+		if (a->getThreshold2() != b->getThreshold2()) {
+			return a->getThreshold2() > b->getThreshold2(); // Ordem decrescente por getThreshold2 (omega)
+		}
+		return a->getThreshold1() > b->getThreshold1(); // Ordem decrescente por getThreshold1 (alpha)
+	};
 	std::priority_queue<NodeCT*, std::vector<NodeCT*>, decltype(comparator)> neighborNodesOpen(comparator);
 	std::priority_queue<NodeCT*, std::vector<NodeCT*>, decltype(comparator)> neighborNodesClose(comparator);
 	for (int p : flatZoneP) { 
@@ -51,9 +56,7 @@ void ComponentTreeGeneralAdjustment::adjustMaxTree(ComponentTree &maxtree, std::
 			}
 		}
 	}
-
-	int w = -1; //line 13
-
+	std::cout << "v: " << v << std::endl;
 	//lines between 14 and 35
 	while (!neighborNodesOpen.empty()) {
 		NodeCT* node = neighborNodesOpen.top();
@@ -68,6 +71,10 @@ void ComponentTreeGeneralAdjustment::adjustMaxTree(ComponentTree &maxtree, std::
 		NodeCT* node = neighborNodesClose.top();
 		neighborNodesClose.pop();
 		std::cout << "neighborNodesClose: index: " << node->getIndex() << ", level: " << node->getLevel() << std::endl;
+	}
+
+	while(v > b){
+
 	}
 
 }
