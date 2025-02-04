@@ -14,6 +14,7 @@ protected:
 		
 	NodeCT* root;
 	int numNodes;
+	int maxIndex;
 	NodeCT** nodes;
 	
 	int numCols;
@@ -46,6 +47,8 @@ public:
 
 	int getNumNodes();
 
+	void setNumNodes(int numNodes){this->numNodes = numNodes;}
+
 	int getNumRowsOfImage();
 
 	int getNumColsOfImage();
@@ -58,13 +61,11 @@ public:
 
 	void setSC(int p, NodeCT* n);
 
-	bool prunning(NodeCT* node);
+	void prunning(NodeCT*& node);
 
-	std::list<NodeCT*> getLeaves();
+	std::vector<NodeCT*> getLeaves();
 
-	std::list<NodeCT*> getDescendantsInPostOrder(NodeCT* rootSubtree);
-
-    std::list<NodeCT*> getNodesThreshold(int threshold);
+    std::vector<NodeCT*> getNodesThreshold(int threshold);
 };
 
 #endif

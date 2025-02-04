@@ -30,7 +30,6 @@ for i in range(20):
 */
 
 int* computerCASF_naive(int* img, int numRows, int numCols, double radioAdj, std::vector<int> thresholds){
-    long ti = 0;
     
     int* imgOut = new int[numRows*numCols];
     for(int i=0; i < numRows*numCols; i++)
@@ -52,16 +51,13 @@ int* computerCASF_naive(int* img, int numRows, int numCols, double radioAdj, std
 	    imgOut = mintree.reconstructionImage();        	    
 	}
     
-
-    long tf = 0;
-    long time = ti - tf;
     return imgOut;
 }
 
 int* computerCASF(int* img, int numRows, int numCols, double radioAdj, std::vector<int> thresholds){
     ComponentTree maxtree(img, numRows, numCols, true, radioAdj);
     ComponentTree mintree(img, numRows, numCols, false, radioAdj);
-    ComponentTreeAdjustment adjust;
+    ComponentTreeAdjustment adjust(mintree, maxtree);
     for(int threshold: thresholds) {
 		adjust.adjustMaxTree(maxtree, mintree, mintree.getNodesThreshold(threshold));
 		adjust.adjustMinTree(mintree, maxtree, maxtree.getNodesThreshold(threshold)); 
@@ -78,89 +74,76 @@ int* computerCASF(int* img, int numRows, int numCols, double radioAdj, std::vect
             
         }
     }
-    std::cout << "\tDiff:" << equals <<"\t";
+    //std::cout << "\tDiff:" << equals <<"\t";
     return equals == 0;
  }
 
-int main()
-{
+int main(int argc, char* argv[]) {
+    if (argc < 2) {
+        std::cerr << "Use: " << argv[0] << " <file>\n";
+        return 1;  
+    }
 
-    std::cout << "DGMM...\n";
+    std::string filename = argv[1];  
+    std::cout << "Image: " << filename << std::endl;
 
-    int* img=new int[255]{
-        122, 127, 166, 201, 152,  96,  54,  44,  40,  41,  42,  43,  44,
-        44,  37, 133, 143, 213, 246, 236, 196, 137,  85,  55,  43,  44,
-        45,  35,  40,  42, 133, 168, 231, 242, 246, 246, 228, 172, 111,
-        74,  76,  80,  54,  52,  41, 147, 215, 222, 199, 220, 235, 244,
-       237, 205, 172, 181, 186, 106,  57,  47, 164, 235, 224, 149, 168,
-       208, 231, 244, 248, 246, 246, 230, 133,  58,  62, 140, 224, 237,
-       161, 128, 149, 180, 227, 245, 248, 247, 243, 189, 103,  94, 134,
-       211, 240, 181, 109, 105, 120, 168, 223, 240, 241, 246, 237, 176,
-       110, 117, 188, 244, 210, 111,  74,  86, 144, 215, 230, 219, 227,
-       232, 212, 133,  66, 159, 242, 238, 149,  75,  78, 163, 238, 212,
-       172, 198, 219, 175, 111,  75, 144, 231, 244, 171,  81, 113, 212,
-       222, 149, 108, 115, 137, 118,  99,  78, 139, 222, 245, 185, 115,
-       176, 229, 176,  85,  62,  79,  95,  98, 107,  48, 102, 199, 241,
-       220, 171, 220, 208, 125,  47,  45,  73,  90,  98, 104,  41,  72,
-       171, 240, 242, 233, 226, 149,  65,  39,  60,  97, 104, 106, 112,
-        54,  68, 140, 228, 238, 236, 194, 100,  44,  48,  85, 100, 104,
-       107, 122,  54,  54,  94, 181, 222, 214, 141,  67,  40,  72,  99,
-       105, 106, 109, 123,  54,  48,  59,  95, 145, 158,  84,  52,  60,
-        96, 110, 115, 116, 110, 113,  49,  45,  44,  48,  71,  89,  49,
-        47,  71,  95, 162, 156, 119, 122, 111};
+    int numCols, numRows, nchannels;
+    unsigned char* data = stbi_load(filename.c_str(), &numCols, &numRows, &nchannels, 1);
     
+    if (!data) {
+        std::cerr << "Erro: Não foi possível carregar a imagem " << filename << std::endl;
+        return 1;
+    }
 
-    int numRows=17;
-    int numCols=15;
+    std::cout << "Loaded image:" << numCols << "x" << numRows << std::endl;
+
+    int* img = new int[numCols * numRows];
+    for (int i = 0; i < numCols * numRows; i++) {
+        img[i] = static_cast<int>(data[i]);  // Converte de `unsigned char` para `int`
+    }
+
+    // Liberar a memória da imagem carregada
+    stbi_image_free(data);
+
     int n = numRows * numCols;
     double radioAdj = 1.5;
     
-    // read image
-    //int nchannels;
-    //unsigned char *data = stbi_load("/Users/wonderalexandre/lena.png", &numCols, &numRows, &nchannels, 1);
-    //stbi_image_free(data);
-
 
     std::list< std::vector<int> > teste;
-    teste.push_back( std::vector<int>{20, 50});
-    teste.push_back( std::vector<int>{100, 200});
-    teste.push_back( std::vector<int>{66, 133, 200});
-    teste.push_back( std::vector<int>{50, 100, 150, 200});
-    teste.push_back( std::vector<int>{40, 80, 120, 160, 200});
-    teste.push_back( std::vector<int>{33, 66, 100, 133, 166, 200});
-    teste.push_back( std::vector<int>{28, 57, 85, 114, 142, 171, 200});
-    teste.push_back( std::vector<int>{25, 50, 75, 100, 125, 150, 175, 200});
-    teste.push_back( std::vector<int>{22, 44, 66, 88, 111, 133, 155, 177, 200});
-    teste.push_back( std::vector<int>{20, 40, 60, 80, 100, 120, 140, 160, 180, 200});
-    teste.push_back( std::vector<int>{18, 36, 54, 72, 90, 109, 127, 145, 163, 181, 200});
-    teste.push_back( std::vector<int>{16, 33, 50, 66, 83, 100, 116, 133, 150, 166, 183, 200});
-    teste.push_back( std::vector<int>{15, 30, 46, 61, 76, 92, 107, 123, 138, 153, 169, 184, 200});
-    teste.push_back( std::vector<int>{14, 28, 42, 57, 71, 85, 100, 114, 128, 142, 157, 171, 185, 200});
-    teste.push_back( std::vector<int>{13, 26, 40, 53, 66, 80, 93, 106, 120, 133, 146, 160, 173, 186, 200});
-    teste.push_back( std::vector<int>{12, 25, 37, 50, 62, 75, 87, 100, 112, 125, 137, 150, 162, 175, 187, 200});
-    teste.push_back( std::vector<int>{11, 23, 35, 47, 58, 70, 82, 94, 105, 117, 129, 141, 152, 164, 176, 188, 200});
-    teste.push_back( std::vector<int>{11, 22, 33, 44, 55, 66, 77, 88, 100, 111, 122, 133, 144, 155, 166, 177, 188, 200});
-    teste.push_back( std::vector<int>{10, 21, 31, 42, 52, 63, 73, 84, 94, 105, 115, 126, 136, 147, 157, 168, 178, 189, 200});
-    
-    for(std::vector thresholds: teste) {
+    teste.push_back( std::vector<int>{1250, 2500, 3750, 5000, 6250, 7500, 8750, 10000 });
+    teste.push_back( std::vector<int>{1111, 2222, 3333, 4444, 5555, 6666, 7777, 8888, 10000 });
+    teste.push_back( std::vector<int>{1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000 });
+    teste.push_back( std::vector<int>{909, 1818, 2727, 3636, 4545, 5454, 6363, 7272, 8181, 9090, 10000 });
+    teste.push_back( std::vector<int>{833, 1666, 2500, 3333, 4166, 5000, 5833, 6666, 7500, 8333, 9166, 10000 });
+    teste.push_back( std::vector<int>{769, 1538, 2307, 3076, 3846, 4615, 5384, 6153, 6923, 7692, 8461, 9230, 10000 });
+    teste.push_back( std::vector<int>{714, 1428, 2142, 2857, 3571, 4285, 5000, 5714, 6428, 7142, 7857, 8571, 9285, 10000 });
+    teste.push_back( std::vector<int>{666, 1333, 2000, 2666, 3333, 4000, 4666, 5333, 6000, 6666, 7333, 8000, 8666, 9333, 10000 });
+    teste.push_back( std::vector<int>{625, 1250, 1875, 2500, 3125, 3750, 4375, 5000, 5625, 6250, 6875, 7500, 8125, 8750, 9375, 10000 });
+    teste.push_back( std::vector<int>{588, 1176, 1764, 2352, 2941, 3529, 4117, 4705, 5294, 5882, 6470, 7058, 7647, 8235, 8823, 9411, 10000 });
+    teste.push_back( std::vector<int>{555, 1111, 1666, 2222, 2777, 3333, 3888, 4444, 5000, 5555, 6111, 6666, 7222, 7777, 8333, 8888, 9444, 10000 });
+    teste.push_back( std::vector<int>{526, 1052, 1578, 2105, 2631, 3157, 3684, 4210, 4736, 5263, 5789, 6315, 6842, 7368, 7894, 8421, 8947, 9473, 10000 });
+        
+    for (const std::vector<int>& thresholds : teste) {
         std::cout << "\n\n#" << thresholds.size() << "   => ";
 	    for(int threshold: thresholds)
 		    std::cout << threshold << ", ";
 	    std::cout << "\n";
 
         auto start = std::chrono::high_resolution_clock::now();
-        int* imgOut1 = computerCASF_naive(img, numRows, numCols, radioAdj, thresholds);
-        auto end = std::chrono::high_resolution_clock::now();
-        std::cout << "Tempo naive: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
-
-        start = std::chrono::high_resolution_clock::now();
         int* imgOut2 = computerCASF(img, numRows, numCols, radioAdj, thresholds);
-        end = std::chrono::high_resolution_clock::now();
+        auto end = std::chrono::high_resolution_clock::now();
         std::cout << "Tempo our approach: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
 
-        std::cout << "Sao iguais:" << isEquals(imgOut1, imgOut2, numCols*numRows);
+        start = std::chrono::high_resolution_clock::now();
+        int* imgOut1 = computerCASF_naive(img, numRows, numCols, radioAdj, thresholds);
+        end = std::chrono::high_resolution_clock::now();
+        std::cout << "Tempo naive: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
 
+       
+        std::cout << "Sao iguais:" << isEquals(imgOut1, imgOut2, n);
+        delete[] imgOut1;
+        delete[] imgOut2;
     }
-    
+    delete[] img;
     return 0;
 }
