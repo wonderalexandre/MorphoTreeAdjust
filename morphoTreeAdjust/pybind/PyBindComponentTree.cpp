@@ -1,6 +1,7 @@
 #include <list>
 #include <vector>
 #include <stack>
+#include <queue>
 
 #include "../include/NodeCT.hpp"
 #include "../include/ComponentTree.hpp"
@@ -41,6 +42,7 @@ py::array_t<int> PyBindComponentTree::reconstructionImage(){
 
 }
 
+
 py::array_t<int> PyBindComponentTree::reconstructionNode(NodeCT* _node){
 	int n = this->numRows * this->numCols;
 	auto img_numpy = py::array(py::buffer_info(
@@ -70,3 +72,19 @@ py::array_t<int> PyBindComponentTree::reconstructionNode(NodeCT* _node){
 	return img_numpy;
 }
 
+std::map<int, NodeCT*> PyBindComponentTree::getNodes() {
+	std::map<int, NodeCT*> nodes;
+
+	std::queue<NodeCT*> s;
+	s.push(this->getRoot());
+
+	while(!s.empty()) {
+	    NodeCT* node = s.front(); s.pop();
+		nodes[node->getIndex()] = node;
+	    for(NodeCT* child: node->getChildren()) {
+    		s.push(child);
+	    }
+	    
+	}
+	return nodes;
+}

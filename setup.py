@@ -77,11 +77,12 @@ class CMakeBuild(build_ext):
 
 setup(
   name="morphoTreeAdjust",
-  version="0.0.4",
+  version="0.0.7",
   description="MorphoTreeAdjust is a C++/Python implementation for adjusting the morpholofical trees.",
   long_description="",
   author="Wonder Alexandre Luz Alves",
   author_email="worderalexandre@gmail.com",
+  license_files=["LICENSE"],
   license="GPL-3.0",
   url= "https://github.com/wonderalexandre/ComponentTreeLearn",
   #packages=["morphoTreeAdjust"],

@@ -19,6 +19,10 @@ void NodeCT::addCNPs(int p) {
     this->cnps.push_back(p);
 }
 
+int NodeCT::getNumCNPs() const{
+    return this->cnps.size();
+}
+
 void NodeCT::setCNPs(std::list<int> cnps){
     this->cnps = cnps;
 }
@@ -40,20 +44,20 @@ bool NodeCT::isChild(NodeCT* child){
     return it != children.end();
 }
 
-int NodeCT::getIndex(){ return this->index; }
+int NodeCT::getIndex() const{ return this->index; }
 
-int NodeCT::getThreshold1(){ return this->threshold1; }
+int NodeCT::getThreshold1() const{ return this->threshold1; }
 
-int NodeCT::getThreshold2(){ return this->threshold2; }
+int NodeCT::getThreshold2() const{ return this->threshold2; }
 
-int NodeCT::getLevel(){ return this->threshold2; }
+int NodeCT::getLevel() const{ return this->threshold2; }
 
 void NodeCT::setLevel(int level){ this->threshold2 = level; }
 
 
 void NodeCT::setArea(long int area){this->areaCC = area;}
 
-long int NodeCT::getArea(){return this->areaCC;} 
+long int NodeCT::getArea() const{return this->areaCC;} 
 
 NodeCT* NodeCT::getParent(){  return this->parent; }
 

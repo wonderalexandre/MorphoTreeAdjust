@@ -1,11 +1,11 @@
 
 #include "./PyBindComponentTreeAdjustment.hpp"
 
-void PyBindComponentTreeAdjustment::updateTree(PyBindComponentTree &tree, NodeCT *L_leaf){
+void PyBindComponentTreeAdjustment::updateTree(PyBindComponentTree* tree, NodeCT *L_leaf){
    ComponentTreeAdjustment::updateTree(tree, L_leaf);
 }
 
-py::tuple PyBindComponentTreeAdjustment::buildCollections(PyBindComponentTree &tree, std::vector<int> flatZone, int newGrayLevel, bool isMaxtree){
+py::tuple PyBindComponentTreeAdjustment::buildCollections(PyBindComponentTree* tree, std::vector<int> flatZone, int newGrayLevel, bool isMaxtree){
       std::list<int> flatZoneList(flatZone.begin(), flatZone.end()); 
       ComponentTreeAdjustment::buildMergedAndNestedCollections(tree, flatZoneList, newGrayLevel, isMaxtree);
 
@@ -14,7 +14,8 @@ py::tuple PyBindComponentTreeAdjustment::buildCollections(PyBindComponentTree &t
       std::map<int, std::vector<NodeCT*>> mapCollectionF;
       for (int i = 0; i < 256; ++i) {
          if (!collectionF[i].empty()) {
-            mapCollectionF[i] = collectionF[i];
+            std::vector<NodeCT*> nodes = collectionF[i];
+            mapCollectionF[i] = nodes;
          }
       }
 

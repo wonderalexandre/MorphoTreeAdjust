@@ -115,21 +115,25 @@ ComponentTree::ComponentTree(int* img, int numRows, int numCols, bool isMaxtree,
 	build(img);
 } 
 
-ComponentTree::~ComponentTree(){
-	delete this->adj;  
-	std::stack<NodeCT*> s;
-	s.push(this->root);
-	while(!s.empty()){
-    	NodeCT* node = s.top(); s.pop();
-		for (NodeCT *child: node->getChildren()){
-			s.push(child);
-		}
-		node = nullptr;
-		delete node;
-	}
+
+ ComponentTree::~ComponentTree() {
+    delete this->adj;  // Libera a estrutura auxiliar (supondo que seja alocada dinamicamente)
+    if (this->root) {
+        std::stack<NodeCT*> s;
+        s.push(this->root);
+        while (!s.empty()) {
+            NodeCT* node = s.top();s.pop();
+            for (NodeCT* child : node->getChildren()) {
+                s.push(child);
+            }
+            delete node; 
+			node = nullptr;
+        }
+    }
 	delete[] nodes;
-	nodes = nullptr;
- }
+    nodes = nullptr; 
+}
+
 
 void ComponentTree::build(int* img){
  
@@ -164,7 +168,6 @@ void ComponentTree::build(int* img){
 		}
 
 	}
-
 	//computer area
 	computerArea(this->root);
 
@@ -219,14 +222,16 @@ int ComponentTree::getNumColsOfImage(){
 	return this->numCols;
 }
 
-bool ComponentTree::prunning(NodeCT* node){
+void ComponentTree::prunning(NodeCT*& node){
 	if(node == nullptr){
-		std::cout << "node is nullptr";
-		return false;
+		std::cout << "node is nullptr" << std::endl;
 	}
+
 	if(node != this->root){
 		NodeCT* parent = node->getParent();
-		parent->getChildren().remove(node);
+		if (parent) {
+            parent->getChildren().remove(node);
+        }
 		node->setParent(nullptr);
 
 		std::stack<NodeCT*> s;
@@ -234,40 +239,31 @@ bool ComponentTree::prunning(NodeCT* node){
 		while(!s.empty()){
     		NodeCT* child = s.top(); s.pop();	
 			this->numNodes--;
-			for(int p: child->getCNPs()){
-				this->nodes[p] = parent;
-			}
-			parent->getCNPs().splice(parent->getCNPs().end(), child->getCNPs());
-			
 			for(NodeCT* n: child->getChildren()){
 				s.push(n);
 			}
+
+			for(int p: child->getCNPs()){
+				this->nodes[p] = parent;
+			}
+			if (parent)
+				parent->getCNPs().splice(parent->getCNPs().end(), child->getCNPs());
+			
 			delete child;
 			child = nullptr;
 		}
+		node = nullptr;
 		
-		return true;
 	}
-	return false;
+
 	
 		
 }
 
-std::list<NodeCT*> ComponentTree::getDescendantsInPostOrder(NodeCT* rootSubtree){
-	std::list<NodeCT*> desc;
-	std::stack<NodeCT*> s;
-	s.push(rootSubtree);
-	while (!s.empty()) {
-        NodeCT* current = s.top(); s.pop();	
-        desc.push_front(current);
-        for (NodeCT* child : current->getChildren()) {
-            s.push(child);
-        }
-    }
-	return desc;
-}
-std::list<NodeCT*> ComponentTree::getNodesThreshold(int areaThreshold){
-	std::list<NodeCT*> lista;
+
+
+std::vector<NodeCT*> ComponentTree::getNodesThreshold(int areaThreshold){
+	std::vector<NodeCT*> lista;
 	std::stack<NodeCT*> pilha;
 	pilha.push(this->getRoot());
 
@@ -285,22 +281,24 @@ std::list<NodeCT*> ComponentTree::getNodesThreshold(int areaThreshold){
 	return lista;
 }
 
-std::list<NodeCT*> ComponentTree::getLeaves(){
-	std::list<NodeCT*> leaves;
-	std::stack<NodeCT*> s;
-	s.push(this->root);
-	while(!s.empty()){
-    	NodeCT* node = s.top(); s.pop();
-		if(node->getChildren().empty()){
-			leaves.push_back(node);
-		}else{
-			for (NodeCT *child: node->getChildren()){
-				s.push(child);
-			}
-		}
-	}
-	return leaves;
+std::vector<NodeCT*> ComponentTree::getLeaves(){
+    std::vector<NodeCT*> leaves;
+    std::stack<NodeCT*> s;
+    s.push(this->root);
+    
+    while (!s.empty()) {
+        NodeCT* node = s.top(); s.pop();
+        if (node->getChildren().empty()) {
+            leaves.push_back(node);  // Adiciona folha ao vetor
+        } else {
+            for (NodeCT* child : node->getChildren()) {
+                s.push(child);
+            }
+        }
+    }
+    return leaves;
 }
+
 
 int* ComponentTree::reconstructionImage(){
 	int n = this->numRows * this->numCols;

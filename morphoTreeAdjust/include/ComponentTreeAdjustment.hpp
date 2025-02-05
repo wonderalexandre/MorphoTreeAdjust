@@ -90,8 +90,8 @@ public:
 class ComponentTreeAdjustment {
 
 protected:
-    ComponentTree mintree;
-    ComponentTree maxtree; 
+    ComponentTree* mintree;
+    ComponentTree* maxtree; 
     int maxIndex; 
     bool* visited = nullptr; 
     
@@ -109,19 +109,19 @@ protected:
     
 public:
 
-    ComponentTreeAdjustment(ComponentTree &maxtree, ComponentTree &mintree); 
+    ComponentTreeAdjustment(ComponentTree* maxtree, ComponentTree* mintree); 
 
     ~ComponentTreeAdjustment(); 
  
-    void buildMergedAndNestedCollections(ComponentTree &tree, std::list<int> flatZone, int newGrayLevel, bool isMaxtree);
+    void buildMergedAndNestedCollections(ComponentTree* tree, std::list<int> flatZone, int newGrayLevel, bool isMaxtree);
     
-    std::vector<NodeCT*> getAdjacentNodes(ComponentTree &tree, std::list<int> flatZone);
+    std::vector<NodeCT*> getAdjacentNodes(ComponentTree* tree, std::list<int> flatZone);
 
-    void updateTree(ComponentTree &tree, NodeCT *L_leaf);
+    void updateTree(ComponentTree* tree, NodeCT *L_leaf);
 
-    void adjustMinTree(ComponentTree &mintree, ComponentTree &maxtree, std::vector<NodeCT*> nodesToPruning);
+    void adjustMinTree(ComponentTree* mintree, ComponentTree* maxtree, std::vector<NodeCT*> nodesToPruning);
     
-    void adjustMaxTree(ComponentTree &maxtree, ComponentTree &mintree, std::vector<NodeCT*> nodesToPruning);
+    void adjustMaxTree(ComponentTree* maxtree, ComponentTree* mintree, std::vector<NodeCT*> nodesToPruning);
 
 };
 

@@ -37,4 +37,6 @@ add_executable(dgmm gdmm2024.cpp
     ../morphoTreeAdjust/src/NodeCT.cpp
     ../morphoTreeAdjust/src/ComponentTree.cpp
     ../morphoTreeAdjust/src/ComponentTreeAdjustment.cpp
+    ./external/stb/stb_image.cpp
 )
+target_compile_options(dgmm PRIVATE -Wno-deprecated-declarations)
