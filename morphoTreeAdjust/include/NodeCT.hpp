@@ -1,4 +1,5 @@
 #include <list>
+#include <vector>
 #include <stack>
 #include <iterator>
 #include <utility>
