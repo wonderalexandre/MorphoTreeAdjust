@@ -5,6 +5,10 @@ void PyBindComponentTreeAdjustment::updateTree(PyBindComponentTree* tree, NodeCT
    ComponentTreeAdjustment::updateTree(tree, L_leaf);
 }
 
+void PyBindComponentTreeAdjustment::updateTree2(PyBindComponentTree* tree, NodeCT *rSubtree){
+   ComponentTreeAdjustment::updateTree2(tree, rSubtree);
+}
+
 py::tuple PyBindComponentTreeAdjustment::buildCollections(PyBindComponentTree* tree, std::vector<int> flatZone, int newGrayLevel, bool isMaxtree){
       std::list<int> flatZoneList(flatZone.begin(), flatZone.end()); 
       ComponentTreeAdjustment::buildMergedAndNestedCollections(tree, flatZoneList, newGrayLevel, isMaxtree);

@@ -115,9 +115,11 @@ public:
  
     void buildMergedAndNestedCollections(ComponentTree* tree, std::list<int> flatZone, int newGrayLevel, bool isMaxtree);
     
-    std::vector<NodeCT*> getAdjacentNodes(ComponentTree* tree, std::list<int> flatZone);
+    std::vector<NodeCT*> getAdjacentNodes(ComponentTree* tree, std::list<int> flatZone, int grayFlatZone);
 
     void updateTree(ComponentTree* tree, NodeCT *L_leaf);
+
+    void updateTree2(ComponentTree* tree, NodeCT *L_leaf);
 
     void adjustMinTree(ComponentTree* mintree, ComponentTree* maxtree, std::vector<NodeCT*> nodesToPruning);
     

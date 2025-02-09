@@ -1,6 +1,7 @@
 #include <list>
 #include <vector>
 #include <stack>
+#include <queue>
 #include <iterator>
 #include <utility>
 
@@ -74,6 +75,62 @@ public:
 
 ///////////////////////////////////////////////////
 	
+    class InternalIteratorPixelsOfCC{
+		private:
+			NodeCT *currentNode;
+			std::stack<NodeCT*> s;
+			std::list<int>::iterator iter;
+			int countArea;
+			using iterator_category = std::input_iterator_tag;
+            using value_type = int; 
+		public:
+			InternalIteratorPixelsOfCC(NodeCT *obj, int area)  {
+				this->currentNode = obj;
+				this->countArea =area;
+				this->iter = this->currentNode->cnps.begin();
+				for (NodeCT *child: this->currentNode->getChildren()){
+					s.push(child);
+				}	
+			}
+			InternalIteratorPixelsOfCC& operator++() { 
+			    this->iter++; 
+				if(this->iter == this->currentNode->cnps.end()){
+					if(!s.empty()){
+            			this->currentNode = s.top(); s.pop();
+						this->iter = this->currentNode->cnps.begin();
+						for (NodeCT *child: currentNode->getChildren()){
+                		    s.push(child);
+						}
+					}
+				}
+				this->countArea++;
+				return *this; 
+            }
+            bool operator==(InternalIteratorPixelsOfCC other) const { 
+                return this->countArea == other.countArea; 
+            }
+            bool operator!=(InternalIteratorPixelsOfCC other) const { 
+                return !(*this == other);
+            }
+            int operator*() const { 
+                return (*this->iter); 
+            }  
+    };
+	class IteratorPixelsOfCC{
+		private:
+			NodeCT *instance;
+			int area;
+		public:
+			IteratorPixelsOfCC(NodeCT *obj, int _area): instance(obj), area(_area) {}
+			InternalIteratorPixelsOfCC begin(){ return InternalIteratorPixelsOfCC(instance, 0); }
+            InternalIteratorPixelsOfCC end(){ return InternalIteratorPixelsOfCC(instance, area); }
+	};	
+	IteratorPixelsOfCC getPixelsOfCC(){
+	    return IteratorPixelsOfCC(this, this->areaCC);
+	}
+
+
+
 	class InternalIteratorNodesOfPathToRoot {
     private:
         NodeCT* currentNode;
@@ -82,7 +139,7 @@ public:
         using value_type = NodeCT*;
         using difference_type = std::ptrdiff_t;
         using pointer = NodeCT*;
-        using reference = NodeCT*; // Retorna ponteiro!
+        using reference = NodeCT*; 
 
         InternalIteratorNodesOfPathToRoot(NodeCT* obj) : currentNode(obj) {}
 
@@ -174,6 +231,67 @@ public:
     };
 
     IteratorPostOrderTraversal getIteratorPostOrderTraversal() { return IteratorPostOrderTraversal(this); }
+
+
+
+
+
+    class InternalIteratorBreadthFirstTraversal {
+    private:
+        std::queue<NodeCT*> nodeQueue;
+
+    public:
+        using iterator_category = std::input_iterator_tag;
+        using value_type = NodeCT*;
+        using difference_type = std::ptrdiff_t;
+        using pointer = NodeCT*;
+        using reference = NodeCT*; // Retorna ponteiro!
+
+        InternalIteratorBreadthFirstTraversal(NodeCT* root) {
+            if (root) {
+                nodeQueue.push(root);
+            }
+        }
+
+        InternalIteratorBreadthFirstTraversal& operator++() {
+            if (!nodeQueue.empty()) {
+                NodeCT* current = nodeQueue.front();
+                nodeQueue.pop();
+                for (NodeCT* child : current->getChildren()) {
+                    nodeQueue.push(child);
+                }
+            }
+            return *this;
+        }
+
+        reference operator*() {
+            return nodeQueue.front();
+        }
+
+        bool operator==(const InternalIteratorBreadthFirstTraversal& other) const {
+            return nodeQueue.empty() == other.nodeQueue.empty();
+        }
+
+        bool operator!=(const InternalIteratorBreadthFirstTraversal& other) const {
+            return !(*this == other);
+        }
+    };
+
+    class IteratorBreadthFirstTraversal {
+    private:
+        NodeCT* root;
+
+    public:
+        explicit IteratorBreadthFirstTraversal(NodeCT* root) : root(root) {}
+
+        InternalIteratorBreadthFirstTraversal begin() { return InternalIteratorBreadthFirstTraversal(root); }
+        InternalIteratorBreadthFirstTraversal end() { return InternalIteratorBreadthFirstTraversal(nullptr); }
+    };
+
+    // Método para expor o iterador na classe NodeCT
+    IteratorBreadthFirstTraversal getIteratorBreadthFirstTraversal() { 
+        return IteratorBreadthFirstTraversal(this); 
+    }
 
 };
 

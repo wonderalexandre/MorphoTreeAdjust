@@ -2,9 +2,12 @@
 #include <math.h>
 #define PI 3.14159265358979323846
 
-AdjacencyRelation::~AdjacencyRelation(){
+AdjacencyRelation::~AdjacencyRelation() {
     delete[] this->offsetCol;
+    this->offsetCol = nullptr;
+
     delete[] this->offsetRow;
+    this->offsetRow = nullptr;
 }
 
 AdjacencyRelation::AdjacencyRelation(int numRows, int numCols, double radius){
@@ -124,7 +127,7 @@ int AdjacencyRelation::getSize(){
 	return this->n;
 }
 
-int AdjacencyRelation::nextValid(){
+/*int AdjacencyRelation::nextValid(){
     this->id += 1;
     while (this->id < this->n){
         if (0 <= this->row + this->offsetRow[this->id] && this->row + this->offsetRow[this->id] < this->numRows && 0 <= this->col + this->offsetCol[this->id] && this->col + this->offsetCol[this->id] < this->numCols)
@@ -132,17 +135,34 @@ int AdjacencyRelation::nextValid(){
         this->id += 1;
     }
     return this->id;
-} 
+} */
+
+int AdjacencyRelation::nextValid() {
+    this->id += 1;
+    while (this->id < this->n) {
+        int newRow = this->row + this->offsetRow[this->id];
+        int newCol = this->col + this->offsetCol[this->id];
+
+        if (newRow >= 0 && newRow < this->numRows && newCol >= 0 && newCol < this->numCols) {
+            return this->id;
+        }
+        this->id += 1;
+    }
+    return this->n;
+}
 
 AdjacencyRelation::IteratorAdjacency AdjacencyRelation::begin() { 
-    return IteratorAdjacency(*this, nextValid()); 
+    return IteratorAdjacency(this, nextValid()); 
 }
 
 AdjacencyRelation::IteratorAdjacency AdjacencyRelation::end() { 
-    return IteratorAdjacency(*this, this->n); 
+    return IteratorAdjacency(this, this->n); 
 }
 
 AdjacencyRelation& AdjacencyRelation::getAdjPixels(int row, int col){
+	if (row < 0 || row >= this->numRows || col < 0 || col >= this->numCols) {
+        throw std::out_of_range("Índice fora dos limites.");
+    }
     this->row = row;
     this->col = col;
     this->id = -1;

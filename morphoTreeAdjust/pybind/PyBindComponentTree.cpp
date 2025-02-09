@@ -11,6 +11,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/numpy.h>
+#include <iostream>
 
 
 PyBindComponentTree::PyBindComponentTree(py::array_t<int> &input, int numRows, int numCols, bool isMaxtree) 
@@ -42,6 +43,16 @@ py::array_t<int> PyBindComponentTree::reconstructionImage(){
 
 }
 
+bool PyBindComponentTree::isNodesInitialized() {
+	for (int i = 0; i < this->numRows * this->numCols; i++) {
+		if (this->nodes[i] == nullptr) {
+			std::cerr << "Erro: nodes[" << i << "] não foi inicializado!" << std::endl;
+			return false;
+		}
+	}
+	return true;
+}
+ 
 
 py::array_t<int> PyBindComponentTree::reconstructionNode(NodeCT* _node){
 	int n = this->numRows * this->numCols;
@@ -74,17 +85,17 @@ py::array_t<int> PyBindComponentTree::reconstructionNode(NodeCT* _node){
 
 std::map<int, NodeCT*> PyBindComponentTree::getNodes() {
 	std::map<int, NodeCT*> nodes;
-
-	std::queue<NodeCT*> s;
-	s.push(this->getRoot());
-
-	while(!s.empty()) {
-	    NodeCT* node = s.front(); s.pop();
+	for (NodeCT* node : this->root->getIteratorBreadthFirstTraversal()) {
 		nodes[node->getIndex()] = node;
-	    for(NodeCT* child: node->getChildren()) {
-    		s.push(child);
-	    }
-	    
 	}
 	return nodes;
+}
+
+NodeCT* PyBindComponentTree::getNodeByIndex(int index){
+	for (NodeCT* node : this->root->getIteratorBreadthFirstTraversal()) {
+		if(node->getIndex() == index){
+			return node;
+		}
+	}
+	return nullptr;
 }

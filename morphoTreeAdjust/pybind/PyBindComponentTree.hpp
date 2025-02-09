@@ -27,6 +27,11 @@ public:
 
 	py::array_t<int> reconstructionNode(NodeCT* node);
 
+	NodeCT* getNodeByIndex(int index);
+
+	std::map<int, NodeCT*> getNodes();
+
+	bool isNodesInitialized();
 
 	static py::array_t<int> recNode(NodeCT* _node){
 		int n = _node->getArea();
@@ -61,7 +66,8 @@ public:
 		}
 		return img_numpy;
 	}
-	std::map<int, NodeCT*> getNodes() ;
+
+	
 
 
 };

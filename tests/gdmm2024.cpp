@@ -37,32 +37,37 @@ int* computerCASF_naive(int* img, int numRows, int numCols, double radioAdj, std
 
     for(int threshold: thresholds) {
 
-        ComponentTree maxtree(imgOut, numRows, numCols, true, radioAdj);
-	    for(NodeCT* node: maxtree.getNodesThreshold(threshold)) {
-	        maxtree.prunning(node);    
+        ComponentTree* maxtree = new ComponentTree(imgOut, numRows, numCols, true, radioAdj);
+	    for(NodeCT* node: maxtree->getNodesThreshold(threshold)) {
+	        maxtree->prunning(node);    
 	    }
-	    imgOut = maxtree.reconstructionImage();
+	    imgOut = maxtree->reconstructionImage();
 
 
-	    ComponentTree mintree(imgOut, numRows, numCols, false, radioAdj);
-	    for(NodeCT* node: mintree.getNodesThreshold(threshold)) {
-	        mintree.prunning(node);    
+	    ComponentTree* mintree = new ComponentTree(imgOut, numRows, numCols, false, radioAdj);
+	    for(NodeCT* node: mintree->getNodesThreshold(threshold)) {
+	        mintree->prunning(node);    
 	    }
-	    imgOut = mintree.reconstructionImage();        	    
+	    imgOut = mintree->reconstructionImage();  
+
+        delete maxtree;
+        delete mintree;      	    
 	}
     
     return imgOut;
 }
 
 int* computerCASF(int* img, int numRows, int numCols, double radioAdj, std::vector<int> thresholds){
-    ComponentTree maxtree(img, numRows, numCols, true, radioAdj);
-    ComponentTree mintree(img, numRows, numCols, false, radioAdj);
+    ComponentTree* maxtree = new ComponentTree(img, numRows, numCols, true, radioAdj);
+    ComponentTree* mintree = new ComponentTree(img, numRows, numCols, false, radioAdj);
     ComponentTreeAdjustment adjust(mintree, maxtree);
     for(int threshold: thresholds) {
-		adjust.adjustMaxTree(maxtree, mintree, mintree.getNodesThreshold(threshold));
-		adjust.adjustMinTree(mintree, maxtree, maxtree.getNodesThreshold(threshold)); 
+		adjust.adjustMaxTree(maxtree, mintree, mintree->getNodesThreshold(threshold));
+		adjust.adjustMinTree(mintree, maxtree, maxtree->getNodesThreshold(threshold)); 
 	}
-    int* imgOut = mintree.reconstructionImage();
+    int* imgOut = mintree->reconstructionImage();
+    delete maxtree;
+    delete mintree;
     return imgOut;
 }
 
@@ -130,14 +135,14 @@ int main(int argc, char* argv[]) {
 	    std::cout << "\n";
 
         auto start = std::chrono::high_resolution_clock::now();
-        int* imgOut2 = computerCASF(img, numRows, numCols, radioAdj, thresholds);
+        int* imgOut1 = computerCASF_naive(img, numRows, numCols, radioAdj, thresholds);
         auto end = std::chrono::high_resolution_clock::now();
-        std::cout << "Tempo our approach: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
+        std::cout << "Tempo naive: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
 
         start = std::chrono::high_resolution_clock::now();
-        int* imgOut1 = computerCASF_naive(img, numRows, numCols, radioAdj, thresholds);
+        int* imgOut2 = computerCASF(img, numRows, numCols, radioAdj, thresholds);
         end = std::chrono::high_resolution_clock::now();
-        std::cout << "Tempo naive: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
+        std::cout << "Tempo our approach: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
 
        
         std::cout << "Sao iguais:" << isEquals(imgOut1, imgOut2, n);

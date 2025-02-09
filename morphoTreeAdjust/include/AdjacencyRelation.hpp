@@ -29,28 +29,34 @@ public:
     AdjacencyRelation& getAdjPixels(int row, int col);
     AdjacencyRelation& getAdjPixels(int index);
 
-    class IteratorAdjacency{ 
-        private:
-    	    int index;
-            AdjacencyRelation&  instance;
-        public:
-        	using iterator_category = std::input_iterator_tag;
-            using value_type = int; 
-            
-            IteratorAdjacency(AdjacencyRelation& obj, int id): instance(obj), index(id)  { }
+    class IteratorAdjacency { 
+    private:
+        int index;
+        AdjacencyRelation* instance; // Agora usamos um ponteiro
 
-            IteratorAdjacency& operator++() { 
-                this->index = instance.nextValid(); return *this; 
-            }
-            bool operator==(IteratorAdjacency other) const { 
-                return index == other.index; 
-            }
-            bool operator!=(IteratorAdjacency other) const { 
-                return !(*this == other);
-            }
-            int operator*() const { 
-                return (instance.row + instance.offsetRow[index]) * instance.numCols + (instance.col + instance.offsetCol[index]); 
-            }    
+    public:
+        using iterator_category = std::input_iterator_tag;
+        using value_type = int;
+
+        IteratorAdjacency(AdjacencyRelation* obj, int id) : instance(obj), index(id) { }
+
+        AdjacencyRelation* getInstance() { return instance; } 
+
+        IteratorAdjacency& operator++() { 
+            this->index = instance->nextValid();  
+            return *this; 
+        }
+
+        bool operator==(const IteratorAdjacency& other) const { 
+            return index == other.index; 
+        }
+        bool operator!=(const IteratorAdjacency& other) const { 
+            return !(*this == other);
+        }
+
+        int operator*() const { 
+            return (instance->row + instance->offsetRow[index]) * instance->numCols + (instance->col + instance->offsetCol[index]); 
+        }
     };
     IteratorAdjacency begin();
     IteratorAdjacency end();	 

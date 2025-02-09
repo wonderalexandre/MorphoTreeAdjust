@@ -6,12 +6,49 @@
 
 #include <iostream>
 #include <list>
-
+#include <iomanip>
+#include <fstream>
+#include <iostream>
 
 #include "../morphoTreeAdjust/include/NodeCT.hpp"
 #include "../morphoTreeAdjust/include/ComponentTree.hpp"
 #include "../morphoTreeAdjust/include/AdjacencyRelation.hpp"
 #include "../morphoTreeAdjust/include/ComponentTreeAdjustment.hpp"
+
+
+void printMapSC(ComponentTree* tree, std::string nomeArquivo = "") {
+    int numRows = tree->getNumRowsOfImage();
+    int numCols = tree->getNumColsOfImage();
+    int n = numRows*numCols;
+    int map[n];
+    for (int p=0; p < n; p++){
+        map[p] = tree->getSC(p)->getIndex();
+    }
+
+    std::ostream* streamSaida;
+    if (nomeArquivo.empty()) {
+        streamSaida = &std::cout;
+    } else {
+        std::ofstream arquivoSaida(nomeArquivo);
+        if (!arquivoSaida.is_open()) {
+            std::cerr << "Erro ao abrir o arquivo para escrita." << std::endl;
+            return;
+        }
+        streamSaida = &arquivoSaida;
+    }
+
+    // Impressão bidimensional
+   for (int i = 0; i < tree->getNumRowsOfImage(); ++i) {
+        for (int j = 0; j < tree->getNumColsOfImage(); ++j) {
+            *streamSaida << std::setw(2) <<  map[i * tree->getNumColsOfImage() + j] << " ";
+        }
+        *streamSaida << "\n";
+    }
+    if (streamSaida != &std::cout){
+        dynamic_cast<std::ofstream*>(streamSaida)->close(); // std::cout não precisa ser fechado explicitamente
+    }
+
+}
 
 
 int main()
@@ -120,19 +157,25 @@ int* img=new int[6164]{
     int n = numRows * numCols;
     double radioAdj = 1.5;
 
-    ComponentTree maxtree(img, numRows, numCols, true, radioAdj);
-    ComponentTree mintree(img, numRows, numCols, false, radioAdj);
+    ComponentTree* maxtree = new ComponentTree(img, numRows, numCols, true, radioAdj);
+    ComponentTree* mintree = new ComponentTree(img, numRows, numCols, false, radioAdj);
+
+    printMapSC(maxtree);
+    std::cout <<"\n\n" << std::endl;
+    printMapSC(mintree);
+    
+
     ComponentTreeAdjustment adjust(mintree, maxtree);
-    int numNodes = mintree.getNumNodes()-1;
+    int numNodes = 1;//mintree->getNumNodes()-1;
     for(int i=0; i < numNodes; i++){
-        NodeCT* L_leaf = mintree.getLeaves().front();
+        NodeCT* L_leaf = mintree->getLeaves().front();
         int id = L_leaf->getIndex();
 
         adjust.updateTree(maxtree, L_leaf);
-        mintree.prunning(L_leaf);
+        mintree->prunning(L_leaf);
 
-        int* imgOutMaxtree = maxtree.reconstructionImage();
-        int* imgOutMintree = mintree.reconstructionImage();
+        int* imgOutMaxtree = maxtree->reconstructionImage();
+        int* imgOutMintree = mintree->reconstructionImage();
         
         bool isEquals = true;
         for(int p=0; p < n; p++){
@@ -141,12 +184,18 @@ int* img=new int[6164]{
                 break;
             }
         }
-        std::cout << "NunNodes (mintree):" << mintree.getNumNodes() << "\tNumNodes (maxtree):" << maxtree.getNumNodes();
+        std::cout << "NunNodes (mintree):" << mintree->getNumNodes() << "\tNumNodes (maxtree):" << maxtree->getNumNodes();
         std::cout <<"\tL_leaf(id): " << id << "\t Rec(maxtree) = Rec(mintree):" << isEquals << std::endl;
         delete[] imgOutMaxtree;
         delete[] imgOutMintree;
     
-    }    
+    }
+    std::cout <<"\n\nApos mudancas\n" << std::endl;
+    printMapSC(maxtree);
+    std::cout <<"\n\n" << std::endl;
+    printMapSC(mintree);
+    delete maxtree;
+    delete mintree;    
 	std::cout << "\n\nFim do teste...\n\n";
 
     delete[] img;

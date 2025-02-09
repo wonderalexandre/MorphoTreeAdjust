@@ -107,6 +107,7 @@ ComponentTree::ComponentTree(int numRows, int numCols, bool isMaxtree, double ra
 	this->numCols = numCols;
 	this->maxtreeTreeType = isMaxtree;
 	this->adj = new AdjacencyRelation(numRows, numCols, radiusOfAdjacencyRelation);	
+	this->nodes = new NodeCT*[numRows*numCols]();
  }
 
 ComponentTree::ComponentTree(int* img, int numRows, int numCols, bool isMaxtree, double radiusOfAdjacencyRelation)
@@ -136,38 +137,44 @@ ComponentTree::ComponentTree(int* img, int numRows, int numCols, bool isMaxtree,
 
 
 void ComponentTree::build(int* img){
- 
 	int n = this->numRows * this->numCols;
-	this->nodes = new NodeCT*[numRows*numCols];
 	
 	int* orderedPixels = countingSort(img);
 	int* parent = createTreeByUnionFind(orderedPixels, img);
-	
+	int countInitialized = 0;
 	this->numNodes = 0;
 	for (int i = 0; i < n; i++) {
 		int p = orderedPixels[i];
 		if (p == parent[p]) { //representante do node raiz
 			int threshold1 = this->isMaxtree()? 0 : 255;
 			int threshold2 = img[p];
-			this->root = nodes[p] = new NodeCT(this->numNodes++, nullptr, threshold1, threshold2);
-			nodes[p]->addCNPs(p);
+			this->root = this->nodes[p] = new NodeCT(this->numNodes++, nullptr, threshold1, threshold2);
+			this->nodes[p]->addCNPs(p);
 		}
 		else if (img[p] != img[parent[p]]) { //representante de um node
 			int threshold1 = this->isMaxtree()? img[parent[p]]+1 : img[parent[p]]-1;
 			int threshold2 = img[p];
-			nodes[p] = new NodeCT(this->numNodes++, nodes[parent[p]], threshold1, threshold2);
-			nodes[p]->addCNPs(p);
-			nodes[parent[p]]->addChild(nodes[p]);
+			this->nodes[p] = new NodeCT(this->numNodes++, this->nodes[parent[p]], threshold1, threshold2);
+			this->nodes[p]->addCNPs(p);
+			this->nodes[parent[p]]->addChild(nodes[p]);
 		}
 		else if (img[p] == img[parent[p]]) {
-			nodes[parent[p]]->addCNPs(p);
-			nodes[p] = nodes[parent[p]];
+			this->nodes[parent[p]]->addCNPs(p);
+			this->nodes[p] = nodes[parent[p]];
 		}else{
 			std::cerr << "\n\n\n\nOps...falhou geral\n\n\n\n";
 			break;
 		}
 
+		if (this->nodes[p] != nullptr) {
+            countInitialized++;
+        }
+
 	}
+	if(countInitialized != n)
+		std::cerr << "DEBUG: Total de nós inicializados: " << countInitialized  << " / " << n << std::endl;
+
+
 	//computer area
 	computerArea(this->root);
 
@@ -193,9 +200,22 @@ void ComponentTree::setRoot(NodeCT* n){
 	this->root = n;
 }
 
- NodeCT* ComponentTree::getSC(int p) {
+ /*NodeCT* ComponentTree::getSC(int p) {
 	return this->nodes[p];
+}*/
+NodeCT* ComponentTree::getSC(int p) {
+    if (p < 0 || p >= (this->numRows * this->numCols)) { 
+        std::cerr << "Error function getSC: Índice " << p 
+                  << " fora dos limites! (numNodes=" << this->numNodes
+                  << ", matriz max=" << (this->numRows * this->numCols) << ")"
+                  << std::endl;
+        return nullptr; 
+    }
+    return this->nodes[p];
 }
+
+
+
 
 void ComponentTree::setSC(int p, NodeCT* n){
 	this->nodes[p] = n;
