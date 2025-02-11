@@ -18,7 +18,7 @@ protected:
     int maxIndex;
     std::vector<int> lambdaList; // Lista ordenada de lambdas (sempre crescente)
     int currentIndex = 0; // Índice atual
-    bool descendingOrder; // Se true, percorre de forma decrescente
+    bool isMaxtree; // Se true, percorre de forma decrescente
 
 public:
     // Construtor permite definir a ordem de iteração
@@ -39,7 +39,7 @@ public:
 
 
     void resetCollection(bool descendingOrder) {
-        this->descendingOrder = descendingOrder;
+        this->isMaxtree = descendingOrder;
         for (auto& vec : collectionF) {
             vec.clear();
         }
@@ -61,27 +61,23 @@ public:
         }
     }
 
-    void prepareLambdaList() {
+    int firstLambda() {
         lambdaList.clear();
         for (int i = 0; i < 256; ++i) {
             if (!collectionF[i].empty()) {
                 lambdaList.push_back(i);
             }
         }
-        currentIndex = descendingOrder ? lambdaList.size() - 1 : 0;
+        currentIndex = isMaxtree ? lambdaList.size() - 1 : 0;
+        return lambdaList[currentIndex];
     }
 
-    int firstLambda() const {
-        return lambdaList.empty() ? -1 : lambdaList[currentIndex];
-    }
 
     int nextLambda() {
-        if (lambdaList.empty()) return -1;
-
-        if (descendingOrder) {
-            return (currentIndex > 0) ? lambdaList[--currentIndex] : -1;
+        if (isMaxtree) {
+            return lambdaList[--currentIndex];
         } else {
-            return (currentIndex + 1 < lambdaList.size()) ? lambdaList[++currentIndex] : -1;
+            return lambdaList[++currentIndex];
         }
     }
 };
@@ -115,15 +111,19 @@ public:
  
     void buildMergedAndNestedCollections(ComponentTree* tree, std::list<int> flatZone, int newGrayLevel, bool isMaxtree);
     
-    std::vector<NodeCT*> getAdjacentNodes(ComponentTree* tree, std::list<int> flatZone, int grayFlatZone);
+    std::vector<NodeCT*> getAdjacentNodes(ComponentTree* tree, std::list<int> flatZone);
 
     void updateTree(ComponentTree* tree, NodeCT *L_leaf);
 
-    void updateTree2(ComponentTree* tree, NodeCT *L_leaf);
+    void updateTree2(ComponentTree* tree, NodeCT *rSubtree);
 
     void adjustMinTree(ComponentTree* mintree, ComponentTree* maxtree, std::vector<NodeCT*> nodesToPruning);
     
     void adjustMaxTree(ComponentTree* maxtree, ComponentTree* mintree, std::vector<NodeCT*> nodesToPruning);
+
+    void adjustMinTree2(ComponentTree* mintree, ComponentTree* maxtree, std::vector<NodeCT*> nodesToPruning);
+    
+    void adjustMaxTree2(ComponentTree* maxtree, ComponentTree* mintree, std::vector<NodeCT*> nodesToPruning);
 
 };
 

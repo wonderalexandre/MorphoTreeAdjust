@@ -1,5 +1,6 @@
 #include "../include/AdjacencyRelation.hpp"
 #include <math.h>
+#include <stdexcept>
 #define PI 3.14159265358979323846
 
 AdjacencyRelation::~AdjacencyRelation() {

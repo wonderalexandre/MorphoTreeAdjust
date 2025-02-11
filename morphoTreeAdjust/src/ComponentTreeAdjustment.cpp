@@ -36,12 +36,13 @@ ComponentTreeAdjustment::~ComponentTreeAdjustment() {
 }
 
 
-std::vector<NodeCT*> ComponentTreeAdjustment::getAdjacentNodes(ComponentTree* tree, std::list<int> flatZone, int grayFlatZone) {
+std::vector<NodeCT*> ComponentTreeAdjustment::getAdjacentNodes(ComponentTree* tree, std::list<int> flatZone) {
     bool isMaxtree = tree->isMaxtree();
     AdjacencyRelation* adj = tree->getAdjacencyRelation();
 
     std::vector<NodeCT*> nodesNL;
     for (int p : flatZone) {
+        int grayFlatZone = tree->getSC(p)->getLevel();
         for (int q : adj->getAdjPixels(p)) {
             NodeCT* node = tree->getSC(q);
             int index = node->getIndex();
@@ -67,8 +68,8 @@ void ComponentTreeAdjustment::buildMergedAndNestedCollections(ComponentTree* tre
 	B_L.clear();
 	F.resetCollection(isMaxtree);
 
-    int grayFlatZone = tree->getSC(flatZone.front())->getLevel();
-    std::vector<NodeCT*> nodesNL = this->getAdjacentNodes(tree, flatZone, grayFlatZone);
+    std::vector<NodeCT*> nodesNL = this->getAdjacentNodes(tree, flatZone);
+
     NodeCT* nodeTauL = tree->getSC(flatZone.front());
 
     for (NodeCT *nodeNL : nodesNL) {
@@ -109,27 +110,31 @@ void ComponentTreeAdjustment::updateTree2(ComponentTree* tree, NodeCT *rSubtree)
     }
 
     bool isMaxtree = tree->isMaxtree();
-    int newGrayL = rSubtree->getParent()->getLevel();  // g(p)
-    int grayL = rSubtree->getLevel();  // f(p)
+    int newGrayLevel = rSubtree->getParent()->getLevel();  // g(p)
+    
     
     std::list<int> cnpsSubtree;
-    NodeCT* nodeTau = tree->getSC(rSubtree->getCNPs().front());
+    NodeCT* nodeTauStar = tree->getSC(rSubtree->getCNPs().front());
     for(NodeCT* n: rSubtree->getIteratorBreadthFirstTraversal()){
-        cnpsSubtree.splice(cnpsSubtree.end(), n->getCNPsCopy());
-        if( (isMaxtree && nodeTau->getLevel() < n->getLevel()) || (!isMaxtree && nodeTau->getLevel() > n->getLevel()) ){
-            nodeTau = tree->getSC(n->getCNPs().front());
+        if( (!isMaxtree && n->getLevel() > nodeTauStar->getLevel()) || (isMaxtree && n->getLevel() < nodeTauStar->getLevel() ) ){
+            nodeTauStar = tree->getSC(n->getCNPs().front());
+            cnpsSubtree.splice(cnpsSubtree.begin(), n->getCNPsCopy());
+        }else{
+            cnpsSubtree.splice(cnpsSubtree.end(), n->getCNPsCopy());
         }    
     }
+    int grayTauStar = nodeTauStar->getLevel();  // f(p)
+    std::cout << "Intervalo: [" << newGrayLevel << ", " << grayTauStar << "]" << std::endl;
+    std::cout << "nodeTauStar: Id:" << nodeTauStar->getIndex() << "; level:" << nodeTauStar->getLevel() << std::endl;
     
 
-    bool nodeTauCNPsIsEqualL = (cnpsSubtree.size() == nodeTau->getCNPs().size());
+    bool nodeTauCNPsIsEqualL = (cnpsSubtree.size() == nodeTauStar->getCNPs().size());
     
     
-    this->buildMergedAndNestedCollections(tree, cnpsSubtree, newGrayL, isMaxtree);
+    this->buildMergedAndNestedCollections(tree, cnpsSubtree, newGrayLevel, isMaxtree);
     
     
     // Ordenação dos lambdas (crescente para Min-Tree, decrescente para Max-Tree)
-    F.prepareLambdaList();
     int lambda = F.firstLambda();
     NodeCT* nodeUnion = nullptr;
     NodeCT* nodeUnionPrevious = nullptr;
@@ -137,8 +142,10 @@ void ComponentTreeAdjustment::updateTree2(ComponentTree* tree, NodeCT *rSubtree)
     //std::cout << "==> Construiu as estruturas" << std::endl;
 
     // Definição da direção do loop
-    while ((isMaxtree && lambda > grayL) || (!isMaxtree && lambda < grayL)) {
+    while ((isMaxtree && lambda > grayTauStar) || (!isMaxtree && lambda < grayTauStar)) {
+        
         std::vector<NodeCT*>& F_lambda = F.getMergedNodes(lambda);
+        std::cout << "Lambda:" << lambda << "; size(F_lambda):" << F_lambda.size() << std::endl;
 
         nodeUnion = F_lambda.front();
         disconnect(nodeUnion);
@@ -162,7 +169,7 @@ void ComponentTreeAdjustment::updateTree2(ComponentTree* tree, NodeCT *rSubtree)
                 tree->setNumNodes( tree->getNumNodes() -1 );
             }
         }
-        if (lambda == newGrayL) {
+        if (lambda == newGrayLevel) {
             for (int p : cnpsSubtree) {
                 tree->setSC(p, nodeUnion);
             }
@@ -193,12 +200,12 @@ void ComponentTreeAdjustment::updateTree2(ComponentTree* tree, NodeCT *rSubtree)
     if (nodeTauCNPsIsEqualL) {
        // std::cout << "==> nodeTauCNPsIsEqualL";
 
-        NodeCT* parentNodeTauL = nodeTau->getParent();
+        NodeCT* parentNodeTauL = nodeTauStar->getParent();
         nodeUnion->setParent(parentNodeTauL);
 
         if (parentNodeTauL != nullptr) {
             parentNodeTauL->addChild(nodeUnion);
-            for (NodeCT* n : nodeTau->getChildren()) {
+            for (NodeCT* n : nodeTauStar->getChildren()) {
                 if (n != nodeUnion && !nodeUnion->isChild(n)) {
                     nodeUnion->getChildren().push_back(n);
                     nodeUnion->setArea(nodeUnion->getArea() + n->getArea());
@@ -207,8 +214,8 @@ void ComponentTreeAdjustment::updateTree2(ComponentTree* tree, NodeCT *rSubtree)
             }
         } else {  // Novo root
             NodeCT* newRoot = nodeUnion;
-            if (!nodeTau->getChildren().empty()) {
-                for (NodeCT* n : nodeTau->getChildren()) {
+            if (!nodeTauStar->getChildren().empty()) {
+                for (NodeCT* n : nodeTauStar->getChildren()) {
                     if ((isMaxtree && n->getLevel() < newRoot->getLevel()) || (!isMaxtree && n->getLevel() > newRoot->getLevel())) {
                         newRoot = n;
                     }
@@ -217,7 +224,7 @@ void ComponentTreeAdjustment::updateTree2(ComponentTree* tree, NodeCT *rSubtree)
                     newRoot->addChild(nodeUnion);
                     nodeUnion->setParent(newRoot);
                 }
-                for (NodeCT* n : nodeTau->getChildren()) {
+                for (NodeCT* n : nodeTauStar->getChildren()) {
                     if (n != newRoot && !nodeUnion->isChild(n)) {
                         newRoot->addChild(n);
                         n->setParent(newRoot);
@@ -225,26 +232,26 @@ void ComponentTreeAdjustment::updateTree2(ComponentTree* tree, NodeCT *rSubtree)
                 }
             }
             
-            newRoot->setArea(nodeTau->getArea());
+            newRoot->setArea(nodeTauStar->getArea());
             newRoot->setParent(nullptr);
             tree->setRoot(nodeUnion);
             
         }
         tree->setNumNodes( tree->getNumNodes() -1 );  
-        disconnect(nodeTau);
-        nodeTau->getChildren().clear();
-        nodeTau->getCNPs().clear();
-        delete nodeTau;
-        nodeTau = nullptr;
+        disconnect(nodeTauStar);
+        nodeTauStar->getChildren().clear();
+        nodeTauStar->getCNPs().clear();
+        delete nodeTauStar;
+        nodeTauStar = nullptr;
        // std::cout << " OK"<< std::endl;
     } else {
        // std::cout << "==> NOT nodeTauCNPsIsEqualL";
-        if (nodeUnion != nodeTau) {
-            nodeUnion->setParent(nodeTau);
-            nodeTau->addChild(nodeUnion);
+        if (nodeUnion != nodeTauStar) {
+            nodeUnion->setParent(nodeTauStar);
+            nodeTauStar->addChild(nodeUnion);
         }
-        nodeTau->getCNPs().remove_if([&tree, &nodeTau](int p) {
-            return tree->getSC(p) != nodeTau;
+        nodeTauStar->getCNPs().remove_if([&tree, &nodeTauStar](int p) {
+            return tree->getSC(p) != nodeTauStar;
         });
 
     }
@@ -271,7 +278,6 @@ void ComponentTreeAdjustment::updateTree(ComponentTree* tree, NodeCT *L_leaf) {
     
     
     // Ordenação dos lambdas (crescente para Min-Tree, decrescente para Max-Tree)
-    F.prepareLambdaList();
     int lambda = F.firstLambda();
     NodeCT* nodeUnion = nullptr;
     NodeCT* nodeUnionPrevious = nullptr;
@@ -418,4 +424,20 @@ void ComponentTreeAdjustment::adjustMaxTree(ComponentTree* maxtree, ComponentTre
 			mintree->prunning(Lmin);
 	    }
 	}
+}
+
+
+void ComponentTreeAdjustment::adjustMinTree2(ComponentTree* mintree, ComponentTree* maxtree, std::vector<NodeCT*> nodesToPruning) {
+    for(NodeCT* rSubtree: nodesToPruning) {  	
+        updateTree2(mintree, rSubtree); 
+        maxtree->prunning(rSubtree);
+    }
+	    
+}
+    
+void ComponentTreeAdjustment::adjustMaxTree2(ComponentTree* maxtree, ComponentTree* mintree,std::vector<NodeCT*> nodesToPruning) {
+    for(NodeCT* rSubtree: nodesToPruning) {  	
+        updateTree(maxtree, rSubtree);   
+        mintree->prunning(rSubtree);
+    }
 }

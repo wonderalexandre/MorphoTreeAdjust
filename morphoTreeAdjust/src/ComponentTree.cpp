@@ -242,17 +242,15 @@ int ComponentTree::getNumColsOfImage(){
 	return this->numCols;
 }
 
-void ComponentTree::prunning(NodeCT*& node){
+void ComponentTree::prunning(NodeCT* node){
 	if(node == nullptr){
 		std::cout << "node is nullptr" << std::endl;
 	}
 
 	if(node != this->root){
 		NodeCT* parent = node->getParent();
-		if (parent) {
-            parent->getChildren().remove(node);
-        }
-		node->setParent(nullptr);
+		parent->getChildren().remove(node);
+        node->setParent(nullptr);
 
 		std::stack<NodeCT*> s;
 		s.push(node);
@@ -262,12 +260,11 @@ void ComponentTree::prunning(NodeCT*& node){
 			for(NodeCT* n: child->getChildren()){
 				s.push(n);
 			}
-
+			
 			for(int p: child->getCNPs()){
 				this->nodes[p] = parent;
 			}
-			if (parent)
-				parent->getCNPs().splice(parent->getCNPs().end(), child->getCNPs());
+			parent->getCNPs().splice(parent->getCNPs().end(), child->getCNPs());
 			
 			delete child;
 			child = nullptr;

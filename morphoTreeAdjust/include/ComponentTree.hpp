@@ -61,7 +61,7 @@ public:
 
 	void setSC(int p, NodeCT* n);
 
-	void prunning(NodeCT*& node);
+	void prunning(NodeCT* node);
 
 	std::vector<NodeCT*> getLeaves();
 
