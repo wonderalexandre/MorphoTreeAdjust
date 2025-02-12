@@ -25,7 +25,8 @@ ComponentTreeAdjustment::ComponentTreeAdjustment(ComponentTree* maxtree, Compone
     : maxtree(maxtree), mintree(mintree), 
       maxIndex(std::max(maxtree->getNumNodes(), mintree->getNumNodes())),
       visited(new bool[maxIndex]()), 
-      F(maxIndex) {  
+      F(maxIndex),
+      unionNodes(maxtree->isMaxtree()) {  
     
     //std::cout << "maxIndex: " << maxIndex << std::endl; 
 }
@@ -115,7 +116,14 @@ void ComponentTreeAdjustment::updateTree2(ComponentTree* tree, NodeCT *rSubtree)
     
     std::list<int> cnpsSubtree;
     NodeCT* nodeTauStar = tree->getSC(rSubtree->getCNPs().front());
+    unionNodes.resetCollection(isMaxtree);
+    std::cout << "unionNodes: [";
     for(NodeCT* n: rSubtree->getIteratorBreadthFirstTraversal()){
+        NodeCT* nodeTau = tree->getSC(n->getCNPs().front());
+        unionNodes.addNode( nodeTau, n );
+        std::cout << nodeTau->getIndex() << ": " << nodeTau->getLevel() << ":" << (n->getCNPs().size() == nodeTau->getCNPs().size()) << ", ";
+
+        
         if( (!isMaxtree && n->getLevel() > nodeTauStar->getLevel()) || (isMaxtree && n->getLevel() < nodeTauStar->getLevel() ) ){
             nodeTauStar = tree->getSC(n->getCNPs().front());
             cnpsSubtree.splice(cnpsSubtree.begin(), n->getCNPsCopy());
@@ -123,8 +131,10 @@ void ComponentTreeAdjustment::updateTree2(ComponentTree* tree, NodeCT *rSubtree)
             cnpsSubtree.splice(cnpsSubtree.end(), n->getCNPsCopy());
         }    
     }
+    std::cout << "]"<< std::endl;
     int grayTauStar = nodeTauStar->getLevel();  // f(p)
     std::cout << "Intervalo: [" << newGrayLevel << ", " << grayTauStar << "]" << std::endl;
+    std::cout << "|cnpsSubtree| = " << cnpsSubtree.size() << " = Area(rSubtree)= " << rSubtree->getArea() <<  std::endl;
     std::cout << "nodeTauStar: Id:" << nodeTauStar->getIndex() << "; level:" << nodeTauStar->getLevel() << std::endl;
     
 
@@ -138,7 +148,7 @@ void ComponentTreeAdjustment::updateTree2(ComponentTree* tree, NodeCT *rSubtree)
     int lambda = F.firstLambda();
     NodeCT* nodeUnion = nullptr;
     NodeCT* nodeUnionPrevious = nullptr;
-    
+    NodeCT* nodeTauParentSubtree = nullptr;
     //std::cout << "==> Construiu as estruturas" << std::endl;
 
     // Definição da direção do loop
@@ -152,12 +162,13 @@ void ComponentTreeAdjustment::updateTree2(ComponentTree* tree, NodeCT *rSubtree)
 
         for (NodeCT* n : F_lambda) {
             if (n != nodeUnion) {
-                for (int p : n->getCNPs()) {  // Atualiza mapeamento SC
-                    tree->setSC(p, nodeUnion);
+                for (int p : n->getCNPs()) {  
+                    if(tree->getSC(p)->getIndex() != nodeTauParentSubtree->getIndex())
+                        tree->setSC(p, nodeUnion);
                 }
                 nodeUnion->getCNPs().splice(nodeUnion->getCNPs().end(), n->getCNPs());
-                   for (NodeCT* son : n->getChildren()) {
-                        son->setParent(nodeUnion);
+                for (NodeCT* son : n->getChildren()) {
+                    son->setParent(nodeUnion);
                 }
                   nodeUnion->getChildren().splice(nodeUnion->getChildren().end(), n->getChildren());
 
@@ -180,6 +191,7 @@ void ComponentTreeAdjustment::updateTree2(ComponentTree* tree, NodeCT *rSubtree)
                 nodeUnion->addChild(n);
                 n->setParent(nodeUnion);
             }
+            nodeTauParentSubtree = nodeUnion;
         }
         if (nodeUnionPrevious != nullptr) {
             nodeUnionPrevious->setParent(nodeUnion);

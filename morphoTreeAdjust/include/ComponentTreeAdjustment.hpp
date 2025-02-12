@@ -83,6 +83,53 @@ public:
 };
 
 
+class UnionNodes {
+protected:
+    std::array<std::vector<NodeCT*>, 256> unionNodes;
+    std::array<std::vector<bool>, 256> cnpsIsEqualsMap;
+    bool isMaxtree; // Se true, percorre de forma decrescente
+    int level;
+
+public:
+    // Construtor permite definir a ordem de iteração
+    UnionNodes(bool isMaxtree):  isMaxtree(isMaxtree) {}
+    
+    std::vector<NodeCT*>& getNodes(int level) {
+        return unionNodes[level]; 
+    }
+
+    std::vector<bool>& getCnpsIsEquals(int level) {
+        return cnpsIsEqualsMap[level]; 
+    }
+
+    void resetCollection(bool isMaxtree) {
+        this->isMaxtree = isMaxtree;
+        for (auto& vec : unionNodes) {
+            vec.clear();
+        }
+    }
+
+    void addNode(NodeCT* node, NodeCT* nodeSubtree) {
+        auto& nodeList = unionNodes[node->getLevel()];
+
+        // Verifica se o nó já existe no vetor antes de adicioná-lo
+        for (NodeCT* existingNode : nodeList) {
+            if (existingNode == node) {
+                return;  
+            }
+        }
+        auto& cnpsIsEquals = cnpsIsEqualsMap[node->getLevel()];
+        nodeList.push_back(node);  
+        cnpsIsEquals.push_back(nodeSubtree->getCNPs().size() == node->getCNPs().size());
+    }
+
+     
+
+};
+
+
+
+
 class ComponentTreeAdjustment {
 
 protected:
@@ -91,7 +138,7 @@ protected:
     int maxIndex; 
     bool* visited = nullptr; 
     
-    
+    UnionNodes unionNodes;
     MergedNodesCollection F;
     std::vector<NodeCT*> B_L;
 
