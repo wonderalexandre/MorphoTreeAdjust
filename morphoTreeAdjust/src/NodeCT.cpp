@@ -4,6 +4,7 @@
 #include <list>
 #include <iostream>
 #include <algorithm>
+#include <unordered_set>
 
 NodeCT::NodeCT(): children(), cnps(){}
 
@@ -27,9 +28,15 @@ void NodeCT::setCNPs(std::list<int> cnps){
     this->cnps = cnps;
 }
 
-void NodeCT::removeCNPs(std::list<int> cnps) {
+/*void NodeCT::removeCNPs(std::list<int> cnps) {
     this->cnps.remove_if([&cnps](int p) {
         return std::find(cnps.begin(), cnps.end(), p) != cnps.end();
+    });
+}*/
+void NodeCT::removeCNPs(std::list<int> cnps) {
+    std::unordered_set<int> cnpsSet(cnps.begin(), cnps.end());
+    this->cnps.remove_if([&cnpsSet](int p) {
+        return cnpsSet.find(p) != cnpsSet.end();
     });
 }
 

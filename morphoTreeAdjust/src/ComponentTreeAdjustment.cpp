@@ -117,26 +117,32 @@ void ComponentTreeAdjustment::updateTree2(ComponentTree* tree, NodeCT *rSubtree)
     std::list<int> cnpsSubtree;
     NodeCT* nodeTauStar = tree->getSC(rSubtree->getCNPs().front());
     unionNodes.resetCollection(isMaxtree);
-    std::cout << "unionNodes: [";
+    
     for(NodeCT* n: rSubtree->getIteratorBreadthFirstTraversal()){
         NodeCT* nodeTau = tree->getSC(n->getCNPs().front());
-        unionNodes.addNode( nodeTau, n );
-        std::cout << nodeTau->getIndex() << ": " << nodeTau->getLevel() << ":" << (n->getCNPs().size() == nodeTau->getCNPs().size()) << ", ";
-
-        
+        unionNodes.addNode( nodeTau, n ); 
+        std::list<int> n_cnps = n->getCNPsCopy();
         if( (!isMaxtree && n->getLevel() > nodeTauStar->getLevel()) || (isMaxtree && n->getLevel() < nodeTauStar->getLevel() ) ){
             nodeTauStar = tree->getSC(n->getCNPs().front());
-            cnpsSubtree.splice(cnpsSubtree.begin(), n->getCNPsCopy());
+            cnpsSubtree.splice(cnpsSubtree.begin(), n_cnps);
         }else{
-            cnpsSubtree.splice(cnpsSubtree.end(), n->getCNPsCopy());
-        }    
+            cnpsSubtree.splice(cnpsSubtree.end(), n_cnps);
+        } 
+        nodeTau->setArea(nodeTau->getArea() - n_cnps.size());   
+        nodeTau->removeCNPs(n_cnps);
     }
-    std::cout << "]"<< std::endl;
+    
     int grayTauStar = nodeTauStar->getLevel();  // f(p)
+    std::cout << "newGrayLevel: " << newGrayLevel  << std::endl;
     std::cout << "Intervalo: [" << newGrayLevel << ", " << grayTauStar << "]" << std::endl;
     std::cout << "|cnpsSubtree| = " << cnpsSubtree.size() << " = Area(rSubtree)= " << rSubtree->getArea() <<  std::endl;
     std::cout << "nodeTauStar: Id:" << nodeTauStar->getIndex() << "; level:" << nodeTauStar->getLevel() << std::endl;
-    
+    std::cout << "unionNodes: [";
+    for (auto [nodeTau, isEqual] : unionNodes.getIterator()) {
+        std::cout << nodeTau->getIndex() << ":" << nodeTau->getLevel() << ":" << isEqual << ", ";
+    }
+    std::cout << "]"<< std::endl;
+
 
     bool nodeTauCNPsIsEqualL = (cnpsSubtree.size() == nodeTauStar->getCNPs().size());
     

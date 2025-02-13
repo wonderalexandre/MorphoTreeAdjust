@@ -1,5 +1,6 @@
 #include <iterator>
 #include <functional>
+#include <iostream>
 
 #include "../include/AdjacencyRelation.hpp"
 #include "../include/NodeCT.hpp"
@@ -112,17 +113,73 @@ public:
     void addNode(NodeCT* node, NodeCT* nodeSubtree) {
         auto& nodeList = unionNodes[node->getLevel()];
 
-        // Verifica se o nó já existe no vetor antes de adicioná-lo
         for (NodeCT* existingNode : nodeList) {
-            if (existingNode == node) {
+            if (existingNode->getIndex() == node->getIndex()) {
                 return;  
             }
         }
+        
         auto& cnpsIsEquals = cnpsIsEqualsMap[node->getLevel()];
         nodeList.push_back(node);  
         cnpsIsEquals.push_back(nodeSubtree->getCNPs().size() == node->getCNPs().size());
     }
 
+    class Iterator {
+        private:
+            UnionNodes& container;
+            int level;
+            size_t index;
+    
+            void advanceToNextValid() {
+                while (level >= 0 && level < 256) {
+                    if (index < container.unionNodes[level].size()) {
+                        return;
+                    }
+                    index = 0;
+                    level += (container.isMaxtree ? 1 : -1);
+                }
+            }
+        
+        public:
+            Iterator(UnionNodes& container, int startLevel) : container(container), level(startLevel), index(0) {
+                advanceToNextValid();
+            }
+    
+            std::pair<NodeCT*, bool> operator*() const {
+                return {container.unionNodes[level][index], container.cnpsIsEqualsMap[level][index]};
+            }
+    
+            Iterator& operator++() {
+                ++index;
+                advanceToNextValid();
+                return *this;
+            }
+    
+            bool operator!=(const Iterator& other) const {
+                return level != other.level || index != other.index;
+            }
+        };
+    
+        Iterator begin() {
+            return Iterator(*this, isMaxtree ? 0 : 255);
+        }
+    
+        Iterator end() {
+            return Iterator(*this, isMaxtree ? 256 : -1);
+        }
+    
+        class IterableWrapper {
+        private:
+            UnionNodes& container;
+        public:
+            IterableWrapper(UnionNodes& container) : container(container) {}
+            Iterator begin() { return container.begin(); }
+            Iterator end() { return container.end(); }
+        };
+    
+        IterableWrapper getIterator() {
+            return IterableWrapper(*this);
+        }
      
 
 };
