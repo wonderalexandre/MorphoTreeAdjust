@@ -1,5 +1,6 @@
 #include "../include/AdjacencyRelation.hpp"
 #include <math.h>
+#include <cmath> 
 #include <stdexcept>
 #define PI 3.14159265358979323846
 
@@ -14,7 +15,8 @@ AdjacencyRelation::~AdjacencyRelation() {
 AdjacencyRelation::AdjacencyRelation(int numRows, int numCols, double radius){
     this->numRows = numRows;
     this->numCols = numCols;
- 
+	this->radius = radius;
+
     int i, j, k, dx, dy, r0, r2, i0 = 0;
     this->n = 0;
     r0 = (int) radius;
@@ -128,15 +130,17 @@ int AdjacencyRelation::getSize(){
 	return this->n;
 }
 
-/*int AdjacencyRelation::nextValid(){
-    this->id += 1;
-    while (this->id < this->n){
-        if (0 <= this->row + this->offsetRow[this->id] && this->row + this->offsetRow[this->id] < this->numRows && 0 <= this->col + this->offsetCol[this->id] && this->col + this->offsetCol[this->id] < this->numCols)
-            break;
-        this->id += 1;
-    }
-    return this->id;
-} */
+bool AdjacencyRelation::isAdjacent(int px, int py, int qx, int qy) {
+	double distance = std::sqrt(std::pow(px - qx, 2) + std::pow(py - qy, 2));
+    return (distance <= radius);
+}
+
+bool AdjacencyRelation::isAdjacent(int p, int q) {
+    int py = p / numCols, px = p % numCols;
+    int qy = q / numCols, qx = q % numCols;
+
+    return isAdjacent(px, py, qx, qy);
+}
 
 int AdjacencyRelation::nextValid() {
     this->id += 1;

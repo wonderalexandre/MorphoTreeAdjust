@@ -4,9 +4,27 @@
 #include <queue>
 #include <iterator>
 #include <utility>
+#include <functional> 
+#include "../include/Common.hpp"
 
 #ifndef NODECT_H
 #define NODECT_H
+
+class ComponentTree;  //Forward declaration
+
+struct ListRefHash {
+    size_t operator()(const std::reference_wrapper<std::list<int>>& ref) const {
+        return reinterpret_cast<size_t>(&ref.get());  // Usa o endereço como hash
+    }
+};
+
+struct ListRefEqual {
+    bool operator()(const std::reference_wrapper<std::list<int>>& lhs, 
+                    const std::reference_wrapper<std::list<int>>& rhs) const {
+        return &lhs.get() == &rhs.get();  // Compara pelos endereços
+    }
+};
+
 
 class NodeCT {
 private:
@@ -16,9 +34,10 @@ private:
 	long int areaCC;
 	
 	NodeCT* parent;
-	std::list<int> cnps; //pixels of the proper part
+	std::list<std::list<int>> cnpsByFlatzone; //pixels of the proper part by flatzone
     std::list<NodeCT*> children;
-    
+
+
 public:
 	
     NodeCT();
@@ -26,9 +45,23 @@ public:
 	~NodeCT() {
         parent = nullptr;
     }
-    void addCNPs(int p);
-	void setCNPs(std::list<int> cnps);
-	void setArea(long int area);
+    
+    
+    std::list<std::list<int>> moveCNPsByFlatZone(); 
+    std::list<std::list<int>> getCopyCNPsByFlatZone();
+	
+	
+    int getNumFlatzone();
+    //void setCNPsByFlatZone(std::list<std::list<int>>&& cnpsByFlatzone, ComponentTree* tree);
+    
+    void addCNPsOfDisjointFlatzone(std::list<int>&& flatZone, ComponentTree* tree);
+    void addCNPsOfDisjointFlatzones(std::list<std::list<int>>&& flatZones, ComponentTree* tree);
+    void addCNPsToConnectedFlatzone(std::list<int>&& flatZone, ComponentTree* tree);
+    int getCNP(size_t index);
+    void removeFlatzone(std::list<int>& flatzone);
+    
+
+    void setArea(long int area);
 	long int getArea() const;
     void addChild(NodeCT* child);
     int getIndex() const;
@@ -38,43 +71,30 @@ public:
 	int getLevel() const;
 	void setLevel(int level);
 	bool isChild(NodeCT* node);
+    bool isLeaf();
 	void setNumDescendants(int num);
 	NodeCT* getParent();
 	void setParent(NodeCT* parent);
-	std::list<int>& getCNPs();
-	std::list<int> getCNPsCopy();
-	void removeCNPs(std::list<int> cnps);
+	
 	std::list<NodeCT*>& getChildren();
 	int getNumSiblings();
 
-	std::vector<int> getCNPsToVector(){
-		std::vector<int> cnpsVector(cnps.begin(), cnps.end());
-		return cnpsVector;
-	}
+    std::vector<int> getCNPsToVector() {
+        std::vector<int> cnpsVector;
+        for (const auto& region : cnpsByFlatzone) {
+            cnpsVector.insert(cnpsVector.end(), region.begin(), region.end());
+        }
+        return cnpsVector;
+    }
+
 	std::vector<NodeCT*> getChildrenToVector(){
 		std::vector<NodeCT*> childrenVector(children.begin(), children.end());
 		return childrenVector;
 	}
 
 
-   // This function is used by unordered_set to compare elements of Test.
-    bool operator==(const NodeCT *node) const;
-	bool operator>(const NodeCT *node) const;
-	bool operator>=(const NodeCT *node) const;
-	bool operator<(const NodeCT *node) const;
-	bool operator<=(const NodeCT *node) const;
-
-
-	class NodeHashFunction {
-		public:
-			// id is returned as hash function
-			size_t operator()(NodeCT* node) const{
-				return node->index;
-			}
-	};
-
 ///////////////////////////////////////////////////
-	
+	/*
     class InternalIteratorPixelsOfCC{
 		private:
 			NodeCT *currentNode;
@@ -87,17 +107,17 @@ public:
 			InternalIteratorPixelsOfCC(NodeCT *obj, int area)  {
 				this->currentNode = obj;
 				this->countArea =area;
-				this->iter = this->currentNode->cnps.begin();
+				this->iter = this->currentNode->cnpsByFlatzone.begin();
 				for (NodeCT *child: this->currentNode->getChildren()){
 					s.push(child);
 				}	
 			}
 			InternalIteratorPixelsOfCC& operator++() { 
 			    this->iter++; 
-				if(this->iter == this->currentNode->cnps.end()){
+				if(this->iter == this->currentNode->cnpsByFlatzone.end()){
 					if(!s.empty()){
             			this->currentNode = s.top(); s.pop();
-						this->iter = this->currentNode->cnps.begin();
+						this->iter = this->currentNode->cnpsByFlatzone.begin();
 						for (NodeCT *child: currentNode->getChildren()){
                 		    s.push(child);
 						}
@@ -116,6 +136,79 @@ public:
                 return (*this->iter); 
             }  
     };
+    */
+    class InternalIteratorPixelsOfCC {
+    private:
+        NodeCT* currentNode;
+        std::stack<NodeCT*> s;
+        std::list<std::list<int>>::iterator flatzoneIter;  // ✅ Iterador do vetor
+        std::list<int>::iterator iter;  // ✅ Iterador da lista
+        int countArea;
+
+        using iterator_category = std::input_iterator_tag;
+        using value_type = int;
+
+    public:
+        InternalIteratorPixelsOfCC(NodeCT* obj, int area) {
+            this->currentNode = obj;
+            this->countArea = area;
+
+            // Verifica se há flatzones antes de acessar
+            if (!this->currentNode->cnpsByFlatzone.empty()) {
+                this->flatzoneIter = this->currentNode->cnpsByFlatzone.begin();
+                this->iter = flatzoneIter->begin();
+            }
+
+            for (NodeCT* child : this->currentNode->getChildren()) {
+                s.push(child);
+            }
+        }
+
+        InternalIteratorPixelsOfCC& operator++() {
+            if (this->flatzoneIter != this->currentNode->cnpsByFlatzone.end()) {
+                ++this->iter;
+
+                // ✅ Se terminamos a lista atual, passamos para a próxima flatzone
+                while (this->iter == this->flatzoneIter->end()) {
+                    ++this->flatzoneIter;
+                    if (this->flatzoneIter == this->currentNode->cnpsByFlatzone.end()) {
+                        break;
+                    }
+                    this->iter = this->flatzoneIter->begin();
+                }
+            }
+
+            if (this->flatzoneIter == this->currentNode->cnpsByFlatzone.end() && !s.empty()) {
+                this->currentNode = s.top();
+                s.pop();
+
+                if (!this->currentNode->cnpsByFlatzone.empty()) {
+                    this->flatzoneIter = this->currentNode->cnpsByFlatzone.begin();
+                    this->iter = this->flatzoneIter->begin();
+                }
+
+                for (NodeCT* child : this->currentNode->getChildren()) {
+                    s.push(child);
+                }
+            }
+
+            this->countArea++;
+            return *this;
+        }
+
+        bool operator==(const InternalIteratorPixelsOfCC& other) const {
+            return this->countArea == other.countArea;
+        }
+
+        bool operator!=(const InternalIteratorPixelsOfCC& other) const {
+            return !(*this == other);
+        }
+
+        int operator*() const {
+            return *this->iter;
+        }
+    };
+
 	class IteratorPixelsOfCC{
 		private:
 			NodeCT *instance;
@@ -292,6 +385,82 @@ public:
     IteratorBreadthFirstTraversal getIteratorBreadthFirstTraversal() { 
         return IteratorBreadthFirstTraversal(this); 
     }
+
+
+    class InternalIteratorCNPs {
+        private:
+            using FlatzoneIterator = std::list<std::list<int>>::iterator;
+            using CNPsIterator = std::list<int>::iterator;
+            
+            FlatzoneIterator flatzoneIt, flatzoneEnd;
+            CNPsIterator cnpsIt;
+        
+            void advance() {
+                if (flatzoneIt != flatzoneEnd && cnpsIt == flatzoneIt->end()) {
+                    ++flatzoneIt;
+                    if (flatzoneIt != flatzoneEnd) {
+                        cnpsIt = flatzoneIt->begin();
+                    }
+                }
+            }
+           
+            
+        public:
+            using iterator_category = std::input_iterator_tag;
+            using value_type = int;
+            using difference_type = std::ptrdiff_t;
+            using pointer = int*;
+            using reference = int&;
+            
+            InternalIteratorCNPs(FlatzoneIterator flatzoneIt, FlatzoneIterator flatzoneEnd)
+                : flatzoneIt(flatzoneIt), flatzoneEnd(flatzoneEnd) {
+                if (flatzoneIt != flatzoneEnd) {
+                    cnpsIt = flatzoneIt->begin();
+                    advance();
+                }
+            }
+            
+            reference operator*() {
+                assert(flatzoneIt != flatzoneEnd && "Tentando acessar um iterador inválido");
+                return *cnpsIt;
+            }
+            
+            InternalIteratorCNPs& operator++() {
+                ++cnpsIt;
+                advance();
+                return *this;
+            }
+            
+            bool operator==(const InternalIteratorCNPs& other) const {
+                return flatzoneIt == other.flatzoneIt && (flatzoneIt == flatzoneEnd || cnpsIt == other.cnpsIt);
+            }
+            
+            bool operator!=(const InternalIteratorCNPs& other) const {
+                return !(*this == other);
+            }
+        };
+        
+        class IteratorCNPs {
+            private:
+                std::list<std::list<int>>* cnpsByFlatzone;
+            
+            public:
+                explicit IteratorCNPs(NodeCT* node) : cnpsByFlatzone(&node->cnpsByFlatzone) {}
+            
+                InternalIteratorCNPs begin() { 
+                    return InternalIteratorCNPs(cnpsByFlatzone->begin(), cnpsByFlatzone->end()); 
+                }
+            
+                InternalIteratorCNPs end() { 
+                    return InternalIteratorCNPs(cnpsByFlatzone->end(), cnpsByFlatzone->end()); 
+                }
+            
+                int front() const { return cnpsByFlatzone->front().front(); }
+                int back() const { return cnpsByFlatzone->back().back(); }
+        };
+        
+        IteratorCNPs getCNPs() { return IteratorCNPs(this); }
+        
 
 };
 

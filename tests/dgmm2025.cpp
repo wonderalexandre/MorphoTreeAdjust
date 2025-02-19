@@ -10,7 +10,7 @@
 
 #include "./external/stb/stb_image.h"
 #include "./external/stb/stb_image_write.h"
-
+#include "../tests/Tests.hpp"
 
 /*
 import numpy as np
@@ -64,6 +64,7 @@ int* computerCASF(int* img, int numRows, int numCols, double radioAdj, std::vect
     for(int threshold: thresholds) {
 		adjust.adjustMaxTree2(maxtree, mintree, mintree->getNodesThreshold(threshold));
 		adjust.adjustMinTree2(mintree, maxtree, maxtree->getNodesThreshold(threshold)); 
+        std::cout << "Threshold processado:" << threshold << std::endl;
 	}
     int* imgOut = mintree->reconstructionImage();
     delete maxtree;
@@ -71,17 +72,6 @@ int* computerCASF(int* img, int numRows, int numCols, double radioAdj, std::vect
     return imgOut;
 }
 
- bool isEquals(int* imgOut1, int* imgOut2, int size){
-    int equals = 0;
-    for(int p=0; p < size; p++){
-        if(imgOut1[p] != imgOut2[p]){
-            equals++;
-            
-        }
-    }
-    //std::cout << "\tDiff:" << equals <<"\t";
-    return equals == 0;
- }
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {

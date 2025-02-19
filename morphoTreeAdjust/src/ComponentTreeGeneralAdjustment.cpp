@@ -14,6 +14,8 @@
 
 void ComponentTreeGeneralAdjustment::adjustMaxTree(ComponentTree &maxtree, std::list<int> flatZoneP, int newGrayLevel) {
 	
+	/*
+
 	AdjacencyRelation* adj = maxtree.getAdjacencyRelation();
 	NodeCT* nodeContainsP = maxtree.getSC( flatZoneP.front() ); //Nó contendo Xa
 	
@@ -76,5 +78,5 @@ void ComponentTreeGeneralAdjustment::adjustMaxTree(ComponentTree &maxtree, std::
 	while(v > b){
 
 	}
-
+*/
 }

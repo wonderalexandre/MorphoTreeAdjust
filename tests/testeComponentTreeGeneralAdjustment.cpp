@@ -33,7 +33,7 @@ int main()
 {
 
     std::cout << "Iniciando...\n";
-    
+    /*
     int numRows=10;
     int numCols=17;
     int* img=new int[numRows * numCols]{
@@ -72,6 +72,6 @@ int main()
 	std::cout << "\n\nFim do teste...\n\n";
 
     delete[] img;
-    
+    */
     return 0;
 }

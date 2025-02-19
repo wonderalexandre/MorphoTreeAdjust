@@ -1,6 +1,7 @@
 
 #include <list>
 #include <vector>
+#include "../include/Common.hpp"
 
 #ifndef ADJACENCY_H
 #define ADJACENCY_H
@@ -13,6 +14,7 @@ private:
     int col;    
     int numCols;
     int numRows;
+    int radius;
     int n;
  
     int *offsetRow;
@@ -28,6 +30,8 @@ public:
     int getSize();
     AdjacencyRelation& getAdjPixels(int row, int col);
     AdjacencyRelation& getAdjPixels(int index);
+    bool isAdjacent(int p, int q);
+    bool isAdjacent(int px, int py, int qx, int qy);
 
     class IteratorAdjacency { 
     private:

@@ -16,59 +16,7 @@
 #include "../morphoTreeAdjust/include/ComponentTreeAdjustment.hpp"
 
 
-void printMapSC(ComponentTree* tree, std::string nomeArquivo = "") {
-    int numRows = tree->getNumRowsOfImage();
-    int numCols = tree->getNumColsOfImage();
-    int n = numRows*numCols;
-    int map[n];
-    for (int p=0; p < n; p++){
-        map[p] = tree->getSC(p)->getIndex();
-    }
-
-    std::ostream* streamSaida;
-    if (nomeArquivo.empty()) {
-        streamSaida = &std::cout;
-    } else {
-        std::ofstream arquivoSaida(nomeArquivo);
-        if (!arquivoSaida.is_open()) {
-            std::cerr << "Erro ao abrir o arquivo para escrita." << std::endl;
-            return;
-        }
-        streamSaida = &arquivoSaida;
-    }
-
-    // Impressão bidimensional
-   for (int i = 0; i < tree->getNumRowsOfImage(); ++i) {
-        for (int j = 0; j < tree->getNumColsOfImage(); ++j) {
-            *streamSaida << std::setw(2) <<  map[i * tree->getNumColsOfImage() + j] << " ";
-        }
-        *streamSaida << "\n";
-    }
-    if (streamSaida != &std::cout){
-        dynamic_cast<std::ofstream*>(streamSaida)->close(); // std::cout não precisa ser fechado explicitamente
-    }
-
-}
-
-bool isEquals(int* imgOutMaxtree, int* imgOutMintree, int n){
-    bool equals = true;
-    for(int p=0; p < n; p++){
-        if(imgOutMaxtree[p] != imgOutMintree[p]){
-            equals = false;
-            break;
-        }
-    }
-    return equals;
-}
-
-NodeCT* getNodeByIndex(ComponentTree* tree, int index){
-	for (NodeCT* node : tree->getRoot()->getIteratorBreadthFirstTraversal()) {
-		if(node->getIndex() == index){
-			return node;
-		}
-	}
-	return nullptr;
-}
+#include "../tests/Tests.hpp"
 
 int main()
 {
@@ -179,9 +127,9 @@ int* img=new int[6164]{
     ComponentTree* maxtree = new ComponentTree(img, numRows, numCols, true, radioAdj);
     ComponentTree* mintree = new ComponentTree(img, numRows, numCols, false, radioAdj);
     std::cout <<"\n=========== mapIDs min-tree ===========\n" << std::endl;
-    printMapSC(mintree);
+    printMappingSC(mintree);
     //std::cout <<"\n=========== mapIDs max-tree ===========\n" << std::endl;
-    //printMapSC(maxtree);
+    //printMappingSC(maxtree);
     
 
     /*std::cout <<"\nPostOrderTraversal mintree:\n" << std::endl;
@@ -208,9 +156,9 @@ int* img=new int[6164]{
 
 
     std::cout <<"\n=========== mapIDs min-tree ===========\n" << std::endl;
-    printMapSC(mintree);
+    printMappingSC(mintree);
     //std::cout <<"\n=========== mapIDs max-tree ===========\n" << std::endl;
-    //printMapSC(maxtree);
+    //printMappingSC(maxtree);
     
     
     

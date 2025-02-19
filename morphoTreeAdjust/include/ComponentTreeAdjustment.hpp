@@ -5,6 +5,7 @@
 #include "../include/AdjacencyRelation.hpp"
 #include "../include/NodeCT.hpp"
 #include "../include/ComponentTree.hpp"
+#include "../include/Common.hpp"
 
 #ifndef COMPONENT_TREE_ADJUSTMENT_H
 #define COMPONENT_TREE_ADJUSTMENT_H
@@ -121,7 +122,7 @@ public:
         
         auto& cnpsIsEquals = cnpsIsEqualsMap[node->getLevel()];
         nodeList.push_back(node);  
-        cnpsIsEquals.push_back(nodeSubtree->getCNPs().size() == node->getCNPs().size());
+        cnpsIsEquals.push_back(nodeSubtree->getNumFlatzone() == node->getNumFlatzone());
     }
 
     class Iterator {
@@ -213,9 +214,9 @@ public:
 
     ~ComponentTreeAdjustment(); 
  
-    void buildMergedAndNestedCollections(ComponentTree* tree, std::list<int> flatZone, int newGrayLevel, bool isMaxtree);
+    void buildMergedAndNestedCollections(ComponentTree* tree, NodeCT::IteratorCNPs flatZone, int newGrayLevel, bool isMaxtree);
     
-    std::vector<NodeCT*> getAdjacentNodes(ComponentTree* tree, std::list<int> flatZone);
+    std::vector<NodeCT*> getAdjacentNodes(ComponentTree* tree, NodeCT::IteratorCNPs flatZone);
 
     void updateTree(ComponentTree* tree, NodeCT *L_leaf);
 

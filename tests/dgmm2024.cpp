@@ -10,7 +10,7 @@
 
 #include "./external/stb/stb_image.h"
 #include "./external/stb/stb_image_write.h"
-
+#include "../tests/Tests.hpp"
 
 /*
 import numpy as np
@@ -71,25 +71,19 @@ int* computerCASF(int* img, int numRows, int numCols, double radioAdj, std::vect
     return imgOut;
 }
 
- bool isEquals(int* imgOut1, int* imgOut2, int size){
-    int equals = 0;
-    for(int p=0; p < size; p++){
-        if(imgOut1[p] != imgOut2[p]){
-            equals++;
-            
-        }
-    }
-    //std::cout << "\tDiff:" << equals <<"\t";
-    return equals == 0;
- }
 
 int main(int argc, char* argv[]) {
-    if (argc < 2) {
+    std::string filename;
+    if (argc > 2) {
         std::cerr << "Use: " << argv[0] << " <file>\n";
         return 1;  
+    }else if (argc == 1){
+        filename = "../dat/lena.png";
+    }else{
+        filename = argv[1];  
     }
 
-    std::string filename = argv[1];  
+    //std::string filename = argv[1];  
     std::cout << "Image: " << filename << std::endl;
 
     int numCols, numRows, nchannels;

@@ -1,16 +1,17 @@
 #include <unordered_set>
 #include <map>
-#include<iterator>
+#include <iterator>
 
 #include "../include/AdjacencyRelation.hpp"
 #include "../include/NodeCT.hpp"
 #include "../include/ComponentTree.hpp"
+#include "../include/Common.hpp"
 
 #ifndef COMPONENT_TREE_GENERAL_ADJUSTMENT_H
 #define COMPONENT_TREE_GENERAL_ADJUSTMENT_H
 
 class ComponentTreeGeneralAdjustment {
-    
+    /*
     private:
         std::map <int, std::unordered_set<NodeCT*, NodeCT::NodeHashFunction>* > collectionF;
 
@@ -52,6 +53,7 @@ class ComponentTreeGeneralAdjustment {
                 }
             }
         }
+            */
     public:
 
     void adjustMaxTree(ComponentTree &maxtree, std::list<int> flatZone, int newGrayLevel);

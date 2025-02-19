@@ -1,14 +1,20 @@
 #include <list>
 #include <array>
+#include <queue>
 #include <vector>
 #include <stack>
 #include <unordered_map>
+#include <unordered_set>
 #include <iostream>
+#include <iomanip>
+#include <utility>
 
 #include "../include/NodeCT.hpp"
 #include "../include/ComponentTree.hpp"
 #include "../include/AdjacencyRelation.hpp"
 
+//#define NDEBUG  // Remove os asserts do código
+#include <cassert>
 
 
 int* ComponentTree::countingSort(int* img){
@@ -107,7 +113,8 @@ ComponentTree::ComponentTree(int numRows, int numCols, bool isMaxtree, double ra
 	this->numCols = numCols;
 	this->maxtreeTreeType = isMaxtree;
 	this->adj = new AdjacencyRelation(numRows, numCols, radiusOfAdjacencyRelation);	
-	this->nodes = new NodeCT*[numRows*numCols]();
+	this->nodes = new NodeCT*[numRows*numCols](); // Inicializa com `nullptr`
+	this->pixelToFlatzone = std::vector<std::list<int>*>(numRows * numCols, nullptr);
  }
 
 ComponentTree::ComponentTree(int* img, int numRows, int numCols, bool isMaxtree, double radiusOfAdjacencyRelation)
@@ -132,7 +139,10 @@ ComponentTree::ComponentTree(int* img, int numRows, int numCols, bool isMaxtree,
         }
     }
 	delete[] nodes;
-    nodes = nullptr; 
+    nodes = nullptr;
+
+	//delete[] pixelToFlatzone;
+	//pixelToFlatzone = nullptr; 
 }
 
 
@@ -149,17 +159,17 @@ void ComponentTree::build(int* img){
 			int threshold1 = this->isMaxtree()? 0 : 255;
 			int threshold2 = img[p];
 			this->root = this->nodes[p] = new NodeCT(this->numNodes++, nullptr, threshold1, threshold2);
-			this->nodes[p]->addCNPs(p);
+			//this->nodes[p]->addCNPs(p);
 		}
 		else if (img[p] != img[parent[p]]) { //representante de um node
 			int threshold1 = this->isMaxtree()? img[parent[p]]+1 : img[parent[p]]-1;
 			int threshold2 = img[p];
 			this->nodes[p] = new NodeCT(this->numNodes++, this->nodes[parent[p]], threshold1, threshold2);
-			this->nodes[p]->addCNPs(p);
+			//this->nodes[p]->addCNPs(p);
 			this->nodes[parent[p]]->addChild(nodes[p]);
 		}
 		else if (img[p] == img[parent[p]]) {
-			this->nodes[parent[p]]->addCNPs(p);
+			//this->nodes[parent[p]]->addCNPs(p);
 			this->nodes[p] = nodes[parent[p]];
 		}else{
 			std::cerr << "\n\n\n\nOps...falhou geral\n\n\n\n";
@@ -171,19 +181,71 @@ void ComponentTree::build(int* img){
         }
 
 	}
-	if(countInitialized != n)
-		std::cerr << "DEBUG: Total de nós inicializados: " << countInitialized  << " / " << n << std::endl;
+	if(countInitialized != n){
+		std::cerr << "❌ ERRO FATAL: Mapeamento SC falhou, nem todos os pixels foram mapeados: " << countInitialized  << " / " << n << std::endl;
+        exit(0);
+	}
 
-
-	//computer area
-	computerArea(this->root);
+	this->assignCNPs();
+	
+	computerArea(this->root); //computer area
 
 	delete[] parent;
 	delete[] orderedPixels;
 }
 
+void ComponentTree::assignCNPs() {
+    int n = this->numRows * this->numCols;
+
+    std::vector<bool> visited(n, false); 
+    for (int p = 0; p < n; p++) {
+        if (visited[p]) continue; 
+
+		if (this->nodes[p] == nullptr) {
+			std::cerr << "❌ ERRO FATAL: Pixel " << p << " não foi mapeado para nenhum nó!" << std::endl;
+			exit(0);
+		}
+		
+
+        NodeCT* node = this->nodes[p];
+        std::list<int> flatZone;
+        std::queue<int> queue;
+        queue.push(p);
+        visited[p] = true;
+
+        while (!queue.empty()) {
+            int q_p = queue.front(); queue.pop();
+            flatZone.push_back(q_p);
+            for (int np : this->adj->getAdjPixels(q_p)) {
+				if (!visited[np] && this->nodes[np] == node) {
+                    visited[np] = true;
+                    queue.push(np);
+                }
+            }
+        }
+		assert(flatZone.size() > 0 && "ERRO: Existem flatzones vazias!");
+		node->addCNPsOfDisjointFlatzone(std::move(flatZone), this);
+	}
+	
+	assert([this]() -> bool {
+		for (int p = 0; p < this->numRows * this->numCols; p++) {
+			if (!this->pixelToFlatzone[p] || this->pixelToFlatzone[p]->empty()) {
+				std::cerr << "ERRO: O pixel " << p 
+						  << " pertence ao nó ID " << this->nodes[p]->getIndex()
+						  << " mas não está corretamente mapeado para uma flatzone válida!" << std::endl;
+				return false; // Retorna `false` para falhar no assert
+			}
+		}
+		return true; // Retorna `true` se tudo estiver correto
+	}());
+		
+    
+}
+
+
+
 void ComponentTree::computerArea(NodeCT* node){
-	long int area = node->getCNPs().size();
+	long int area = node->getNumCNPs();
 	for(NodeCT* child: node->getChildren()){
 		computerArea(child);
 		area += child->getArea();
@@ -200,24 +262,17 @@ void ComponentTree::setRoot(NodeCT* n){
 	this->root = n;
 }
 
- /*NodeCT* ComponentTree::getSC(int p) {
-	return this->nodes[p];
-}*/
+ 
 NodeCT* ComponentTree::getSC(int p) {
-    if (p < 0 || p >= (this->numRows * this->numCols)) { 
-        std::cerr << "Error function getSC: Índice " << p 
-                  << " fora dos limites! (numNodes=" << this->numNodes
-                  << ", matriz max=" << (this->numRows * this->numCols) << ")"
-                  << std::endl;
-        return nullptr; 
-    }
+	assert(p >= 0 && p < (this->numRows * this->numCols) && "Error: o método getSC está acessando index fora dos limites");
     return this->nodes[p];
 }
 
 
-
-
 void ComponentTree::setSC(int p, NodeCT* n){
+	assert(p >= 0 && p < (this->numRows * this->numCols) && "Error: o método setSC está acessando index fora dos limites");
+	assert(n != nullptr && "Erro: o método setSC recebeu um ponteiro nulo");
+
 	this->nodes[p] = n;
 }
 
@@ -228,7 +283,6 @@ AdjacencyRelation* ComponentTree::getAdjacencyRelation(){
 bool ComponentTree::isMaxtree(){
 	return this->maxtreeTreeType;
 }
-
 
 int ComponentTree::getNumNodes(){
 	return this->numNodes;
@@ -242,40 +296,40 @@ int ComponentTree::getNumColsOfImage(){
 	return this->numCols;
 }
 
-void ComponentTree::prunning(NodeCT* node){
-	if(node == nullptr){
-		std::cout << "node is nullptr" << std::endl;
-	}
 
-	if(node != this->root){
-		NodeCT* parent = node->getParent();
-		parent->getChildren().remove(node);
-        node->setParent(nullptr);
+void ComponentTree::prunning(NodeCT* node) {
+    assert(node != nullptr && "Erro: node is nullptr");
+	assert(node->parent != nullptr && "Erro: node is root");
 
-		std::stack<NodeCT*> s;
-		s.push(node);
-		while(!s.empty()){
-    		NodeCT* child = s.top(); s.pop();	
-			this->numNodes--;
-			for(NodeCT* n: child->getChildren()){
-				s.push(n);
-			}
-			
-			for(int p: child->getCNPs()){
-				this->nodes[p] = parent;
-			}
-			parent->getCNPs().splice(parent->getCNPs().end(), child->getCNPs());
-			
-			delete child;
-			child = nullptr;
-		}
-		node = nullptr;
-		
-	}
+    if (node != this->root) {
+        NodeCT* parent = node->getParent();
+        parent->getChildren().remove(node); 
+        node->setParent(nullptr); 
 
-	
-		
+        std::stack<NodeCT*> s;
+        s.push(node);
+
+        std::list<int> cnpsCC;
+
+        while (!s.empty()) {
+            NodeCT* child = s.top(); s.pop();
+            this->numNodes--;
+            for (NodeCT* n : child->getChildren()) {
+                s.push(n);
+            }
+
+            for (std::list<int>& flatZone : child->moveCNPsByFlatZone()) {
+                cnpsCC.splice(cnpsCC.end(), flatZone);  // Mover flatzones para `cnpsCC`
+            }
+
+            delete child;  
+        }
+
+        parent->addCNPsToConnectedFlatzone(std::move(cnpsCC), this);
+    }
+
 }
+
 
 
 
@@ -324,3 +378,26 @@ int* ComponentTree::reconstructionImage(){
 	return img;
 }
 	
+
+std::list<int>& ComponentTree::getFlatzoneRef(int p) {
+	assert(p >= 0 && p < (this->numRows * this->numCols) && "Error: o método getFlatzoneRef está acessando index fora dos limites");
+    assert(pixelToFlatzone[p] != nullptr && "Erro: o método getFlatzoneRef tentou acessar flatzone nula!");
+	assert(!pixelToFlatzone[p]->empty() && "Erro: flatzone vazia!");
+    return *pixelToFlatzone[p];
+}
+
+std::list<int>* ComponentTree::getFlatzonePointer(int p){
+	assert(p >= 0 && p < (this->numRows * this->numCols) && "Error: o método getFlatzonePointer está acessando index fora dos limites");
+    assert(pixelToFlatzone[p] != nullptr && "Erro: o método getFlatzonePointer tentou acessar flatzone nula!");
+	assert(!pixelToFlatzone[p]->empty() && "Erro: flatzone vazia!");
+    return pixelToFlatzone[p];
+}
+
+void ComponentTree::updatePixelToFlatzone(int p, std::list<int>* newFlatzone) {
+	assert(p >= 0 && p < (this->numRows * this->numCols) && "Error: o método updatePixelToFlatzone está acessando index fora dos limites");
+    assert(newFlatzone != nullptr && "Erro: o método updatePixelToFlatzone recebeu um ponteiro nulo para uma flatzone!");
+	assert(!newFlatzone->empty() && "Erro: flatzone vazia!");
+	
+    pixelToFlatzone[p] = newFlatzone;  
+}
+
