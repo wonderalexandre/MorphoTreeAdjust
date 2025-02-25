@@ -17,6 +17,7 @@
 
 #include "../tests/Tests.hpp"
 
+
 int main()
 {
 
@@ -27,10 +28,10 @@ int main()
     int n = numRows * numCols;
     double radioAdj = 1.5;
 
-    ComponentTree* maxtree = new ComponentTree(img, numRows, numCols, true, radioAdj);
-    ComponentTree* mintree = new ComponentTree(img, numRows, numCols, false, radioAdj);
-    testComponentTree(maxtree, "max-tree", img, numRows, numCols);
-    testComponentTree(mintree, "min-tree", img, numRows, numCols);
+    ComponentTreeFZ* maxtree = new ComponentTreeFZ(img, numRows, numCols, true, radioAdj);
+    ComponentTreeFZ* mintree = new ComponentTreeFZ(img, numRows, numCols, false, radioAdj);
+    testComponentTreeFZ(maxtree, "max-tree", img, numRows, numCols);
+    testComponentTreeFZ(mintree, "min-tree", img, numRows, numCols);
 
     printMappingSC(maxtree);
     std::cout <<"\n\n" << std::endl;
@@ -44,11 +45,10 @@ int main()
     //for(int i=0; i < numNodes; i++){
     //    NodeCT* L_leaf = mintree->getLeaves().front();
        // if(L_leaf->getIndex() != 293) continue;
-    for(NodeCT* L_leaf : mintree->getRoot()->getIteratorPostOrderTraversal()){
-
+    for(NodeFZ* L_leaf : mintree->getRoot()->getIteratorPostOrderTraversal()){
+        if(L_leaf == mintree->getRoot()) break;
+        
         int id = L_leaf->getIndex();
-
-
         std::cout <<"Pruning id:" << id << ", level:" << L_leaf->getLevel() << ", |cnps|:" << L_leaf->getNumCNPs() <<  std::endl;
         adjust.updateTree(maxtree, L_leaf);
         mintree->prunning(L_leaf);
@@ -66,8 +66,8 @@ int main()
         std::cout << "NunNodes (mintree):" << mintree->getNumNodes() << "\tNumNodes (maxtree):" << maxtree->getNumNodes();
         std::cout <<"\tL_leaf(id): " << id << "\t Rec(maxtree) = Rec(mintree):" << isEquals << std::endl;
 
-        testComponentTree(maxtree, "max-tree", imgOutMaxtree, numRows, numCols);
-        testComponentTree(mintree, "min-tree", imgOutMintree, numRows, numCols);
+        testComponentTreeFZ(maxtree, "max-tree", imgOutMaxtree, numRows, numCols);
+        testComponentTreeFZ(mintree, "min-tree", imgOutMintree, numRows, numCols);
 
         delete[] imgOutMaxtree;
         delete[] imgOutMintree;

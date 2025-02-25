@@ -12,7 +12,7 @@
 
 
 
-void ComponentTreeGeneralAdjustment::adjustMaxTree(ComponentTree &maxtree, std::list<int> flatZoneP, int newGrayLevel) {
+void adjustMaxTree(ComponentTree<FlatZones> &maxtree, std::list<int> flatZone, int newGrayLevel){
 	
 	/*
 

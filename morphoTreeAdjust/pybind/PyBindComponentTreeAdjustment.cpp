@@ -1,28 +1,32 @@
+#include "PyBindComponentTreeAdjustment.hpp"
 
-#include "./PyBindComponentTreeAdjustment.hpp"
 
-void PyBindComponentTreeAdjustment::updateTree(PyBindComponentTree* tree, NodeCT *L_leaf){
+
+void PyBindComponentTreeAdjustment::updateTree(PyBindComponentTreeFZ* tree, NodeFZ* L_leaf) {
    ComponentTreeAdjustment::updateTree(tree, L_leaf);
 }
 
-void PyBindComponentTreeAdjustment::updateTree2(PyBindComponentTree* tree, NodeCT *rSubtree){
+
+void PyBindComponentTreeAdjustment::updateTree2(PyBindComponentTreeFZ* tree, NodeFZ* rSubtree) {
    ComponentTreeAdjustment::updateTree2(tree, rSubtree);
 }
 
-py::tuple PyBindComponentTreeAdjustment::buildCollections(PyBindComponentTree* tree, std::vector<int> flatZone, int newGrayLevel, bool isMaxtree){
-      std::list<int> flatZoneList(flatZone.begin(), flatZone.end()); 
-      ComponentTreeAdjustment::buildMergedAndNestedCollections(tree, flatZoneList, newGrayLevel, isMaxtree);
 
-      std::array<std::vector<NodeCT*>, 256> collectionF = this->F.getCollectionF();
+py::tuple PyBindComponentTreeAdjustment::buildCollections(PyBindComponentTreeFZ* tree, std::vector<int> vflatZone, int newGrayLevel, bool isMaxtree) {
+    FlatZone flatZone(vflatZone.begin(), vflatZone.end()); 
+    std::vector<FlatZoneRef> flatZonesList;
+    flatZonesList.push_back(flatZone);
 
-      std::map<int, std::vector<NodeCT*>> mapCollectionF;
-      for (int i = 0; i < 256; ++i) {
-         if (!collectionF[i].empty()) {
-            std::vector<NodeCT*> nodes = collectionF[i];
+    ComponentTreeAdjustment::buildMergedAndNestedCollections(tree, flatZonesList, newGrayLevel, isMaxtree);
+    std::array<std::vector<NodeFZ*>, 256> collectionF = this->F.getCollectionF();
+
+    std::map<int, std::vector<NodeFZ*>> mapCollectionF;
+    for (int i = 0; i < 256; ++i) {
+        if (!collectionF[i].empty()) {
+            std::vector<NodeCT<FlatZones>*> nodes = collectionF[i];
             mapCollectionF[i] = nodes;
-         }
-      }
+        }
+    }
 
-      return py::make_tuple(mapCollectionF, this->B_L);
-
+    return py::make_tuple(mapCollectionF, this->B_L);
 }

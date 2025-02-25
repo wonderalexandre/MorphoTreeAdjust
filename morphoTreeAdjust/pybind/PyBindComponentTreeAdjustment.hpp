@@ -1,30 +1,33 @@
 #include <list>
 #include <vector>
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
 
 #include "../include/NodeCT.hpp"
 #include "../include/ComponentTreeAdjustment.hpp"
-#include "./PyBindComponentTree.hpp"
+#include "PyBindComponentTree.hpp"
 
+#include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
+#include <pybind11/numpy.h>
 
 #ifndef PYBIND_COMPONENT_TREE_ADJUSTMENT_H
 #define PYBIND_COMPONENT_TREE_ADJUSTMENT_H
 
 namespace py = pybind11;
 
+using PyBindComponentTreeFZ = PyBindComponentTree<FlatZones>;
+
 class PyBindComponentTreeAdjustment: public ComponentTreeAdjustment {
 
 public:
    
-   PyBindComponentTreeAdjustment(PyBindComponentTree* maxtree, PyBindComponentTree* mintree)
+   PyBindComponentTreeAdjustment(PyBindComponentTreeFZ* maxtree, PyBindComponentTreeFZ* mintree)
         : ComponentTreeAdjustment(maxtree, mintree) {} 
 
-   void updateTree(PyBindComponentTree* tree, NodeCT *L_leaf);
+   void updateTree(PyBindComponentTreeFZ* tree, NodeFZ* L_leaf);
 
-   void updateTree2(PyBindComponentTree* tree, NodeCT *rSubtree);
+   void updateTree2(PyBindComponentTreeFZ* tree, NodeFZ* rSubtree);
 
-   py::tuple buildCollections(PyBindComponentTree* tree, std::vector<int> flatZone, int newGrayLevel, bool isMaxtree);
+   py::tuple buildCollections(PyBindComponentTreeFZ* tree, std::vector<int> flatZone, int newGrayLevel, bool isMaxtree);
 
 };
 

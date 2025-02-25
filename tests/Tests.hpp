@@ -12,8 +12,23 @@
 #include <fstream>
 #include <iostream>
 
+template <typename CNPsType>
+inline void printTree(NodeCT<CNPsType>* root, int indent = 0) {
+    
+    // Imprime o nó atual com indentação
+    for (int i = 0; i < indent; ++i) {
+        std::cout << "|-";
+    }
+    std::cout << "Node: " << root->getIndex() <<  ", Level: " << root->getLevel()<< std::endl;
 
-inline void printMappingSC(ComponentTree* tree, std::string nomeArquivo = "") {
+    // Chama recursivamente a função para cada filho
+    for (NodeCT<CNPsType>* child : root->getChildren()) {
+        printTree(child, indent + 1);
+    }
+}
+
+template <typename CNPsType>
+inline void printMappingSC(ComponentTree<CNPsType>* tree, std::string nomeArquivo = "") {
 
     int numRows = tree->getNumRowsOfImage();
     int numCols = tree->getNumColsOfImage();
@@ -53,8 +68,8 @@ inline void printMappingSC(ComponentTree* tree, std::string nomeArquivo = "") {
 
 }
 
-
-inline  void printConnectedComponent(NodeCT* node, ComponentTree* tree, std::string nomeArquivo = "") {
+template <typename CNPsType>
+inline  void printConnectedComponent(NodeCT<CNPsType>* node, ComponentTree<CNPsType>* tree, std::string nomeArquivo = "") {
     int numRows = tree->getNumRowsOfImage();
     int numCols = tree->getNumColsOfImage();
     int n = numRows*numCols;
@@ -122,7 +137,7 @@ inline  void printImage(int* img, int numRows, int numCols, std::string nomeArqu
 }
 
 
-inline  void printMappingFZ(ComponentTree* tree, std::string nomeArquivo = "") {
+inline  void printMappingFZ(ComponentTreeFZ* tree, std::string nomeArquivo = "") {
     int numRows = tree->getNumRowsOfImage();
     int numCols = tree->getNumColsOfImage();
     int n = numRows*numCols;
@@ -173,7 +188,10 @@ inline bool isEquals(int* imgOut1, int* imgOut2, int size){
     return equals == 0;
  }
 
- inline  void testComponentTree(ComponentTree* tree, const std::string& treeType, int* img, int numRows, int numCols) {
+
+
+ template <typename CNPsType>
+ inline  void testComponentTree(ComponentTree<CNPsType>* tree, const std::string& treeType, int* img, int numRows, int numCols) {
     std::cout << "🔍 Testando " << treeType << "..." << std::endl;
 
     if (!tree) {
@@ -181,14 +199,38 @@ inline bool isEquals(int* imgOut1, int* imgOut2, int size){
         return;
     }
 
+    int area = tree->getRoot()->getArea();
+    int count_area = 0;
+    for(int p : tree->getRoot()->getPixelsOfCC()){
+        count_area++;
+    }
+    if (area == count_area) {
+        std::cout << "✅ Iterator getPixelsOfCC da " << treeType << " está correto." << std::endl;
+    }else{
+        std::cout << "❌ Erro: Iterator getPixelsOfCC da " << treeType << ". Valor de count_area:" << count_area << std::endl;
+    }
+    int num_cnps = tree->getRoot()->getNumCNPs();
+    int count_cnps= 0;
+    for(int p : tree->getRoot()->getCNPs()){
+        count_cnps++;
+    }
+    if (num_cnps == count_cnps) {
+        std::cout << "✅ Iterator getCNPs da" << treeType << " está correto." << std::endl;
+    }else{
+        std::cout << "❌ Erro: Iterator getCNPs da" << treeType << ". Valor de count_cnps:" << count_cnps << std::endl;
+        return;
+    } 
+
+
     // Teste 1: Raiz da árvore não nula
-    NodeCT* root = tree->getRoot();
+    NodeCT<CNPsType>* root = tree->getRoot();
     if (!root) {
         std::cerr << "❌ Erro: Raiz da " << treeType << " é nula!" << std::endl;
         return;
     }
     std::cout << "✅ Raiz da " << treeType << " existe." << std::endl;
 
+    
     // Teste 2: Número de nós na árvore
     int numNodes = tree->getNumNodes();
     if (numNodes <= 0) {
@@ -199,7 +241,7 @@ inline bool isEquals(int* imgOut1, int* imgOut2, int size){
 
     // Teste 3: Verificando se todos os nós possuem um pai correto (exceto a raiz)
     bool allParentsCorrect = true;
-    for (NodeCT* node : tree->getRoot()->getIteratorBreadthFirstTraversal()) {
+    for (NodeCT<CNPsType>* node : tree->getRoot()->getIteratorBreadthFirstTraversal()) {
         if (node != root && node->getParent() == nullptr) {
             std::cerr << "❌ Erro: Nó sem pai encontrado na " << treeType << "!" << std::endl;
             allParentsCorrect = false;
@@ -211,8 +253,8 @@ inline bool isEquals(int* imgOut1, int* imgOut2, int size){
 
     // Teste 4: Verificando se cada nó tem filhos corretos
     bool allChildrenCorrect = true;
-    for (NodeCT* node : tree->getRoot()->getIteratorBreadthFirstTraversal()) {
-        for (NodeCT* child : node->getChildren()) {
+    for (NodeCT<CNPsType>* node : tree->getRoot()->getIteratorBreadthFirstTraversal()) {
+        for (NodeCT<CNPsType>* child : node->getChildren()) {
             if (child->getParent() != node) {
                 std::cerr << "❌ Erro: Nó com filho sem referência ao pai na " << treeType << "!" << std::endl;
                 allChildrenCorrect = false;
@@ -225,7 +267,7 @@ inline bool isEquals(int* imgOut1, int* imgOut2, int size){
 
     // Teste 5: Verificando se os pixels estão corretamente armazenados nos nós
     bool allPixelsCorrect = true;
-    for (NodeCT* node : tree->getRoot()->getIteratorBreadthFirstTraversal()) {
+    for (NodeCT<CNPsType>* node : tree->getRoot()->getIteratorBreadthFirstTraversal()) {
         for (int p : node->getCNPs()) {
             if (tree->getSC(p) != node) {
                 std::cerr << "❌ Erro: Pixel " << p << " não está corretamente associado ao nó na " << treeType << "!" << std::endl;
@@ -237,14 +279,37 @@ inline bool isEquals(int* imgOut1, int* imgOut2, int size){
         std::cout << "✅ Todos os pixels estão corretamente mapeados para os nós na " << treeType << "." << std::endl;
     }
 
+
+    // Teste 7: Verificando se todos os pixels da imagem estão mapeados corretamente na ComponentTree
+    bool allMappedCorrectly = true;
+    int numPixels = numRows * numCols;
+    for (int p = 0; p < numPixels; p++) {
+        NodeCT<CNPsType>* mappedNode = tree->getSC(p);
+        if (!mappedNode) {
+            std::cerr << "❌ Erro: Pixel " << p << " não foi mapeado para nenhum nó na " << treeType << "!" << std::endl;
+            allMappedCorrectly = false;
+        } else if (mappedNode->getLevel() != img[p]) {
+            std::cerr << "❌ Erro: Pixel " << p << " está associado a um nó de nível " << mappedNode->getLevel()
+                      << " mas deveria estar em " << img[p] << " na " << treeType << "!" << std::endl;
+            allMappedCorrectly = false;
+        }
+    }
+    if (allMappedCorrectly) {
+        std::cout << "✅ Todos os pixels da imagem foram corretamente mapeados na " << treeType << "." << std::endl;
+    }
+}
+
+inline void testComponentTreeFZ(ComponentTreeFZ* tree, const std::string& treeType, int* img, int numRows, int numCols) {
+    testComponentTree(tree, treeType, img, numRows, numCols);
+
     // Teste 6: Verificando se as flatzones estão corretamente definidas
     bool allFlatzonesCorrect = true;
-    for (NodeCT* node : tree->getRoot()->getIteratorBreadthFirstTraversal()) {
+    for (NodeFZ* node : tree->getRoot()->getIteratorBreadthFirstTraversal()) {
         if(node->getNumCNPs() == 0){
             std::cerr << "❌ Erro: O nó de id " << node->getIndex() << " não possui flatzones vazias na " << treeType << "!" << std::endl;
             allFlatzonesCorrect = false;
         }
-        for (std::list<int> flatzone : node->getCopyCNPsByFlatZone()) {
+        for (std::list<int> flatzone : node->getCNPsByFlatZone()) {
             if(flatzone.empty()){
                 std::cerr << "❌ Erro: O nó de id " << node->getIndex() << " não possui flatzones vazias na " << treeType << "!" << std::endl;
                 allFlatzonesCorrect = false;
@@ -275,24 +340,6 @@ inline bool isEquals(int* imgOut1, int* imgOut2, int size){
     }
 
 
-    // Teste 7: Verificando se todos os pixels da imagem estão mapeados corretamente na ComponentTree
-    bool allMappedCorrectly = true;
-    int numPixels = numRows * numCols;
-    for (int p = 0; p < numPixels; p++) {
-        NodeCT* mappedNode = tree->getSC(p);
-        if (!mappedNode) {
-            std::cerr << "❌ Erro: Pixel " << p << " não foi mapeado para nenhum nó na " << treeType << "!" << std::endl;
-            allMappedCorrectly = false;
-        } else if (mappedNode->getLevel() != img[p]) {
-            std::cerr << "❌ Erro: Pixel " << p << " está associado a um nó de nível " << mappedNode->getLevel()
-                      << " mas deveria estar em " << img[p] << " na " << treeType << "!" << std::endl;
-            allMappedCorrectly = false;
-        }
-    }
-    if (allMappedCorrectly) {
-        std::cout << "✅ Todos os pixels da imagem foram corretamente mapeados na " << treeType << "." << std::endl;
-    }
-
 
     // Verificar se todas as flatzones possuem pixels
     bool allFlatzonesValid = true;
@@ -307,13 +354,13 @@ inline bool isEquals(int* imgOut1, int* imgOut2, int size){
     if (allFlatzonesValid) {
         std::cout << "✅ Todas as flatzones possuem pixels." << std::endl;
     }
+
     std::cout << "\n" << std::endl;
-    
-}
+ }
 
-
-inline NodeCT* getNodeByIndex(ComponentTree* tree, int index){
-	for (NodeCT* node : tree->getRoot()->getIteratorBreadthFirstTraversal()) {
+template <typename CNPsType>
+inline NodeCT<CNPsType>* getNodeByIndex(ComponentTree<CNPsType>* tree, int index){
+	for (NodeCT<CNPsType>* node : tree->getRoot()->getIteratorBreadthFirstTraversal()) {
 		if(node->getIndex() == index){
 			return node;
 		}

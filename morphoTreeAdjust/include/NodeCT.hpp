@@ -10,22 +10,11 @@
 #ifndef NODECT_H
 #define NODECT_H
 
+template <typename CNPsType>
 class ComponentTree;  //Forward declaration
 
-struct ListRefHash {
-    size_t operator()(const std::reference_wrapper<std::list<int>>& ref) const {
-        return reinterpret_cast<size_t>(&ref.get());  // Usa o endereço como hash
-    }
-};
 
-struct ListRefEqual {
-    bool operator()(const std::reference_wrapper<std::list<int>>& lhs, 
-                    const std::reference_wrapper<std::list<int>>& rhs) const {
-        return &lhs.get() == &rhs.get();  // Compara pelos endereços
-    }
-};
-
-
+template <typename CNPsType>
 class NodeCT {
 private:
 	int index=-1; 
@@ -34,7 +23,7 @@ private:
 	long int areaCC;
 	
 	NodeCT* parent;
-	std::list<std::list<int>> cnpsByFlatzone; //pixels of the proper part by flatzone
+	CNPsType cnps; //pixels of the proper part 
     std::list<NodeCT*> children;
 
 
@@ -47,183 +36,53 @@ public:
     }
     
     
-    std::list<std::list<int>> moveCNPsByFlatZone(); 
-    std::list<std::list<int>> getCopyCNPsByFlatZone();
-	
-	
+    ///Métodos disponíveis SOMENTE para `FlatZones`
+    template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
+    CNPsType moveCNPsByFlatZone();
+
+    template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
+    CNPsType& getCNPsByFlatZone();
+
+    template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
     int getNumFlatzone();
-    //void setCNPsByFlatZone(std::list<std::list<int>>&& cnpsByFlatzone, ComponentTree* tree);
-    
-    void addCNPsOfDisjointFlatzone(std::list<int>&& flatZone, ComponentTree* tree);
-    void addCNPsOfDisjointFlatzones(std::list<std::list<int>>&& flatZones, ComponentTree* tree);
-    void addCNPsToConnectedFlatzone(std::list<int>&& flatZone, ComponentTree* tree);
-    int getCNP(size_t index);
-    void removeFlatzone(std::list<int>& flatzone);
-    
+
+    template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
+    void addCNPsOfDisjointFlatzone(typename CNPsType::value_type&& flatZone, ComponentTree<CNPsType>* tree);
+
+    template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
+    void addCNPsOfDisjointFlatzones(CNPsType&& flatZones, ComponentTree<CNPsType>* tree);
+
+    template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
+    void addCNPsToConnectedFlatzone(typename CNPsType::value_type&& flatZone, ComponentTree<CNPsType>* tree);
+
+    template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
+    void removeFlatzone(typename CNPsType::value_type& flatzone);
+
+    ///Métodos disponíveis SOMENTE para `Pixels`
+    template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, Pixels>::value, int> = 0>
+    void addCNPs(int p);
 
     void setArea(long int area);
 	long int getArea() const;
-    void addChild(NodeCT* child);
+    void addChild(NodeCT<CNPsType>* child);
     int getIndex() const;
 	int getThreshold1() const;
 	int getThreshold2() const;
     int getNumCNPs() const;
 	int getLevel() const;
 	void setLevel(int level);
-	bool isChild(NodeCT* node);
-    bool isLeaf();
+	bool isChild(NodeCT<CNPsType>* node) const;
+    bool isLeaf() const;
 	void setNumDescendants(int num);
-	NodeCT* getParent();
-	void setParent(NodeCT* parent);
-	
-	std::list<NodeCT*>& getChildren();
-	int getNumSiblings();
-
-    std::vector<int> getCNPsToVector() {
-        std::vector<int> cnpsVector;
-        for (const auto& region : cnpsByFlatzone) {
-            cnpsVector.insert(cnpsVector.end(), region.begin(), region.end());
-        }
-        return cnpsVector;
-    }
-
-	std::vector<NodeCT*> getChildrenToVector(){
-		std::vector<NodeCT*> childrenVector(children.begin(), children.end());
-		return childrenVector;
-	}
-
-
-///////////////////////////////////////////////////
-	/*
-    class InternalIteratorPixelsOfCC{
-		private:
-			NodeCT *currentNode;
-			std::stack<NodeCT*> s;
-			std::list<int>::iterator iter;
-			int countArea;
-			using iterator_category = std::input_iterator_tag;
-            using value_type = int; 
-		public:
-			InternalIteratorPixelsOfCC(NodeCT *obj, int area)  {
-				this->currentNode = obj;
-				this->countArea =area;
-				this->iter = this->currentNode->cnpsByFlatzone.begin();
-				for (NodeCT *child: this->currentNode->getChildren()){
-					s.push(child);
-				}	
-			}
-			InternalIteratorPixelsOfCC& operator++() { 
-			    this->iter++; 
-				if(this->iter == this->currentNode->cnpsByFlatzone.end()){
-					if(!s.empty()){
-            			this->currentNode = s.top(); s.pop();
-						this->iter = this->currentNode->cnpsByFlatzone.begin();
-						for (NodeCT *child: currentNode->getChildren()){
-                		    s.push(child);
-						}
-					}
-				}
-				this->countArea++;
-				return *this; 
-            }
-            bool operator==(InternalIteratorPixelsOfCC other) const { 
-                return this->countArea == other.countArea; 
-            }
-            bool operator!=(InternalIteratorPixelsOfCC other) const { 
-                return !(*this == other);
-            }
-            int operator*() const { 
-                return (*this->iter); 
-            }  
-    };
-    */
-    class InternalIteratorPixelsOfCC {
-    private:
-        NodeCT* currentNode;
-        std::stack<NodeCT*> s;
-        std::list<std::list<int>>::iterator flatzoneIter;  // ✅ Iterador do vetor
-        std::list<int>::iterator iter;  // ✅ Iterador da lista
-        int countArea;
-
-        using iterator_category = std::input_iterator_tag;
-        using value_type = int;
-
-    public:
-        InternalIteratorPixelsOfCC(NodeCT* obj, int area) {
-            this->currentNode = obj;
-            this->countArea = area;
-
-            // Verifica se há flatzones antes de acessar
-            if (!this->currentNode->cnpsByFlatzone.empty()) {
-                this->flatzoneIter = this->currentNode->cnpsByFlatzone.begin();
-                this->iter = flatzoneIter->begin();
-            }
-
-            for (NodeCT* child : this->currentNode->getChildren()) {
-                s.push(child);
-            }
-        }
-
-        InternalIteratorPixelsOfCC& operator++() {
-            if (this->flatzoneIter != this->currentNode->cnpsByFlatzone.end()) {
-                ++this->iter;
-
-                // ✅ Se terminamos a lista atual, passamos para a próxima flatzone
-                while (this->iter == this->flatzoneIter->end()) {
-                    ++this->flatzoneIter;
-                    if (this->flatzoneIter == this->currentNode->cnpsByFlatzone.end()) {
-                        break;
-                    }
-                    this->iter = this->flatzoneIter->begin();
-                }
-            }
-
-            if (this->flatzoneIter == this->currentNode->cnpsByFlatzone.end() && !s.empty()) {
-                this->currentNode = s.top();
-                s.pop();
-
-                if (!this->currentNode->cnpsByFlatzone.empty()) {
-                    this->flatzoneIter = this->currentNode->cnpsByFlatzone.begin();
-                    this->iter = this->flatzoneIter->begin();
-                }
-
-                for (NodeCT* child : this->currentNode->getChildren()) {
-                    s.push(child);
-                }
-            }
-
-            this->countArea++;
-            return *this;
-        }
-
-        bool operator==(const InternalIteratorPixelsOfCC& other) const {
-            return this->countArea == other.countArea;
-        }
-
-        bool operator!=(const InternalIteratorPixelsOfCC& other) const {
-            return !(*this == other);
-        }
-
-        int operator*() const {
-            return *this->iter;
-        }
-    };
-
-	class IteratorPixelsOfCC{
-		private:
-			NodeCT *instance;
-			int area;
-		public:
-			IteratorPixelsOfCC(NodeCT *obj, int _area): instance(obj), area(_area) {}
-			InternalIteratorPixelsOfCC begin(){ return InternalIteratorPixelsOfCC(instance, 0); }
-            InternalIteratorPixelsOfCC end(){ return InternalIteratorPixelsOfCC(instance, area); }
-	};	
-	IteratorPixelsOfCC getPixelsOfCC(){
-	    return IteratorPixelsOfCC(this, this->areaCC);
-	}
+	NodeCT<CNPsType>* getParent();
+	void setParent(NodeCT<CNPsType>* parent);
+	std::list<NodeCT<CNPsType>*>& getChildren();
+	int getNumSiblings() const;
+    int getRepresentativeCNPs() const;
 
 
 
+//============= Iterator para iterar os nodes do caminho até o root==============//
 	class InternalIteratorNodesOfPathToRoot {
     private:
         NodeCT* currentNode;
@@ -269,6 +128,8 @@ public:
     IteratorNodesOfPathToRoot getNodesOfPathToRoot() { return IteratorNodesOfPathToRoot(this); }
 
 
+
+//============= Iterator para iterar os nodes de um percuso em pos-ordem ==============//
 	class InternalIteratorPostOrderTraversal {
     private:
         std::stack<NodeCT*> nodeStack;
@@ -327,8 +188,7 @@ public:
 
 
 
-
-
+//============= Iterator para iterar os nodes de um percuso em largura ==============//
     class InternalIteratorBreadthFirstTraversal {
     private:
         std::queue<NodeCT*> nodeQueue;
@@ -387,81 +247,211 @@ public:
     }
 
 
-    class InternalIteratorCNPs {
-        private:
-            using FlatzoneIterator = std::list<std::list<int>>::iterator;
-            using CNPsIterator = std::list<int>::iterator;
-            
-            FlatzoneIterator flatzoneIt, flatzoneEnd;
-            CNPsIterator cnpsIt;
-        
-            void advance() {
-                if (flatzoneIt != flatzoneEnd && cnpsIt == flatzoneIt->end()) {
-                    ++flatzoneIt;
-                    if (flatzoneIt != flatzoneEnd) {
-                        cnpsIt = flatzoneIt->begin();
+//////////////////    
+
+//============= Iterator para iterar os pixels de um CC==============//
+class InternalIteratorPixelsOfCC {
+    private:
+        NodeCT<CNPsType>* currentNode;
+        std::stack<NodeCT<CNPsType>*> s;
+        typename CNPsType::iterator iter;  // Iterador principal (pode ser Pixels ou FlatZones)
+        typename CNPsType::iterator endIter;  // Final da lista principal
+        typename CNPsType::value_type::iterator subIter;  //  Iterador secundário (caso seja FlatZones)
+        bool isFlatZones;  // Indica se estamos lidando com `FlatZones`
+        int countArea;
+
+        using iterator_category = std::input_iterator_tag;
+        using value_type = int;
+
+    public:
+        InternalIteratorPixelsOfCC(NodeCT<CNPsType>* obj, int area) : currentNode(obj), countArea(area) {
+            isFlatZones = std::is_same<CNPsType, std::list<std::list<int>>>::value;
+
+            if (!this->currentNode->cnps.empty()) {
+                iter = this->currentNode->cnps.begin();
+                endIter = this->currentNode->cnps.end();
+
+                if (isFlatZones && iter != endIter) {
+                    subIter = iter->begin();
+                }
+            }
+
+            for (NodeCT<CNPsType>* child : this->currentNode->getChildren()) {
+                s.push(child);
+            }
+        }
+
+        InternalIteratorPixelsOfCC& operator++() {
+            if (isFlatZones) {
+                // Iterando dentro de uma flatzone
+                ++subIter;
+                while (iter != endIter && subIter == iter->end()) {
+                    ++iter;
+                    if (iter != endIter) {
+                        subIter = iter->begin();
                     }
                 }
+            } else {
+                // Iterando em uma lista simples de pixels
+                ++iter;
             }
-           
-            
-        public:
-            using iterator_category = std::input_iterator_tag;
-            using value_type = int;
-            using difference_type = std::ptrdiff_t;
-            using pointer = int*;
-            using reference = int&;
-            
-            InternalIteratorCNPs(FlatzoneIterator flatzoneIt, FlatzoneIterator flatzoneEnd)
-                : flatzoneIt(flatzoneIt), flatzoneEnd(flatzoneEnd) {
+
+            // Se acabou, ir para próximo nó na árvore
+            if (iter == endIter && !s.empty()) {
+                this->currentNode = s.top();
+                s.pop();
+
+                if (!this->currentNode->cnps.empty()) {
+                    iter = this->currentNode->cnps.begin();
+                    endIter = this->currentNode->cnps.end();
+
+                    if (isFlatZones && iter != endIter) {
+                        subIter = iter->begin();
+                    }
+                }
+
+                for (NodeCT<CNPsType>* child : this->currentNode->getChildren()) {
+                    s.push(child);
+                }
+            }
+
+            this->countArea++;
+            return *this;
+        }
+
+        bool operator==(const InternalIteratorPixelsOfCC& other) const {
+            return this->countArea == other.countArea;
+        }
+
+        bool operator!=(const InternalIteratorPixelsOfCC& other) const {
+            return !(*this == other);
+        }
+
+        int operator*() const {
+            if (isFlatZones) {
+                return *subIter;  
+            } else {
+                return *(iter->begin());
+            }
+        }
+    };
+
+    class IteratorPixelsOfCC { //Classe Externa para o Iterador
+    private:
+        NodeCT<CNPsType>* instance;
+        int area;
+
+    public:
+        IteratorPixelsOfCC(NodeCT<CNPsType>* obj, int _area) : instance(obj), area(_area) {}
+
+        InternalIteratorPixelsOfCC begin() { return InternalIteratorPixelsOfCC(instance, 0); }
+        InternalIteratorPixelsOfCC end() { return InternalIteratorPixelsOfCC(instance, area); }
+        int front() const{ return instance->getRepresentativeCNPs(); }
+    };
+    IteratorPixelsOfCC getPixelsOfCC() {
+        return IteratorPixelsOfCC(this, this->areaCC);
+    }
+
+
+
+//============= Iterator para iterar os pixels compactos (CNPs) ==============//
+
+class InternalIteratorCNPs {
+    private:
+        using FlatzoneIterator = std::list<std::list<int>>::iterator;
+        using CNPsIterator = std::list<int>::iterator;
+        
+        FlatzoneIterator flatzoneIt, flatzoneEnd;
+        CNPsIterator cnpsIt;
+    
+        void advance() {
+            if (flatzoneIt != flatzoneEnd && cnpsIt == flatzoneIt->end()) {
+                ++flatzoneIt;
                 if (flatzoneIt != flatzoneEnd) {
                     cnpsIt = flatzoneIt->begin();
-                    advance();
                 }
             }
-            
-            reference operator*() {
-                assert(flatzoneIt != flatzoneEnd && "Tentando acessar um iterador inválido");
-                return *cnpsIt;
-            }
-            
-            InternalIteratorCNPs& operator++() {
-                ++cnpsIt;
+        }
+       
+        
+    public:
+        using iterator_category = std::input_iterator_tag;
+        using value_type = int;
+        using difference_type = std::ptrdiff_t;
+        using pointer = int*;
+        using reference = int&;
+        
+        InternalIteratorCNPs(FlatzoneIterator flatzoneIt, FlatzoneIterator flatzoneEnd)
+            : flatzoneIt(flatzoneIt), flatzoneEnd(flatzoneEnd) {
+            if (flatzoneIt != flatzoneEnd) {
+                cnpsIt = flatzoneIt->begin();
                 advance();
-                return *this;
             }
-            
-            bool operator==(const InternalIteratorCNPs& other) const {
-                return flatzoneIt == other.flatzoneIt && (flatzoneIt == flatzoneEnd || cnpsIt == other.cnpsIt);
-            }
-            
-            bool operator!=(const InternalIteratorCNPs& other) const {
-                return !(*this == other);
-            }
-        };
+        }
         
-        class IteratorCNPs {
-            private:
-                std::list<std::list<int>>* cnpsByFlatzone;
-            
-            public:
-                explicit IteratorCNPs(NodeCT* node) : cnpsByFlatzone(&node->cnpsByFlatzone) {}
-            
-                InternalIteratorCNPs begin() { 
-                    return InternalIteratorCNPs(cnpsByFlatzone->begin(), cnpsByFlatzone->end()); 
-                }
-            
-                InternalIteratorCNPs end() { 
-                    return InternalIteratorCNPs(cnpsByFlatzone->end(), cnpsByFlatzone->end()); 
-                }
-            
-                int front() const { return cnpsByFlatzone->front().front(); }
-                int back() const { return cnpsByFlatzone->back().back(); }
-        };
+        reference operator*() {
+            assert(flatzoneIt != flatzoneEnd && "Tentando acessar um iterador inválido");
+            return *cnpsIt;
+        }
         
-        IteratorCNPs getCNPs() { return IteratorCNPs(this); }
+        InternalIteratorCNPs& operator++() {
+            ++cnpsIt;
+            advance();
+            return *this;
+        }
         
+        bool operator==(const InternalIteratorCNPs& other) const {
+            return flatzoneIt == other.flatzoneIt && (flatzoneIt == flatzoneEnd || cnpsIt == other.cnpsIt);
+        }
+        
+        bool operator!=(const InternalIteratorCNPs& other) const {
+            return !(*this == other);
+        }
+    };
+    
+    class IteratorCNPs {
+        private:
+            std::list<std::list<int>>* cnpsByFlatzone;
 
+        public:
+            explicit IteratorCNPs(NodeCT* node) : cnpsByFlatzone(&node->cnps) {}
+            explicit IteratorCNPs(std::list<std::list<int>>* cnpsByFlatzone) : cnpsByFlatzone(cnpsByFlatzone) {}
+        
+            InternalIteratorCNPs begin() { 
+                return InternalIteratorCNPs(cnpsByFlatzone->begin(), cnpsByFlatzone->end()); 
+            }
+        
+            InternalIteratorCNPs end() { 
+                return InternalIteratorCNPs(cnpsByFlatzone->end(), cnpsByFlatzone->end()); 
+            }
+        
+            int front() const { return cnpsByFlatzone->front().front(); }
+            int back() const { return cnpsByFlatzone->back().back(); }
+    };
+    
+    
+    // Método getCNPs() quando CNPsType == FlatZones
+    template<typename T = CNPsType>
+    std::enable_if_t<std::is_same<T, FlatZones>::value, IteratorCNPs> getCNPs() {
+        return IteratorCNPs(this);
+    }
+
+    // Método getCNPs() quando CNPsType == Pixels
+    template<typename T = CNPsType>
+    std::enable_if_t<std::is_same<T, Pixels>::value, std::list<int>&> getCNPs() {
+        return cnps;
+    }
+
+
+
+
+
+
+
+    
 };
+
+#include "NodeCT.tpp"
+
 
 #endif

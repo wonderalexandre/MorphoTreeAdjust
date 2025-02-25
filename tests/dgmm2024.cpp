@@ -37,15 +37,15 @@ int* computerCASF_naive(int* img, int numRows, int numCols, double radioAdj, std
 
     for(int threshold: thresholds) {
 
-        ComponentTree* maxtree = new ComponentTree(imgOut, numRows, numCols, true, radioAdj);
-	    for(NodeCT* node: maxtree->getNodesThreshold(threshold)) {
+        ComponentTreeP* maxtree = new ComponentTreeP(imgOut, numRows, numCols, true, radioAdj);
+	    for(NodeP* node: maxtree->getNodesThreshold(threshold)) {
 	        maxtree->prunning(node);    
 	    }
 	    imgOut = maxtree->reconstructionImage();
 
 
-	    ComponentTree* mintree = new ComponentTree(imgOut, numRows, numCols, false, radioAdj);
-	    for(NodeCT* node: mintree->getNodesThreshold(threshold)) {
+	    ComponentTreeP* mintree = new ComponentTreeP(imgOut, numRows, numCols, false, radioAdj);
+	    for(NodeP* node: mintree->getNodesThreshold(threshold)) {
 	        mintree->prunning(node);    
 	    }
 	    imgOut = mintree->reconstructionImage();  
@@ -57,9 +57,10 @@ int* computerCASF_naive(int* img, int numRows, int numCols, double radioAdj, std
     return imgOut;
 }
 
+
 int* computerCASF(int* img, int numRows, int numCols, double radioAdj, std::vector<int> thresholds){
-    ComponentTree* maxtree = new ComponentTree(img, numRows, numCols, true, radioAdj);
-    ComponentTree* mintree = new ComponentTree(img, numRows, numCols, false, radioAdj);
+    ComponentTreeFZ* maxtree = new ComponentTreeFZ(img, numRows, numCols, true, radioAdj);
+    ComponentTreeFZ* mintree = new ComponentTreeFZ(img, numRows, numCols, false, radioAdj);
     ComponentTreeAdjustment adjust(mintree, maxtree);
     for(int threshold: thresholds) {
 		adjust.adjustMaxTree(maxtree, mintree, mintree->getNodesThreshold(threshold));
@@ -70,7 +71,6 @@ int* computerCASF(int* img, int numRows, int numCols, double radioAdj, std::vect
     delete mintree;
     return imgOut;
 }
-
 
 int main(int argc, char* argv[]) {
     std::string filename;

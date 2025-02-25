@@ -22,7 +22,7 @@ project(morphoTreeAdjust)
 include_directories("${CMAKE_SOURCE_DIR}/python")
 
 file (GLOB SOURCE_FILES "morphoTreeAdjust/src/*.cpp" "morphoTreeAdjust/pybind/*.cpp")
-file (GLOB HEADER_FILES "morphoTreeAdjust/include/*.hpp" "morphoTreeAdjust/pybind/*.hpp")
+file (GLOB HEADER_FILES "morphoTreeAdjust/include/*.hpp" "morphoTreeAdjust/include/*.tpp" "morphoTreeAdjust/pybind/*.hpp")
 file (GLOB PYTHON_FILES "morphoTreeAdjust/*.cpp" "morphoTreeAdjust/*.hpp")
 
 # Set up such that XCode organizes the files

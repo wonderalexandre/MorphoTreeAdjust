@@ -38,15 +38,15 @@ set(PROJECT_INCLUDE_DIR "include")
 # Source files
 set(SOURCE_FILES
     ${PROJECT_INCLUDE_DIR}/NodeCT.hpp
-    ${PROJECT_SOURCE_DIR}/NodeCT.cpp
+    ${PROJECT_SOURCE_DIR}/NodeCT.tpp
     ${PROJECT_INCLUDE_DIR}/ComponentTree.hpp
-    ${PROJECT_SOURCE_DIR}/ComponentTree.cpp
+    ${PROJECT_SOURCE_DIR}/ComponentTree.tpp
     ${PROJECT_INCLUDE_DIR}/AdjacencyRelation.hpp
     ${PROJECT_SOURCE_DIR}/AdjacencyRelation.cpp
     ${PROJECT_INCLUDE_DIR}/ComponentTreeAdjustment.hpp
     ${PROJECT_SOURCE_DIR}/ComponentTreeAdjustment.cpp
     ${PROJECT_PYBIND_DIR}/PyBindComponentTree.hpp
-    ${PROJECT_PYBIND_DIR}/PyBindComponentTree.cpp
+    ${PROJECT_PYBIND_DIR}/PyBindComponentTree.tpp
     ${PROJECT_PYBIND_DIR}/PyBindComponentTreeAdjustment.hpp
     ${PROJECT_PYBIND_DIR}/PyBindComponentTreeAdjustment.cpp
     

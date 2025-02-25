@@ -56,8 +56,9 @@ class ComponentTreeGeneralAdjustment {
             */
     public:
 
-    void adjustMaxTree(ComponentTree &maxtree, std::list<int> flatZone, int newGrayLevel);
+    void adjustMaxTree(ComponentTree<FlatZones> &maxtree, std::list<int> flatZone, int newGrayLevel);
 
 };
+
 
 #endif

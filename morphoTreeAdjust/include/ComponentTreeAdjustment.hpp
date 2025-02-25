@@ -15,7 +15,7 @@
 
 class MergedNodesCollection {
 protected:
-    std::array<std::vector<NodeCT*>, 256> collectionF;
+    std::array<std::vector<NodeFZ*>, 256> collectionF;
     bool* visited;
     int maxIndex;
     std::vector<int> lambdaList; // Lista ordenada de lambdas (sempre crescente)
@@ -27,15 +27,16 @@ public:
     MergedNodesCollection(int maxIndex): maxIndex(maxIndex) {
         this->visited = new bool[this->maxIndex]();  // Inicializa com false
     }
+
     ~MergedNodesCollection() {
         delete[] this->visited;  // Libera memória
     }
 
-    std::vector<NodeCT*>& getMergedNodes(int level) {
+    std::vector<NodeFZ*>& getMergedNodes(int level) {
         return collectionF[level]; 
     }
 
-    std::array<std::vector<NodeCT*>, 256> getCollectionF(){
+    std::array<std::vector<NodeFZ*>, 256> getCollectionF(){
         return collectionF;
     }
 
@@ -50,8 +51,8 @@ public:
         currentIndex = 0;
     }
 
-    void addNodesOfPath(NodeCT* nodeNL, NodeCT* nodeTauL) {
-        for (NodeCT* n : nodeNL->getNodesOfPathToRoot()) {
+    void addNodesOfPath(NodeFZ* nodeNL, NodeFZ* nodeTauL) {
+        for (NodeFZ* n : nodeNL->getNodesOfPathToRoot()) {
             int index = n->getIndex();
             if (!visited[index]) {
                 collectionF[n->getLevel()].push_back(n);
@@ -84,47 +85,107 @@ public:
     }
 };
 
-
 class UnionNodes {
 protected:
-    std::array<std::vector<NodeCT*>, 256> unionNodes;
-    std::array<std::vector<bool>, 256> cnpsIsEqualsMap;
+    //std::array<std::vector<NodeFZ*>, 256> unionNodes;
+    //std::array<std::vector<bool>, 256> cnpsIsEqualsMap;
     bool isMaxtree; // Se true, percorre de forma decrescente
-    int level;
+
+
 
 public:
+std::vector<FlatZoneRef> flatZonesList;
+std::vector<NodeFZ*> nodesList;
+
+
     // Construtor permite definir a ordem de iteração
     UnionNodes(bool isMaxtree):  isMaxtree(isMaxtree) {}
     
-    std::vector<NodeCT*>& getNodes(int level) {
+    
+    std::vector<FlatZoneRef>& getFlatzones() {
+        return flatZonesList;
+    }
+
+    std::vector<NodeFZ*> getNodes() {
+        return nodesList;
+    }
+
+    void addCNPsToConnectedFlatzone(NodeFZ* nodeUnion, ComponentTreeFZ* tree){
+        if (flatZonesList.size() > 1) {
+            std::list<int> unifiedFZ;
+            std::unordered_set<FlatZoneRef, ListRefHash, ListRefEqual> flatzonesToMergeSet;
+
+            for (std::list<int>& fz : flatZonesList) {
+                flatzonesToMergeSet.insert(fz);
+            }
+            
+            // Remover do grafo as flatzones que serão fundidas
+            std::unordered_set<FlatZoneRef, ListRefHash, ListRefEqual> neighborsToTransfer;
+            for (std::list<int>& flatzoneRef : flatZonesList) {
+                
+                // Coletar vizinhos que não fazem parte da fusão
+                for (const auto& neighborRef : tree->flatzoneGraph[flatzoneRef]) {
+                    if (flatzonesToMergeSet.find(neighborRef) == flatzonesToMergeSet.end()) {
+                        tree->flatzoneGraph[neighborRef].erase(flatzoneRef);
+                        neighborsToTransfer.insert(neighborRef);
+                    }
+                }
+
+                // Remover do grafo
+                tree->flatzoneGraph.erase(flatzoneRef);
+
+                // Adicionar pixels ao cnpsCC
+                unifiedFZ.splice(unifiedFZ.end(), flatzoneRef);
+            }
+
+            assert(!unifiedFZ.empty() && "ERRO: unifiedFZ está vazio após a fusão!");
+
+            // Adicionar `cnpsCC` ao grafo com suas conexões
+            FlatZoneRef unifiedFZRef = unifiedFZ;
+            tree->flatzoneGraph[unifiedFZRef] = neighborsToTransfer;
+
+            for (const auto& neighborRef : neighborsToTransfer) {
+                tree->flatzoneGraph[neighborRef].insert(unifiedFZRef);
+            }
+            assert(tree->flatzoneGraph.find(unifiedFZRef) != tree->flatzoneGraph.end() && "Erro: unifiedFZRef não está registrada no grafo!");
+            nodeUnion->addCNPsToConnectedFlatzone(std::move(unifiedFZ), tree);
+        }else{
+            nodeUnion->addCNPsToConnectedFlatzone(std::move(flatZonesList[0].get()), tree);
+        }
+
+    }
+
+    void removeFlatzones() {
+        for(int i=0; i < flatZonesList.size(); i++){
+            std::list<int>& flatzone = flatZonesList[i].get();
+            NodeFZ* node = nodesList[i];
+            node->removeFlatzone(flatzone);  
+        }
+    }
+    
+    /*
+    std::vector<NodeFZ*>& getNodes(int level) {
         return unionNodes[level]; 
     }
 
     std::vector<bool>& getCnpsIsEquals(int level) {
         return cnpsIsEqualsMap[level]; 
     }
-
+*/
     void resetCollection(bool isMaxtree) {
         this->isMaxtree = isMaxtree;
-        for (auto& vec : unionNodes) {
-            vec.clear();
-        }
+        flatZonesList.clear();
+        nodesList.clear();
     }
-
-    void addNode(NodeCT* node, NodeCT* nodeSubtree) {
-        auto& nodeList = unionNodes[node->getLevel()];
-
-        for (NodeCT* existingNode : nodeList) {
-            if (existingNode->getIndex() == node->getIndex()) {
-                return;  
-            }
-        }
+    
+    void addNode(NodeFZ* node, std::list<int>& fzTau) {
         
-        auto& cnpsIsEquals = cnpsIsEqualsMap[node->getLevel()];
-        nodeList.push_back(node);  
-        cnpsIsEquals.push_back(nodeSubtree->getNumFlatzone() == node->getNumFlatzone());
+        flatZonesList.push_back(fzTau);
+        nodesList.push_back(node);  
+        //cnpsIsEquals.push_back(removeNode);
+        //cnpsIsEquals.push_back(nodeSubtree->getNumFlatzone() == node->getNumFlatzone());
     }
-
+    /*
     class Iterator {
         private:
             UnionNodes& container;
@@ -146,7 +207,7 @@ public:
                 advanceToNextValid();
             }
     
-            std::pair<NodeCT*, bool> operator*() const {
+            std::pair<NodeFZ*, bool> operator*() const {
                 return {container.unionNodes[level][index], container.cnpsIsEqualsMap[level][index]};
             }
     
@@ -181,26 +242,23 @@ public:
         IterableWrapper getIterator() {
             return IterableWrapper(*this);
         }
-     
+     */
 
 };
-
-
 
 
 class ComponentTreeAdjustment {
 
 protected:
-    ComponentTree* mintree;
-    ComponentTree* maxtree; 
+    ComponentTreeFZ* mintree;
+    ComponentTreeFZ* maxtree; 
     int maxIndex; 
-    bool* visited = nullptr; 
-    
-    UnionNodes unionNodes;
+    int pixelUpperBound=-1;    
+    UnionNodes unionNodeTauSubtree;
     MergedNodesCollection F;
-    std::vector<NodeCT*> B_L;
+    std::vector<NodeFZ*> B_L;
 
-    void disconnect(NodeCT* node) {
+    void disconnect(NodeFZ* node) {
         if(node->getParent() != nullptr){
 	        node->getParent()->getChildren().remove(node);
 		    node->setParent(nullptr);
@@ -210,26 +268,27 @@ protected:
     
 public:
 
-    ComponentTreeAdjustment(ComponentTree* maxtree, ComponentTree* mintree); 
+    ComponentTreeAdjustment(ComponentTreeFZ* maxtree, ComponentTreeFZ* mintree); 
 
     ~ComponentTreeAdjustment(); 
  
-    void buildMergedAndNestedCollections(ComponentTree* tree, NodeCT::IteratorCNPs flatZone, int newGrayLevel, bool isMaxtree);
+    void buildMergedAndNestedCollections(ComponentTreeFZ* tree, std::vector<FlatZoneRef>& flatZone, int newGrayLevel, bool isMaxtree);
     
-    std::vector<NodeCT*> getAdjacentNodes(ComponentTree* tree, NodeCT::IteratorCNPs flatZone);
+    std::vector<NodeFZ*> getAdjacentNodes(ComponentTreeFZ* tree, std::vector<FlatZoneRef>& flatZone);
 
-    void updateTree(ComponentTree* tree, NodeCT *L_leaf);
+    void updateTree(ComponentTreeFZ* tree, NodeFZ *L_leaf);
 
-    void updateTree2(ComponentTree* tree, NodeCT *rSubtree);
+    void updateTree2(ComponentTreeFZ* tree, NodeFZ *rSubtree);
 
-    void adjustMinTree(ComponentTree* mintree, ComponentTree* maxtree, std::vector<NodeCT*> nodesToPruning);
+    void adjustMinTree(ComponentTreeFZ* mintree, ComponentTreeFZ* maxtree, std::vector<NodeFZ*> nodesToPruning);
     
-    void adjustMaxTree(ComponentTree* maxtree, ComponentTree* mintree, std::vector<NodeCT*> nodesToPruning);
+    void adjustMaxTree(ComponentTreeFZ* maxtree, ComponentTreeFZ* mintree, std::vector<NodeFZ*> nodesToPruning);
 
-    void adjustMinTree2(ComponentTree* mintree, ComponentTree* maxtree, std::vector<NodeCT*> nodesToPruning);
+    void adjustMinTree2(ComponentTreeFZ* mintree, ComponentTreeFZ* maxtree, std::vector<NodeFZ*> nodesToPruning);
     
-    void adjustMaxTree2(ComponentTree* maxtree, ComponentTree* mintree, std::vector<NodeCT*> nodesToPruning);
+    void adjustMaxTree2(ComponentTreeFZ* maxtree, ComponentTreeFZ* mintree, std::vector<NodeFZ*> nodesToPruning);
 
 };
+
 
 #endif

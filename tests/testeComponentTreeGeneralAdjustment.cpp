@@ -14,25 +14,11 @@
 #include "../morphoTreeAdjust/include/ComponentTreeGeneralAdjustment.hpp"
 
 
-void printTree(NodeCT* root, int indent = 0) {
-    
-    // Imprime o nó atual com indentação
-    for (int i = 0; i < indent; ++i) {
-        std::cout << "|-";
-    }
-    std::cout << "Node: " << root->getIndex() <<  ", Level: " << root->getLevel()<< std::endl;
-
-    // Chama recursivamente a função para cada filho
-    for (NodeCT* child : root->getChildren()) {
-        printTree(child, indent + 1);
-    }
-}
-
-
-int main()
-{
+int main(){
 
     std::cout << "Iniciando...\n";
+    return 0;
+}
     /*
     int numRows=10;
     int numCols=17;
@@ -73,5 +59,4 @@ int main()
 
     delete[] img;
     */
-    return 0;
-}
+    
