@@ -137,25 +137,6 @@ void NodeFZ::addCNPsToConnectedFlatzone(FlatZone&& flatZone, ComponentTreeFZ* tr
     }
     int unifiedFlatzoneID = tree->getIdFlatZone(*unifiedFlatzone);
 
-    assert([&]() { 
-        for (int p : *unifiedFlatzone) {
-            if (tree->getFlatzoneRef(p) != *unifiedFlatzone) {
-                return false;
-            }
-        }
-        return true;
-    }() && "Erro: mapeamento pixelToFlatzone está errado para os pixels de unifiedFlatzone ANTES da fusÃO");
-    assert([&](){
-        for (int neighborID : *tree->flatzoneGraph[unifiedFlatzoneID]) {
-            const FlatZone& neighborFlatzone = tree->getFlatzoneRef(neighborID);
-            if (neighborFlatzone.empty()) {
-                std::cerr << "neighborID: " << neighborID << std::endl;
-                return false;
-            }
-        }
-        return true;
-    }() &&  "ERRO: Flatzone vizinha de unifiedFlatzone está vazia ANTES da fusão" );
-    assert(unifiedFlatzone && "Erro: nenhuma flatzone válida para fusão!");
     
     
     // Encontrar as flatzones vizinhas usando o grafo
@@ -215,15 +196,11 @@ void NodeFZ::addCNPsToConnectedFlatzone(FlatZone&& flatZone, ComponentTreeFZ* tr
 
 
     // Atualizar `pixelToFlatzone` apenas para os novos pixels adicionados
-    int newPixelsToMap = unifiedFlatzone->size() - unifiedFlatzoneOriginalSize;
-    for (auto it = unifiedFlatzone->rbegin(); newPixelsToMap > 0; ++it, newPixelsToMap--) {
+    size_t newPixelsToMap = unifiedFlatzone->size() - unifiedFlatzoneOriginalSize;
+    for (auto it = unifiedFlatzone->rbegin(); newPixelsToMap > 0; ++it, --newPixelsToMap) {
         tree->updatePixelToFlatzone(*it, unifiedFlatzone);
     }
-    for (const int& p : *unifiedFlatzone) {
-        if (tree->getFlatzoneRef(p) != *unifiedFlatzone) {
-            std::cout << "ERRO: ===>" << p << std::endl;
-        }
-    }
+
 
     assert([&]() { 
         for (const int& p : *unifiedFlatzone) {
