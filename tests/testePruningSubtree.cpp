@@ -30,7 +30,7 @@ int main()
     ComponentTreeFZ* maxtree = new ComponentTreeFZ(img, numRows, numCols, true, radioAdj);
     ComponentTreeFZ* mintree = new ComponentTreeFZ(img, numRows, numCols, false, radioAdj);
     std::cout <<"\n=========== mapIDs min-tree ===========\n" << std::endl;
-    printMappingSC(mintree);
+    printMappingFZ(mintree);
     //std::cout <<"\n=========== mapIDs max-tree ===========\n" << std::endl;
     //printMappingSC(maxtree);
     

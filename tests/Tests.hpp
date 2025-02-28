@@ -12,6 +12,18 @@
 #include <fstream>
 #include <iostream>
 
+inline void printFlatzoneGraph(FlatzoneGraph flatzoneGraph, int size) {
+    std::cout << "Grafo de FlatZones:\n";
+
+    for (int i = 0; i < size; ++i) {
+        std::cout << "FlatZone " << i << " → { ";   
+        for (int neighbor : *flatzoneGraph[i]) {
+            std::cout << neighbor << " ";
+        }
+        std::cout << "}\n";
+    }
+}
+
 template <typename CNPsType>
 inline void printTree(NodeCT<CNPsType>* root, int indent = 0) {
     

@@ -32,6 +32,7 @@ protected:
     
     int numCols;
     int numRows;
+    int numPixels;
     bool maxtreeTreeType;
     AdjacencyRelation* adj;
     
@@ -42,11 +43,9 @@ protected:
 
 public:
 
-    //std::unordered_map<std::reference_wrapper<std::list<int>>, std::unordered_set<std::reference_wrapper<std::list<int>>, ListRefHash, ListRefEqual>, ListRefHash, ListRefEqual> flatzoneGraph;
-  // Define `flatzoneGraph` apenas para `FlatZones`
-    using FlatzoneGraphType = 
-        std::conditional_t<std::is_same_v<CNPsType, FlatZones>,
-        std::unordered_map<FlatZoneRef, std::unordered_set<FlatZoneRef, ListRefHash, ListRefEqual>, ListRefHash, ListRefEqual>, 
+    // Define `flatzoneGraph` apenas para `FlatZones`
+    using FlatzoneGraphType = std::conditional_t<std::is_same_v<CNPsType, FlatZones>,
+        FlatzoneGraph, 
         std::monostate>;
     FlatzoneGraphType flatzoneGraph;
     
@@ -55,6 +54,9 @@ public:
     ComponentTree(int* img, int numRows, int numCols, bool isMaxtree, double radiusOfAdjacencyRelation);
 
     ~ComponentTree();
+
+    template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
+    int getIdFlatZone(const FlatZone& fz);
 
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
 	std::list<int>& getFlatzoneRef(int p);
@@ -66,7 +68,7 @@ public:
     void updatePixelToFlatzone(int p, std::list<int>* newFlatzone);
 	
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    void buildFlatzoneGraph();
+    void buildFlatzoneGraph(int numFlatZones);
 
     void assignCNPs();
 

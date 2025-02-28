@@ -110,6 +110,63 @@ std::vector<NodeFZ*> nodesList;
         return nodesList;
     }
 
+    void addCNPsToConnectedFlatzone(NodeFZ* nodeUnion, ComponentTreeFZ* tree) {
+        if (flatZonesList.size() > 1) {
+            
+            std::list<int>& unifiedFZ = flatZonesList[0];            
+            std::unordered_set<int> flatzonesToMergeSet;
+            for (std::list<int>& fz : flatZonesList) {
+                int flatZoneID = tree->getIdFlatZone(fz);
+                flatzonesToMergeSet.insert(flatZoneID);
+                if(unifiedFZ.size() < fz.size()){
+                    unifiedFZ = fz;
+                }
+            }
+            int unifiedFZID = tree->getIdFlatZone(unifiedFZ);
+            std::unordered_set<int>* unifiedFZSet = tree->flatzoneGraph[unifiedFZID];
+
+
+            // Remover do grafo as flatzones que serão fundidas
+            //std::unordered_set<int>* neighborsToTransfer = new std::unordered_set<int>();
+            for (std::list<int>& flatzone : flatZonesList) {
+                int flatZoneID = tree->getIdFlatZone(flatzone);
+                if(flatZoneID == unifiedFZID) continue;
+               
+                // Coletar vizinhos que não fazem parte da fusão
+                for (int neighborID : *tree->flatzoneGraph[flatZoneID]) {
+                    if (flatzonesToMergeSet.find(neighborID) == flatzonesToMergeSet.end()) {
+                        tree->flatzoneGraph[neighborID]->erase(flatZoneID);
+
+                        tree->flatzoneGraph[neighborID]->insert(unifiedFZID);
+                        tree->flatzoneGraph[unifiedFZID]->insert(neighborID);
+                    }else if(neighborID == unifiedFZID){
+                        tree->flatzoneGraph[neighborID]->erase(flatZoneID);
+                    }
+                }
+        
+                delete tree->flatzoneGraph[flatZoneID];
+                tree->flatzoneGraph[flatZoneID] = nullptr;
+        
+                // Adicionar pixels ao unifiedFZ
+                
+                
+                NodeFZ* nodeContainsFZ = tree->getSC(flatZoneID);
+                nodeContainsFZ->removeFlatzone(flatzone);
+                unifiedFZ.splice(unifiedFZ.end(), flatzone);
+            }
+    
+            assert(!unifiedFZ.empty() && "ERRO: unifiedFZ está vazio após a fusão!");
+    
+         
+            assert(tree->flatzoneGraph[unifiedFZID] != nullptr && "Erro: unifiedFZID não está registrada no grafo!");
+    
+            nodeUnion->addCNPsToConnectedFlatzone(std::move(unifiedFZ), tree);
+        } else {
+            int singleFZID = tree->getIdFlatZone(flatZonesList[0]);
+            nodeUnion->addCNPsToConnectedFlatzone(std::move(tree->getFlatzoneRef(singleFZID)), tree);
+        }
+    }
+    /*
     void addCNPsToConnectedFlatzone(NodeFZ* nodeUnion, ComponentTreeFZ* tree){
         if (flatZonesList.size() > 1) {
             std::list<int> unifiedFZ;
@@ -153,7 +210,7 @@ std::vector<NodeFZ*> nodesList;
             nodeUnion->addCNPsToConnectedFlatzone(std::move(flatZonesList[0].get()), tree);
         }
 
-    }
+    }*/
 
     void removeFlatzones() {
         for(int i=0; i < flatZonesList.size(); i++){

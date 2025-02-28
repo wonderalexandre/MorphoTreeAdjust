@@ -20,6 +20,26 @@ ComponentTreeAdjustment::~ComponentTreeAdjustment() { }
 std::vector<NodeFZ*> ComponentTreeAdjustment::getAdjacentNodes(ComponentTreeFZ* tree, std::vector<FlatZoneRef>& flatZones) {
     bool isMaxtree = tree->isMaxtree();
     std::vector<NodeFZ*> nodesNL;
+
+    for (FlatZoneRef flatZonePRef : flatZones) {   
+        FlatZone& flatZoneP = flatZonePRef.get();
+        int flatZoneID_P = tree->getIdFlatZone(flatZoneP);
+        int grayFlatZoneP = tree->getSC(flatZoneP.front())->getLevel();
+
+        for (int flatZoneID_Q : *tree->flatzoneGraph[flatZoneID_P]) {
+            FlatZone& flatZoneQ = tree->getFlatzoneRef(flatZoneID_Q);  // Convertendo de ID para Flatzone
+            NodeFZ* node = tree->getSC(flatZoneQ.front());
+
+            if ((!isMaxtree && node->getLevel() < grayFlatZoneP) || (isMaxtree && node->getLevel() > grayFlatZoneP)) {
+                nodesNL.push_back(node);  
+            }
+        }
+    }
+    return nodesNL;
+}
+/*std::vector<NodeFZ*> ComponentTreeAdjustment::getAdjacentNodes(ComponentTreeFZ* tree, std::vector<FlatZoneRef>& flatZones) {
+    bool isMaxtree = tree->isMaxtree();
+    std::vector<NodeFZ*> nodesNL;
     for (FlatZone& flatZoneP : flatZones) {   
         int grayFlatZoneP = tree->getSC(flatZoneP.front())->getLevel();
         for (auto& flatZoneQ : tree->flatzoneGraph[flatZoneP]) {
@@ -30,7 +50,7 @@ std::vector<NodeFZ*> ComponentTreeAdjustment::getAdjacentNodes(ComponentTreeFZ* 
         }
     }
     return nodesNL;
-}
+}*/
 
 
 
@@ -104,7 +124,7 @@ void ComponentTreeAdjustment::updateTree2(ComponentTreeFZ* tree, NodeFZ* rSubtre
     for(int i=0; i < unionNodeTauSubtree.nodesList.size(); i++){
         NodeFZ* nodeTau = unionNodeTauSubtree.nodesList[i];
         FlatZone& fzTau = unionNodeTauSubtree.flatZonesList[i];
-        std::cout << "(id:" << nodeTau->getIndex() << ", level:" << nodeTau->getLevel() <<  "|fz|:" << fzTau.size() << "), ";
+        std::cout << "(id:" << nodeTau->getIndex() << ", level:" << nodeTau->getLevel() << ", |cnps|:"<< nodeTau->getNumCNPs() << ", |fz|:" << fzTau.size() << "), ";
     }
     std::cout << "]"<< std::endl;
 

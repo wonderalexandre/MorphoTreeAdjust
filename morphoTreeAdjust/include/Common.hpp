@@ -2,9 +2,10 @@
 #define COMMONS_HPP  
 
 
-#define NDEBUG  // Remove os asserts do código
+//#define NDEBUG  // Remove os asserts do código
 #include <cassert>
 #include <list>
+#include <unordered_set>
 
 // Forward declaration dos templates
 template <typename T>
@@ -26,19 +27,7 @@ using ComponentTreeP = ComponentTree<Pixels>; //representa um component tree sem
 using NodeFZ = NodeCT<FlatZones>; //representa um node com separação dos cnps em flatzones
 using NodeP = NodeCT<Pixels>; //representa um node sem tratamento de flatzones
 
-
-struct ListRefHash {
-    size_t operator()(const std::reference_wrapper<std::list<int>>& ref) const {
-        return reinterpret_cast<size_t>(&ref.get());  // Usa o endereço como hash
-    }
-};
-
-struct ListRefEqual {
-    bool operator()(const std::reference_wrapper<std::list<int>>& lhs, 
-                    const std::reference_wrapper<std::list<int>>& rhs) const {
-        return &lhs.get() == &rhs.get();  // Compara pelos endereços
-    }
-};
+using FlatzoneGraph = std::unordered_set<int>**;
 
 
 
