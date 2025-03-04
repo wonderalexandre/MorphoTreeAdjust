@@ -19,22 +19,17 @@ template <typename CNPsType>
 class ComponentTree {
 protected:
     NodeCT<CNPsType>* root;
+    NodeCT<CNPsType>** pixelToNode; //mapping from pixel to node
+    
     int numNodes;
     int maxIndex;
-    NodeCT<CNPsType>** nodes;
-    
-    //std::vector<FlatZone*> pixelToFlatzone;
-    // Define `pixelToFlatzone` apenas para `FlatZones`
-    using PixelToFlatzoneType = std::conditional_t<std::is_same_v<CNPsType, FlatZones>, 
-        std::vector<FlatZone*>, 
-        std::monostate>;
-    PixelToFlatzoneType pixelToFlatzone;
-    
+    bool maxtreeTreeType; //maxtree is true; mintree is false
+
     int numCols;
     int numRows;
     int numPixels;
-    bool maxtreeTreeType;
-    AdjacencyRelation* adj;
+    
+    AdjacencyRelation* adj; //disk of a given ratio: ratio(1) for 4-connect and ratio(1.5) for 8-connect 
     
     int* countingSort(int* img);
     int* createTreeByUnionFind(int* orderedPixels, int* img);
@@ -59,16 +54,17 @@ public:
     int getIdFlatZone(const FlatZone& fz);
 
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-	std::list<int>& getFlatzoneRef(int p);
+	std::list<int>& getFlatzoneByID(int p);
 	
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    std::list<int>* getFlatzonePointer(int p);
-	
+    void buildFlatzoneGraph(int* pixelToFlatzone);
+
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    void updatePixelToFlatzone(int p, std::list<int>* newFlatzone);
-	
+    void updateGraphAfterPruning(std::list<FlatZoneNode>& flatZoneNodeList, FlatZone& unifiedFlatzone, NodeFZ* nodeStar);
+
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    void buildFlatzoneGraph(int numFlatZones);
+    void updateGraph(std::list<FlatZoneNode>& flatZoneNodeList, FlatZone& unifiedFlatzone, NodeFZ* nodeStar);
+
 
     void assignCNPs();
 

@@ -31,12 +31,16 @@ int main()
     ComponentTreeFZ* mintree = new ComponentTreeFZ(img, numRows, numCols, false, radioAdj);
     std::cout <<"\n=========== mapIDs min-tree ===========\n" << std::endl;
     printMappingSC(mintree);
-    std::cout <<"\n=========== mapIDs max-tree ===========\n" << std::endl;
-    printMappingSC(maxtree);
+    //std::cout <<"\n=========== mapIDs max-tree ===========\n" << std::endl;
+    //printMappingSC(maxtree);
     
 
-    
-    NodeFZ* TauS_r = getNodeByIndex(maxtree, 14);
+    /*std::cout <<"\nPostOrderTraversal mintree:\n" << std::endl;
+    for(NodeCT* n: mintree->getRoot()->getIteratorBreadthFirstTraversal()){
+        std::cout << n->getIndex() << std::endl;
+    }*/
+
+    NodeFZ* TauS_r = getNodeByIndex(maxtree, 1);
     int id_TauS_r = TauS_r->getIndex();
     ComponentTreeAdjustment adjust(mintree, maxtree);
     
@@ -56,8 +60,8 @@ int main()
 
     std::cout <<"\n=========== mapIDs min-tree ===========\n" << std::endl;
     printMappingSC(mintree);
-    std::cout <<"\n=========== mapIDs max-tree ===========\n" << std::endl;
-    printMappingSC(maxtree);
+    //std::cout <<"\n=========== mapIDs max-tree ===========\n" << std::endl;
+    //printMappingSC(maxtree);
     
     
     

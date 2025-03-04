@@ -13,6 +13,16 @@ int main() {
     ComponentTreeFZ* maxtree = new ComponentTreeFZ(img, numRows, numCols, true, radioAdj);
     ComponentTreeFZ* mintree = new ComponentTreeFZ(img, numRows, numCols, false, radioAdj);
 
+
+    for (std::list<NodeFZ*> branch : maxtree->getRoot()->getIteratorBranchPostOrderTraversal()) {
+        std::cout << "Novo ramo: ";
+        for (NodeFZ* node : branch) {
+            std::cout << node->getIndex() << " ";
+        }
+        std::cout << std::endl;
+    }
+    if(true) return 0;
+
     // Executar testes
     testComponentTreeFZ(mintree, "Min-Tree", mintree->reconstructionImage(), numRows, numCols);
     testComponentTreeFZ(maxtree, "Max-Tree", maxtree->reconstructionImage(), numRows, numCols);

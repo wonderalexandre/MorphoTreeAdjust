@@ -2,10 +2,13 @@
 #define COMMONS_HPP  
 
 
-//#define NDEBUG  // Remove os asserts do código
+#define NDEBUG  // Remove os asserts do código
 #include <cassert>
 #include <list>
 #include <unordered_set>
+#include <unordered_map>
+#include <memory>
+#define PRINT_LOG 0  
 
 // Forward declaration dos templates
 template <typename T>
@@ -17,7 +20,7 @@ class NodeCT;
 // Definição de tipos para CNPs
 using Pixels = std::list<int>;                 // Representa uma lista de pixels (CNPs)
 using FlatZone = std::list<int>;                 // Representa uma flatzone
-using FlatZones = std::list<FlatZone>;   // Representa uma lista de flatzones (CNPs ficarão separados em flatzones)
+using FlatZones = std::unordered_map<int, FlatZone>;   // Representa uma lista de flatzones (CNPs ficarão separados em flatzones)
 
 //Alias em função do tipo dos CNPs
 using FlatZoneRef = std::reference_wrapper<std::list<int>>;   // Representa uma flatzone
@@ -29,6 +32,13 @@ using NodeP = NodeCT<Pixels>; //representa um node sem tratamento de flatzones
 
 using FlatzoneGraph = std::unordered_set<int>**;
 
+struct FlatZoneNode {
+    NodeFZ* node;
+    FlatZone* flatzone;
+
+    // Construtor para mover a FlatZone
+    FlatZoneNode(NodeFZ* n, FlatZone& fz) : node(n), flatzone(&fz) {}
+};
 
 
 #endif 

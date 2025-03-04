@@ -17,52 +17,92 @@ class MergedNodesCollection {
 protected:
     std::array<std::vector<NodeFZ*>, 256> collectionF;
     bool* visited;
+    
     int maxIndex;
     std::vector<int> lambdaList; // Lista ordenada de lambdas (sempre crescente)
     int currentIndex = 0; // Índice atual
     bool isMaxtree; // Se true, percorre de forma decrescente
+    std::vector<NodeFZ*> nodesNL;
 
 public:
+    bool* visitedAdj;
     // Construtor permite definir a ordem de iteração
     MergedNodesCollection(int maxIndex): maxIndex(maxIndex) {
         this->visited = new bool[this->maxIndex]();  // Inicializa com false
+        this->visitedAdj = new bool[this->maxIndex]();
     }
 
     ~MergedNodesCollection() {
         delete[] this->visited;  // Libera memória
+        delete[] this->visitedAdj;
     }
 
     std::vector<NodeFZ*>& getMergedNodes(int level) {
         return collectionF[level]; 
     }
 
-    std::array<std::vector<NodeFZ*>, 256> getCollectionF(){
+    void computerAdjacentNodes(ComponentTreeFZ* tree, std::vector<FlatZoneRef>& flatZones) {
+        bool isMaxtree = tree->isMaxtree();
+        
+        for (FlatZoneRef flatZonePRef : flatZones) {   
+            FlatZone& flatZoneP = flatZonePRef.get();
+            int flatZoneID_P = tree->getIdFlatZone(flatZoneP);
+            int grayFlatZoneP = tree->getSC(flatZoneID_P)->getLevel(); //is same that: f(p)
+    
+            for (int flatZoneID_Q : *tree->flatzoneGraph[flatZoneID_P]) {
+                NodeFZ* node = tree->getSC(flatZoneID_Q);
+                if ( (isMaxtree && node->getLevel() > grayFlatZoneP) || (!isMaxtree && node->getLevel() < grayFlatZoneP) ) {
+                    if(!visitedAdj[node->getIndex()]){
+                        nodesNL.push_back(node);  
+                        visitedAdj[node->getIndex()] = true;
+                    }
+                }
+            }
+        }
+        resetAdjacentNode();
+    }
+
+    std::vector<NodeFZ*>& getAdjacentNodes(){
+        return nodesNL;
+    }
+
+
+    std::array<std::vector<NodeFZ*>, 256>& getCollectionF(){
         return collectionF;
     }
 
+    void resetAdjacentNode(){
+        for(NodeFZ* node: nodesNL){
+            visitedAdj[node->getIndex()] = false;
+        }
+    }
 
     void resetCollection(bool descendingOrder) {
         this->isMaxtree = descendingOrder;
         for (auto& vec : collectionF) {
             vec.clear();
         }
+        nodesNL.clear();
         lambdaList.clear();
         std::fill(visited, visited + maxIndex, false);
         currentIndex = 0;
     }
 
     void addNodesOfPath(NodeFZ* nodeNL, NodeFZ* nodeTauL) {
-        for (NodeFZ* n : nodeNL->getNodesOfPathToRoot()) {
-            int index = n->getIndex();
-            if (!visited[index]) {
-                collectionF[n->getLevel()].push_back(n);
-                visited[index] = true;
+        if(!visited[nodeNL->getIndex()])
+            for (NodeFZ* n : nodeNL->getNodesOfPathToRoot()) {
+                int index = n->getIndex();
+                if(!visited[index]) {
+                    collectionF[n->getLevel()].push_back(n);
+                    visited[index] = true;
+                }
+                if (n == nodeTauL) {
+                    break;
+                }
             }
-            if (n == nodeTauL) {
-                break;
-            }
-        }
     }
+
+
 
     int firstLambda() {
         lambdaList.clear();
@@ -87,219 +127,60 @@ public:
 
 class UnionNodes {
 protected:
-    //std::array<std::vector<NodeFZ*>, 256> unionNodes;
-    //std::array<std::vector<bool>, 256> cnpsIsEqualsMap;
     bool isMaxtree; // Se true, percorre de forma decrescente
-
-
-
+    std::list<FlatZoneNode> flatZoneNodeList;
+    std::list<int> listFlatzoneIDs;
+    NodeFZ* nodeStar;
 public:
-std::vector<FlatZoneRef> flatZonesList;
-std::vector<NodeFZ*> nodesList;
-
 
     // Construtor permite definir a ordem de iteração
     UnionNodes(bool isMaxtree):  isMaxtree(isMaxtree) {}
     
     
-    std::vector<FlatZoneRef>& getFlatzones() {
-        return flatZonesList;
+    std::list<FlatZoneNode>& getFlatzoneNodeList() {
+        return flatZoneNodeList;
     }
 
-    std::vector<NodeFZ*> getNodes() {
-        return nodesList;
+    void setNodeStar(NodeFZ* nodeStar){
+       this->nodeStar = nodeStar; 
     }
+
+    std::vector<FlatZoneRef> getFlatzones() {
+        std::vector<FlatZoneRef> flatzones;
+        for(FlatZoneNode fzNode: flatZoneNodeList){
+            flatzones.push_back(*fzNode.flatzone);
+        }
+        return flatzones;
+    }
+
 
     void addCNPsToConnectedFlatzone(NodeFZ* nodeUnion, ComponentTreeFZ* tree) {
-        if (flatZonesList.size() > 1) {
-            
-            std::list<int>& unifiedFZ = flatZonesList[0];            
-            std::unordered_set<int> flatzonesToMergeSet;
-            for (std::list<int>& fz : flatZonesList) {
-                int flatZoneID = tree->getIdFlatZone(fz);
-                flatzonesToMergeSet.insert(flatZoneID);
-                if(unifiedFZ.size() < fz.size()){
-                    unifiedFZ = fz;
-                }
-            }
-            int unifiedFZID = tree->getIdFlatZone(unifiedFZ);
-            std::unordered_set<int>* unifiedFZSet = tree->flatzoneGraph[unifiedFZID];
-
-
-            // Remover do grafo as flatzones que serão fundidas
-            //std::unordered_set<int>* neighborsToTransfer = new std::unordered_set<int>();
-            for (std::list<int>& flatzone : flatZonesList) {
-                int flatZoneID = tree->getIdFlatZone(flatzone);
-                if(flatZoneID == unifiedFZID) continue;
-               
-                // Coletar vizinhos que não fazem parte da fusão
-                for (int neighborID : *tree->flatzoneGraph[flatZoneID]) {
-                    if (flatzonesToMergeSet.find(neighborID) == flatzonesToMergeSet.end()) {
-                        tree->flatzoneGraph[neighborID]->erase(flatZoneID);
-
-                        tree->flatzoneGraph[neighborID]->insert(unifiedFZID);
-                        tree->flatzoneGraph[unifiedFZID]->insert(neighborID);
-                    }else if(neighborID == unifiedFZID){
-                        tree->flatzoneGraph[neighborID]->erase(flatZoneID);
-                    }
-                }
-        
-                delete tree->flatzoneGraph[flatZoneID];
-                tree->flatzoneGraph[flatZoneID] = nullptr;
-        
-                // Adicionar pixels ao unifiedFZ
-                
-                
-                NodeFZ* nodeContainsFZ = tree->getSC(flatZoneID);
-                nodeContainsFZ->removeFlatzone(flatzone);
-                unifiedFZ.splice(unifiedFZ.end(), flatzone);
-            }
-    
-            assert(!unifiedFZ.empty() && "ERRO: unifiedFZ está vazio após a fusão!");
-    
-         
-            assert(tree->flatzoneGraph[unifiedFZID] != nullptr && "Erro: unifiedFZID não está registrada no grafo!");
-    
-            nodeUnion->addCNPsToConnectedFlatzone(std::move(unifiedFZ), tree);
+        if (flatZoneNodeList.size() > 1) {
+            FlatZone unifiedFlatzone;
+            tree->updateGraph(flatZoneNodeList, unifiedFlatzone, nodeStar);
+            nodeUnion->addCNPsToConnectedFlatzone(std::move(unifiedFlatzone), tree);
         } else {
-            int singleFZID = tree->getIdFlatZone(flatZonesList[0]);
-            nodeUnion->addCNPsToConnectedFlatzone(std::move(tree->getFlatzoneRef(singleFZID)), tree);
+            nodeUnion->addCNPsToConnectedFlatzone(std::move(*flatZoneNodeList.front().flatzone), tree);
         }
     }
-    /*
-    void addCNPsToConnectedFlatzone(NodeFZ* nodeUnion, ComponentTreeFZ* tree){
-        if (flatZonesList.size() > 1) {
-            std::list<int> unifiedFZ;
-            std::unordered_set<FlatZoneRef, ListRefHash, ListRefEqual> flatzonesToMergeSet;
 
-            for (std::list<int>& fz : flatZonesList) {
-                flatzonesToMergeSet.insert(fz);
-            }
-            
-            // Remover do grafo as flatzones que serão fundidas
-            std::unordered_set<FlatZoneRef, ListRefHash, ListRefEqual> neighborsToTransfer;
-            for (std::list<int>& flatzoneRef : flatZonesList) {
-                
-                // Coletar vizinhos que não fazem parte da fusão
-                for (const auto& neighborRef : tree->flatzoneGraph[flatzoneRef]) {
-                    if (flatzonesToMergeSet.find(neighborRef) == flatzonesToMergeSet.end()) {
-                        tree->flatzoneGraph[neighborRef].erase(flatzoneRef);
-                        neighborsToTransfer.insert(neighborRef);
-                    }
-                }
-
-                // Remover do grafo
-                tree->flatzoneGraph.erase(flatzoneRef);
-
-                // Adicionar pixels ao cnpsCC
-                unifiedFZ.splice(unifiedFZ.end(), flatzoneRef);
-            }
-
-            assert(!unifiedFZ.empty() && "ERRO: unifiedFZ está vazio após a fusão!");
-
-            // Adicionar `cnpsCC` ao grafo com suas conexões
-            FlatZoneRef unifiedFZRef = unifiedFZ;
-            tree->flatzoneGraph[unifiedFZRef] = neighborsToTransfer;
-
-            for (const auto& neighborRef : neighborsToTransfer) {
-                tree->flatzoneGraph[neighborRef].insert(unifiedFZRef);
-            }
-            assert(tree->flatzoneGraph.find(unifiedFZRef) != tree->flatzoneGraph.end() && "Erro: unifiedFZRef não está registrada no grafo!");
-            nodeUnion->addCNPsToConnectedFlatzone(std::move(unifiedFZ), tree);
-        }else{
-            nodeUnion->addCNPsToConnectedFlatzone(std::move(flatZonesList[0].get()), tree);
-        }
-
-    }*/
-
-    void removeFlatzones() {
-        for(int i=0; i < flatZonesList.size(); i++){
-            std::list<int>& flatzone = flatZonesList[i].get();
-            NodeFZ* node = nodesList[i];
-            node->removeFlatzone(flatzone);  
+    void removeFlatzones(ComponentTreeFZ* tree) {
+        for(int idFlatZone: listFlatzoneIDs){
+            NodeFZ* node = tree->getSC(idFlatZone);
+            node->removeFlatzone(idFlatZone);  
         }
     }
     
-    /*
-    std::vector<NodeFZ*>& getNodes(int level) {
-        return unionNodes[level]; 
-    }
-
-    std::vector<bool>& getCnpsIsEquals(int level) {
-        return cnpsIsEqualsMap[level]; 
-    }
-*/
     void resetCollection(bool isMaxtree) {
         this->isMaxtree = isMaxtree;
-        flatZonesList.clear();
-        nodesList.clear();
+        flatZoneNodeList.clear();
+        listFlatzoneIDs.clear();
     }
     
     void addNode(NodeFZ* node, std::list<int>& fzTau) {
-        
-        flatZonesList.push_back(fzTau);
-        nodesList.push_back(node);  
-        //cnpsIsEquals.push_back(removeNode);
-        //cnpsIsEquals.push_back(nodeSubtree->getNumFlatzone() == node->getNumFlatzone());
+        flatZoneNodeList.emplace_back(node, fzTau);
+        listFlatzoneIDs.push_back(fzTau.front());
     }
-    /*
-    class Iterator {
-        private:
-            UnionNodes& container;
-            int level;
-            size_t index;
-    
-            void advanceToNextValid() {
-                while (level >= 0 && level < 256) {
-                    if (index < container.unionNodes[level].size()) {
-                        return;
-                    }
-                    index = 0;
-                    level += (container.isMaxtree ? 1 : -1);
-                }
-            }
-        
-        public:
-            Iterator(UnionNodes& container, int startLevel) : container(container), level(startLevel), index(0) {
-                advanceToNextValid();
-            }
-    
-            std::pair<NodeFZ*, bool> operator*() const {
-                return {container.unionNodes[level][index], container.cnpsIsEqualsMap[level][index]};
-            }
-    
-            Iterator& operator++() {
-                ++index;
-                advanceToNextValid();
-                return *this;
-            }
-    
-            bool operator!=(const Iterator& other) const {
-                return level != other.level || index != other.index;
-            }
-        };
-    
-        Iterator begin() {
-            return Iterator(*this, isMaxtree ? 0 : 255);
-        }
-    
-        Iterator end() {
-            return Iterator(*this, isMaxtree ? 256 : -1);
-        }
-    
-        class IterableWrapper {
-        private:
-            UnionNodes& container;
-        public:
-            IterableWrapper(UnionNodes& container) : container(container) {}
-            Iterator begin() { return container.begin(); }
-            Iterator end() { return container.end(); }
-        };
-    
-        IterableWrapper getIterator() {
-            return IterableWrapper(*this);
-        }
-     */
 
 };
 
@@ -315,11 +196,22 @@ protected:
     MergedNodesCollection F;
     std::vector<NodeFZ*> B_L;
 
-    void disconnect(NodeFZ* node) {
+    void disconnect(NodeFZ* node, bool isFreeMemory=false) {
         if(node->getParent() != nullptr){
 	        node->getParent()->getChildren().remove(node);
 		    node->setParent(nullptr);
+            if(isFreeMemory){
+                delete node; 
+                node = nullptr;
+            }
         }
+    }
+
+    void mergedParentAndChildren(NodeFZ* nodeUnion, NodeFZ* n){
+        for (NodeFZ* son : n->getChildren()) {
+            son->setParent(nodeUnion);
+        }
+        nodeUnion->getChildren().splice(nodeUnion->getChildren().end(), n->getChildren());
     }
     
     
@@ -331,11 +223,10 @@ public:
  
     void buildMergedAndNestedCollections(ComponentTreeFZ* tree, std::vector<FlatZoneRef>& flatZone, int newGrayLevel, bool isMaxtree);
     
-    std::vector<NodeFZ*> getAdjacentNodes(ComponentTreeFZ* tree, std::vector<FlatZoneRef>& flatZone);
-
     void updateTree(ComponentTreeFZ* tree, NodeFZ *L_leaf);
 
     void updateTree2(ComponentTreeFZ* tree, NodeFZ *rSubtree);
+
 
     void adjustMinTree(ComponentTreeFZ* mintree, ComponentTreeFZ* maxtree, std::vector<NodeFZ*> nodesToPruning);
     
@@ -345,6 +236,9 @@ public:
     
     void adjustMaxTree2(ComponentTreeFZ* maxtree, ComponentTreeFZ* mintree, std::vector<NodeFZ*> nodesToPruning);
 
+
+
+    
 };
 
 

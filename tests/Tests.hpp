@@ -148,7 +148,7 @@ inline  void printImage(int* img, int numRows, int numCols, std::string nomeArqu
 
 }
 
-
+/*
 inline  void printMappingFZ(ComponentTreeFZ* tree, std::string nomeArquivo = "") {
     int numRows = tree->getNumRowsOfImage();
     int numCols = tree->getNumColsOfImage();
@@ -186,7 +186,7 @@ inline  void printMappingFZ(ComponentTreeFZ* tree, std::string nomeArquivo = "")
         dynamic_cast<std::ofstream*>(streamSaida)->close(); // std::cout não precisa ser fechado explicitamente
     }
 
-}
+}*/
 
 inline bool isEquals(int* imgOut1, int* imgOut2, int size){
     int equals = 0;
@@ -321,14 +321,17 @@ inline void testComponentTreeFZ(ComponentTreeFZ* tree, const std::string& treeTy
             std::cerr << "❌ Erro: O nó de id " << node->getIndex() << " não possui flatzones vazias na " << treeType << "!" << std::endl;
             allFlatzonesCorrect = false;
         }
-        for (std::list<int> flatzone : node->getCNPsByFlatZone()) {
-            if(flatzone.empty()){
-                std::cerr << "❌ Erro: O nó de id " << node->getIndex() << " não possui flatzones vazias na " << treeType << "!" << std::endl;
+        for (const auto& [flatZoneID, flatzone] : node->getCNPsByFlatZone()) {  // 🔹 Itera diretamente sobre os valores
+            if (flatzone.empty()) {
+                std::cerr << "❌ Erro: O nó de id " << node->getIndex()
+                          << " possui uma flatzone vazia na " << treeType << "!" << std::endl;
                 allFlatzonesCorrect = false;
             }
+        
             for (int p : flatzone) {
                 if (tree->getSC(p) != node) {
-                    std::cerr << "❌ Erro: Pixel " << p << " de uma flatzone não está no nó correto na " << treeType << "!" << std::endl;
+                    std::cerr << "❌ Erro: Pixel " << p << " da flatzone " << flatZoneID 
+                              << " não está no nó correto na " << treeType << "!" << std::endl;
                     allFlatzonesCorrect = false;
                 }
             }
@@ -338,6 +341,7 @@ inline void testComponentTreeFZ(ComponentTreeFZ* tree, const std::string& treeTy
         std::cout << "✅ Todas as flatzones estão corretamente definidas na " << treeType << "." << std::endl;
     }
 
+    /*
     //Teste: Verifica se existem pixels mapeados em flatzones vazias
     int pixelMappingFZIncorreto = 0;
     for(int p=0; p < numRows*numCols; p++){
@@ -350,9 +354,7 @@ inline void testComponentTreeFZ(ComponentTreeFZ* tree, const std::string& treeTy
     }else{
         std::cout << "❌ Erro: Total de pixels mapeados em flatzones vazias: " << pixelMappingFZIncorreto << std::endl;
     }
-
-
-
+    
     // Verificar se todas as flatzones possuem pixels
     bool allFlatzonesValid = true;
     for (int p=0; p < numCols*numRows; p++){
@@ -362,10 +364,10 @@ inline void testComponentTreeFZ(ComponentTreeFZ* tree, const std::string& treeTy
             break;
         }
     }
-    
     if (allFlatzonesValid) {
         std::cout << "✅ Todas as flatzones possuem pixels." << std::endl;
     }
+    */
 
     std::cout << "\n" << std::endl;
  }

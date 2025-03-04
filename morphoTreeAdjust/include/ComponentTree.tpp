@@ -122,7 +122,7 @@ ComponentTree<CNPsType>::ComponentTree(int numRows, int numCols, bool isMaxtree,
     this->maxtreeTreeType = isMaxtree;
     this->numPixels = numRows*numCols;
     this->adj = new AdjacencyRelation(numRows, numCols, radiusOfAdjacencyRelation); 
-    this->nodes = new NodeCT<CNPsType>*[numRows * numCols]();
+    this->pixelToNode = new NodeCT<CNPsType>*[numRows * numCols]();
 }
 
 template <typename CNPsType>
@@ -150,14 +150,10 @@ ComponentTree<CNPsType>::~ComponentTree() {
         }
     }
 
-    delete[] nodes;
-    nodes = nullptr;
+    delete[] pixelToNode;
+    pixelToNode = nullptr;
 
     if constexpr (std::is_same_v<CNPsType, FlatZones>) {
-        for (auto& ptr : pixelToFlatzone) {
-            ptr = nullptr;  
-        }
-        pixelToFlatzone.clear();
         for (int i = 0; i < numPixels; i++) {
                 delete flatzoneGraph[i];  
             }
@@ -177,16 +173,16 @@ void ComponentTree<CNPsType>::build(int* img){
 		if (p == parent[p]) { //representante do node raiz
 			int threshold1 = this->isMaxtree()? 0 : 255;
 			int threshold2 = img[p];
-			this->root = this->nodes[p] = new NodeCT<CNPsType>(this->numNodes++, nullptr, threshold1, threshold2);
+			this->root = this->pixelToNode[p] = new NodeCT<CNPsType>(this->numNodes++, nullptr, threshold1, threshold2);
 		}
 		else if (img[p] != img[parent[p]]) { //representante de um node
 			int threshold1 = this->isMaxtree()? img[parent[p]]+1 : img[parent[p]]-1;
 			int threshold2 = img[p];
-			this->nodes[p] = new NodeCT<CNPsType>(this->numNodes++, this->nodes[parent[p]], threshold1, threshold2);
-			this->nodes[parent[p]]->addChild(nodes[p]);
+			this->pixelToNode[p] = new NodeCT<CNPsType>(this->numNodes++, this->pixelToNode[parent[p]], threshold1, threshold2);
+			this->pixelToNode[parent[p]]->addChild(pixelToNode[p]);
 		}
 		else if (img[p] == img[parent[p]]) {
-			this->nodes[p] = nodes[parent[p]];
+			this->pixelToNode[p] = pixelToNode[parent[p]];
 		}else{
 			std::cerr << "\n\n\n\nOps...falhou geral\n\n\n\n";
 			break;
@@ -203,20 +199,19 @@ void ComponentTree<CNPsType>::build(int* img){
 template <>
 inline void ComponentTreeP::assignCNPs() {
     for (int p = 0; p < numPixels; p++) {
-        nodes[p]->addCNPs(p);
+        pixelToNode[p]->addCNPs(p);
     }
 }
 
 template <>
 inline void ComponentTreeFZ::assignCNPs() {
-    int numFlatZones = 0;
-    this->pixelToFlatzone = std::vector<std::list<int>*>(numPixels, nullptr);
+    int* pixelToFlatzone = new int[numPixels];
     std::vector<bool> visited(numPixels, false); 
     for (int p = 0; p < numPixels; p++) {
         if (visited[p]) continue; 
-        assert(this->nodes[p] != nullptr && "Falha no mapeamento SC");
+        assert(this->pixelToNode[p] != nullptr && "Falha no mapeamento SC");
             
-        NodeFZ* node = this->nodes[p];
+        NodeFZ* node = this->pixelToNode[p];
         std::list<int> flatZone;
         
         std::queue<int> queue;
@@ -226,58 +221,61 @@ inline void ComponentTreeFZ::assignCNPs() {
         while (!queue.empty()) {
             int q_p = queue.front(); queue.pop();
             flatZone.push_back(q_p);
+            pixelToFlatzone[q_p] = flatZone.front();
             for (int np : this->adj->getAdjPixels(q_p)) {
-                if (!visited[np] && this->nodes[np] == node) {
+                if (!visited[np] && this->pixelToNode[np] == node) {
                     visited[np] = true;
                     queue.push(np);
                 }
             }
         }
         assert(flatZone.size() > 0 && "ERRO: Existem flatzones vazias!");
+        
         node->addCNPsOfDisjointFlatzone(std::move(flatZone), this);
-        numFlatZones++;
     }
         
     assert([this]() -> bool {
         for (int p = 0; p < numPixels; p++) {
-            if (!this->pixelToFlatzone[p] || this->pixelToFlatzone[p]->empty()) {
+            if (!pixelToFlatzone[p] || pixelToFlatzone[p] >= 0 && pixelToFlatzone[p] <= numPixels) {
                 std::cerr << "ERRO: O pixel " << p 
-                        << " pertence ao nó ID " << this->nodes[p]->getIndex()
+                        << " pertence ao nó ID " << this->pixelToNode[p]->getIndex()
                         << " mas não está corretamente mapeado para uma flatzone válida!" << std::endl;
                 return false; 
             }
         }
         return true; 
     }());
-    this->buildFlatzoneGraph(numFlatZones);
+    this->buildFlatzoneGraph(pixelToFlatzone);
     
 }
 
+
 template <>
 template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
-void ComponentTreeFZ::buildFlatzoneGraph(int numFlatZones) {
+void ComponentTreeFZ::buildFlatzoneGraph(int* pixelToFlatzone) {
     flatzoneGraph = new std::unordered_set<int>*[numPixels]();
 
     for (int p = 0; p < numPixels; p++) {
-        int flatZoneID_P = getIdFlatZone(this->getFlatzoneRef(p));
-
+        int flatZoneID_P = pixelToFlatzone[p];
         if (this->flatzoneGraph[flatZoneID_P] == nullptr) {
             this->flatzoneGraph[flatZoneID_P] = new std::unordered_set<int>();
         }
-
+    }
+    for (int p = 0; p < numPixels; p++) {
+        int flatZoneID_P = pixelToFlatzone[p];
+        std::unordered_set<int>& setP = *flatzoneGraph[flatZoneID_P];
         for (int np : this->adj->getAdjPixels(p)) {
-            int flatZoneID_NP = getIdFlatZone(this->getFlatzoneRef(np));
+            int flatZoneID_NP = pixelToFlatzone[np];
 
             if (flatZoneID_NP != flatZoneID_P) {
-                if (this->flatzoneGraph[flatZoneID_NP] == nullptr) {
-                    this->flatzoneGraph[flatZoneID_NP] = new std::unordered_set<int>();
-                }
-                // Conectar ambas as arestas
-                this->flatzoneGraph[flatZoneID_P]->insert(flatZoneID_NP);
-                this->flatzoneGraph[flatZoneID_NP]->insert(flatZoneID_P);
+                std::unordered_set<int>& setNP = *flatzoneGraph[flatZoneID_NP];
+                setP.insert(flatZoneID_NP);
+                setNP.insert(flatZoneID_P);
             }
         }
+
     }
+    delete[] pixelToFlatzone;
 }
 
 template <typename CNPsType>
@@ -303,7 +301,7 @@ void ComponentTree<CNPsType>::setRoot(NodeCT<CNPsType>* n){
 template <typename CNPsType>
 NodeCT<CNPsType>* ComponentTree<CNPsType>::getSC(int p) {
 	assert(p >= 0 && p < (this->numRows * this->numCols) && "Error: o método getSC está acessando index fora dos limites");
-    return this->nodes[p];
+    return this->pixelToNode[p];
 }
 
 template <typename CNPsType>
@@ -311,7 +309,7 @@ void ComponentTree<CNPsType>::setSC(int p, NodeCT<CNPsType>* n){
 	assert(p >= 0 && p < (this->numRows * this->numCols) && "Error: o método setSC está acessando index fora dos limites");
 	assert(n != nullptr && "Erro: o método setSC recebeu um ponteiro nulo");
 
-	this->nodes[p] = n;
+	this->pixelToNode[p] = n;
 }
 
 template <typename CNPsType>
@@ -370,11 +368,11 @@ inline void ComponentTreeP::prunning(NodeP* node) {
 
 }
 
-
 template <>
 inline void ComponentTreeFZ::prunning(NodeFZ* node) {
     assert(node != nullptr && "Erro: node is nullptr");
     assert(node->getParent() != nullptr && "Erro: node é a raiz");
+    std::list<FlatZoneNode> flatZoneNodeList;
     std::list<NodeFZ*> toRemove;
     if (node != this->root) {
         NodeFZ* parent = node->getParent();
@@ -384,9 +382,6 @@ inline void ComponentTreeFZ::prunning(NodeFZ* node) {
         std::stack<NodeFZ*> s;
         s.push(node);
 
-        
-        int unifiedFlatzoneID = node->getRepresentativeCNPs();
-        FlatZone unifiedFlatzone;
         // Coletar todas as flatzones que serão fundidas
         while (!s.empty()) {
             NodeFZ* child = s.top();
@@ -397,46 +392,16 @@ inline void ComponentTreeFZ::prunning(NodeFZ* node) {
                 s.push(n);
             }
 
-            //atualiza o grafo e coleta os cnps em uma unica flatzone
-            for (FlatZone& flatZone : child->getCNPsByFlatZone()) {
-                int flatZoneID = getIdFlatZone(flatZone);
-                if(flatZoneID == unifiedFlatzoneID){
-                    for (int neighborID : *flatzoneGraph[flatZoneID]) {
-                        //vizinhos que serão unificados
-                        if( (this->maxtreeTreeType && node->getLevel() <= getSC(neighborID)->getLevel()) || (!this->maxtreeTreeType && node->getLevel() >= getSC(neighborID)->getLevel())){
-                            this->flatzoneGraph[neighborID]->erase(unifiedFlatzoneID);
-                            this->flatzoneGraph[unifiedFlatzoneID]->erase(neighborID);
-                        }
-                    }
-                    unifiedFlatzone.splice(unifiedFlatzone.end(), flatZone); 
-                }else{
-                    for (int neighborID : *flatzoneGraph[flatZoneID]) {
-
-                        if(this->flatzoneGraph[neighborID] )
-
-                        //vizinhos que NÃO serão unificados
-                        if( (this->maxtreeTreeType && node->getLevel() >= getSC(neighborID)->getLevel()) || (!this->maxtreeTreeType && node->getLevel() <= getSC(neighborID)->getLevel())){
-                            this->flatzoneGraph[neighborID]->erase(flatZoneID);
-                            this->flatzoneGraph[flatZoneID]->erase(neighborID);
-                            
-                            this->flatzoneGraph[neighborID]->insert(unifiedFlatzoneID);
-                            this->flatzoneGraph[unifiedFlatzoneID]->insert(neighborID);
-                            
-                        }
-                    }
-                    delete this->flatzoneGraph[flatZoneID];
-                    this->flatzoneGraph[flatZoneID] = nullptr;
-                    unifiedFlatzone.splice(unifiedFlatzone.end(), flatZone); // Adicionar pixels ao cnpsCC
-                }
-            }
             toRemove.push_back(child);
-            
+            for (auto& [id, flatZone] : child->getCNPsByFlatZone()) {
+                flatZoneNodeList.emplace_back(child, flatZone);
+            }
         }
-
-        assert(!unifiedFlatzone.empty() && "ERRO: unifiedFlatzone está vazio após a fusão!");
-
-        // Chamar `addCNPsToConnectedFlatzone` para finalizar a fusão
+        
+        FlatZone unifiedFlatzone;
+        updateGraphAfterPruning(flatZoneNodeList, unifiedFlatzone, node);
         parent->addCNPsToConnectedFlatzone(std::move(unifiedFlatzone), this);
+
         for(NodeFZ* node: toRemove){
             delete node;
             node = nullptr; 
@@ -444,12 +409,125 @@ inline void ComponentTreeFZ::prunning(NodeFZ* node) {
     }
 }
 
+
+template <>
+template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
+void ComponentTreeFZ::updateGraphAfterPruning(std::list<FlatZoneNode>& flatZoneNodeList, FlatZone& unifiedFlatzone, NodeFZ* node) {
+    assert(!flatZoneNodeList.empty() && "ERRO: Lista de FlatZoneNode está vazia!");
+
+    
+    int unifiedFlatzoneID = node->getRepresentativeCNPs();
+    
+    for(FlatZoneNode& pair: flatZoneNodeList)   {
+        NodeFZ* child = pair.node;
+        FlatZone& flatZone = *pair.flatzone;
+        //atualiza o grafo e coleta os cnps em uma unica flatzone
+        int flatZoneID = getIdFlatZone(flatZone);
+        std::unordered_set<int> neighborsCopy = *(flatzoneGraph[flatZoneID]);
+        if(flatZoneID == unifiedFlatzoneID){
+            for (int neighborID : neighborsCopy) {
+                //vizinhos que serão unificados
+                if( (this->maxtreeTreeType && node->getLevel() <= getSC(neighborID)->getLevel()) || (!this->maxtreeTreeType && node->getLevel() >= getSC(neighborID)->getLevel())){
+                    this->flatzoneGraph[neighborID]->erase(unifiedFlatzoneID);
+                    this->flatzoneGraph[unifiedFlatzoneID]->erase(neighborID);
+                }
+            }
+            unifiedFlatzone.splice(unifiedFlatzone.end(), flatZone); 
+        }else{
+            for (int neighborID : neighborsCopy) {
+                if(this->flatzoneGraph[neighborID] ){
+                    //vizinhos que NÃO serão unificados
+                    if( (this->maxtreeTreeType && node->getLevel() >= getSC(neighborID)->getLevel()) || (!this->maxtreeTreeType && node->getLevel() <= getSC(neighborID)->getLevel())){
+                        this->flatzoneGraph[neighborID]->erase(flatZoneID);
+                        this->flatzoneGraph[flatZoneID]->erase(neighborID);
+                            
+                        this->flatzoneGraph[neighborID]->insert(unifiedFlatzoneID);
+                        this->flatzoneGraph[unifiedFlatzoneID]->insert(neighborID);
+                    }
+                }
+            }
+            delete this->flatzoneGraph[flatZoneID];
+            this->flatzoneGraph[flatZoneID] = nullptr;
+            unifiedFlatzone.splice(unifiedFlatzone.end(), flatZone); // Adicionar pixels ao cnpsCC
+        }
+    }
+    
+    assert(!unifiedFlatzone.empty() && "ERRO: unifiedFlatzone está vazio após a fusão!");
+}
+
+
+template <>
+template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
+void ComponentTreeFZ::updateGraph(std::list<FlatZoneNode>& flatZoneNodeList,  FlatZone& unifiedFlatzone, NodeFZ* node) {
+    assert(!flatZoneNodeList.empty() && "ERRO: Lista de FlatZoneNode está vazia!");
+
+    for(FlatZoneNode& pair: flatZoneNodeList)   {
+        NodeFZ* child = pair.node;
+        FlatZone* flatZone = pair.flatzone;
+        int flatZoneID = flatZone->front();
+    }
+    int unifiedFlatzoneID = node->getRepresentativeCNPs();
+    std::unordered_set<int>* unifiedFlatzoneSet = this->flatzoneGraph[unifiedFlatzoneID];
+    for(auto [flatZoneID, flatZone]: node->getCNPsByFlatZone()){
+        unifiedFlatzone.splice(unifiedFlatzone.end(), flatZone); 
+    }
+
+
+
+    for(FlatZoneNode& pair: flatZoneNodeList)   {
+        NodeFZ* child = pair.node;
+        FlatZone& flatZone = *pair.flatzone;
+        //atualiza o grafo e coleta os cnps em uma unica flatzone
+
+        int flatZoneID = getIdFlatZone(flatZone);
+
+        std::unordered_set<int> neighborsCopy = *(flatzoneGraph[flatZoneID]);
+        
+
+
+        if(flatZoneID == unifiedFlatzoneID){
+            for (int neighborID : neighborsCopy) {
+                //vizinhos que serão unificados
+                if( (this->maxtreeTreeType && node->getLevel() <= getSC(neighborID)->getLevel()) || (!this->maxtreeTreeType && node->getLevel() >= getSC(neighborID)->getLevel())){
+                    this->flatzoneGraph[neighborID]->erase(unifiedFlatzoneID);
+                    this->flatzoneGraph[unifiedFlatzoneID]->erase(neighborID);
+                }
+            }
+        }else{
+            for (int neighborID : neighborsCopy) {
+
+                if(this->flatzoneGraph[neighborID] ){
+
+                    //vizinhos que NÃO serão unificados
+                    if( (this->maxtreeTreeType && node->getLevel() <= getSC(neighborID)->getLevel()) || (!this->maxtreeTreeType && node->getLevel() >= getSC(neighborID)->getLevel())){
+                        this->flatzoneGraph[neighborID]->erase(flatZoneID);
+                        this->flatzoneGraph[flatZoneID]->erase(neighborID);
+                        
+                        this->flatzoneGraph[unifiedFlatzoneID]->insert(neighborID);
+                        this->flatzoneGraph[neighborID]->insert(unifiedFlatzoneID);
+                        
+                            
+                    }
+                }
+            }
+            delete this->flatzoneGraph[flatZoneID];
+            this->flatzoneGraph[flatZoneID] = nullptr;
+            unifiedFlatzone.splice(unifiedFlatzone.end(), flatZone); // Adicionar pixels ao cnpsCC
+        }
+    }
+    
+    assert(!unifiedFlatzone.empty() && "ERRO: unifiedFlatzone está vazio após a fusão!");
+}
+
+
+
+
 template <typename CNPsType>
 std::vector<NodeCT<CNPsType>*> ComponentTree<CNPsType>::getNodesThreshold(int areaThreshold){
 	std::vector<NodeCT<CNPsType>*> lista;
 	std::stack<NodeCT<CNPsType>*> pilha;
 	pilha.push(this->getRoot());
-
+    int sumArea = 0;
 	while(!pilha.empty()) {
 	    NodeCT<CNPsType>* node = pilha.top(); pilha.pop();
 	    if(node->getArea() > areaThreshold) {
@@ -458,9 +536,19 @@ std::vector<NodeCT<CNPsType>*> ComponentTree<CNPsType>::getNodesThreshold(int ar
     	    }
 	    }
 	    else {
+            sumArea += node->getArea();
 			lista.push_back(node);
 	    }
 	}
+    if(PRINT_LOG){
+        int areaImage = this->getNumColsOfImage() * this->getNumRowsOfImage();
+        std::cout << "\tArea threshold: " << areaThreshold 
+          << ", #Nodes: " << lista.size() 
+          << ", |Pruning Area|: " << sumArea 
+          << " (" << std::fixed << std::setprecision(2) 
+          << (static_cast<double>(sumArea) / areaImage) * 100.0 << "% of the image area)" 
+          << std::endl;
+    }
 	return lista;
 }
 
@@ -501,31 +589,7 @@ int ComponentTreeFZ::getIdFlatZone(const FlatZone& fz){
 
 template <>
 template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
-FlatZone& ComponentTreeFZ::getFlatzoneRef(int p) {
+FlatZone& ComponentTreeFZ::getFlatzoneByID(int idFlatZone) {
     assert(p >= 0 && p < (this->numRows * this->numCols) && "Error: o método getFlatzoneRef está acessando index fora dos limites");
-    //assert(pixelToFlatzone[p] != nullptr && "Erro: o método getFlatzoneRef tentou acessar flatzone nula!");
-    // assert(!pixelToFlatzone[p]->empty() && "Erro: flatzone vazia!");
-
-    return *pixelToFlatzone[p];
+    return pixelToNode[idFlatZone]->getFlatZone(idFlatZone);
 }
-
-template <>
-template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
-FlatZone* ComponentTreeFZ::getFlatzonePointer(int p) {
-    assert(p >= 0 && p < (this->numRows * this->numCols) && "Error: o método getFlatzonePointer está acessando index fora dos limites");
-    //assert(pixelToFlatzone[p] != nullptr && "Erro: o método getFlatzonePointer tentou acessar flatzone nula!");
-    //assert(!pixelToFlatzone[p]->empty() && "Erro: flatzone vazia!");
-
-    return pixelToFlatzone[p];
-}
-
-template <>
-template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
-void ComponentTreeFZ::updatePixelToFlatzone(int p, std::list<int>* newFlatzone) {
-    assert(p >= 0 && p < (this->numRows * this->numCols) && "Error: o método updatePixelToFlatzone está acessando index fora dos limites");
-    //assert(newFlatzone != nullptr && "Erro: o método updatePixelToFlatzone recebeu um ponteiro nulo para uma flatzone!");
-    //assert(!newFlatzone->empty() && "Erro: flatzone vazia!");
-
-    pixelToFlatzone[p] = newFlatzone;  
-}
-
