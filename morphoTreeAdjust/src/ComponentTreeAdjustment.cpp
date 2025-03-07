@@ -82,10 +82,15 @@ void ComponentTreeAdjustment::updateTree2(ComponentTreeFZ* tree, NodeFZ* rSubtre
     std::cout << "Area(rSubtree)= " << rSubtree->getArea() <<  std::endl;
     std::cout << "nodeTauStar: Id:" << nodeTauStar->getIndex() << "; level:" << nodeTauStar->getLevel() <<"; |cnps|:" << nodeTauStar->getNumCNPs() << std::endl;
     std::cout << "unionNodes: [";
+    bool flagPrint = false;
     for(FlatZoneNode fzNode: unionNodeTauSubtree.getFlatzoneNodeList()){
         NodeFZ* nodeTau = fzNode.node;
         FlatZone* fzTau = fzNode.flatzone;
-        std::cout << "(id:" << nodeTau->getIndex() << ", level:" << nodeTau->getLevel() << ", |cnps|:"<< nodeTau->getNumCNPs() << ", idFZ:" << fzTau->front() <<", |fz|:" << fzTau->size() << "), ";
+        if(flagPrint){
+            std::cout << "\t";
+        }
+        flagPrint = true;
+        std::cout << "\t(id:" << nodeTau->getIndex() << ", level:" << nodeTau->getLevel() << ", |cnps|:"<< nodeTau->getNumCNPs() << ", idFZ:" << fzTau->front() <<", |fz|:" << fzTau->size() << "), \n";
     }
     std::cout << "]"<< std::endl;
 
@@ -208,33 +213,31 @@ void ComponentTreeAdjustment::updateTree2(ComponentTreeFZ* tree, NodeFZ* rSubtre
 }
 
 
-void ComponentTreeAdjustment::updateTree(ComponentTreeFZ* tree, NodeFZ* L_leaf) {
-    assert(L_leaf != nullptr && "L_leaf is nullptr"); 
+void ComponentTreeAdjustment::updateTree(ComponentTreeFZ* tree, NodeFZ* leaf) {
+    assert(leaf != nullptr && "L_leaf is nullptr"); 
 
     bool isMaxtree = tree->isMaxtree();
-    int newGrayL = L_leaf->getParent()->getLevel();  // g(p)
-    int grayL = L_leaf->getLevel();  // f(p)
-    int idLeaf = L_leaf->getRepresentativeCNPs(); //sao CNPs  pois L_leaf é uma folha
+    int newGrayLevel = leaf->getParent()->getLevel();  // b = g(p)
+    int oldGrayLevel = leaf->getLevel();  // a = f(p)
+    int idLeaf = leaf->getRepresentativeCNPs(); //pixel (id) of flatzone 
     
-    NodeFZ* nodeTauL = tree->getSC(idLeaf);
-    this->pixelUpperBound = idLeaf;
+    NodeFZ* nodeTauL = tree->getSC(idLeaf); //node of correspondence flatzone in other treee
+    this->pixelUpperBound = idLeaf; 
 
     bool nodeTauCNPsIsEqualL = nodeTauL->getNumFlatzone() == 1;
-
     FlatZone& flatzoneTauL = tree->getFlatzoneByID(idLeaf); 
     std::vector<FlatZoneRef> flatZonesTauL = {flatzoneTauL};
     
-    assert(L_leaf->getNumCNPs() == flatzoneTauL.size() && "O número de CNPs de L_leaf é diferente do número de pixels da flatzone de tauL");
+    assert(leaf->getNumCNPs() == flatzoneTauL.size() && "O número de CNPs de L_leaf é diferente do número de pixels da flatzone de tauL");
 
-    this->buildMergedAndNestedCollections(tree, flatZonesTauL, newGrayL, isMaxtree);
+    this->buildMergedAndNestedCollections(tree, flatZonesTauL, newGrayLevel, isMaxtree);
 
-    // Ordenação dos lambdas (crescente para Min-Tree, decrescente para Max-Tree)
-    int lambda = F.firstLambda();
-    NodeFZ* nodeUnion = nullptr;
-    NodeFZ* nodeUnionPrevious = nullptr;
+    int lambda = F.firstLambda(); //star with b = newGrayLevel
+    NodeFZ* nodeUnion = nullptr; // tau_{lambda}
+    NodeFZ* nodeUnionPrevious = nullptr; //maxtree: tau_{\lambda+1}, mintree:  tau_{\lambda-1}
 
     // Definição da direção do loop
-    while ( (isMaxtree && lambda > grayL) || (!isMaxtree && lambda < grayL)) {
+    while ( (isMaxtree && lambda > oldGrayLevel) || (!isMaxtree && lambda < oldGrayLevel)) {
         std::vector<NodeFZ*>& F_lambda = F.getMergedNodes(lambda);
 
         nodeUnion = F_lambda.front();
@@ -248,7 +251,7 @@ void ComponentTreeAdjustment::updateTree(ComponentTreeFZ* tree, NodeFZ* L_leaf) 
                 tree->setNumNodes(tree->getNumNodes() - 1);
             }
         }
-        if (lambda == newGrayL) {
+        if (lambda == newGrayLevel) {
             int idFlatzoneTauL = flatzoneTauL.front();
             nodeUnion->addCNPsToConnectedFlatzone(std::move(flatzoneTauL), tree); // Os mapeamentos são atualizados
             nodeTauL->removeFlatzone(idFlatzoneTauL);
@@ -273,6 +276,7 @@ void ComponentTreeAdjustment::updateTree(ComponentTreeFZ* tree, NodeFZ* L_leaf) 
         lambda = F.nextLambda();  // Avança para o próximo lambda
     }
 
+
     if (nodeTauCNPsIsEqualL) {
         NodeFZ* parentNodeTauL = nodeTauL->getParent();
         nodeUnion->setParent(parentNodeTauL);
@@ -291,7 +295,7 @@ void ComponentTreeAdjustment::updateTree(ComponentTreeFZ* tree, NodeFZ* L_leaf) 
             NodeFZ* newRoot = nodeUnion;
             if (!nodeTauL->getChildren().empty()) {
                 for (NodeFZ* n : nodeTauL->getChildren()) {
-                    if ((isMaxtree && n->getLevel() < newRoot->getLevel()) || (!isMaxtree && n->getLevel() > newRoot->getLevel())) {
+                    if ( (isMaxtree && n->getLevel() < newRoot->getLevel()) || (!isMaxtree && n->getLevel() > newRoot->getLevel())) {
                         newRoot = n;
                     }
                 }

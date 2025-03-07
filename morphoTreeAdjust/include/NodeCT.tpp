@@ -75,6 +75,17 @@ FlatZone& NodeFZ::getFlatZone(int idFlatZone) {
     throw std::runtime_error("Erro: Nenhuma FlatZone encontrada com id = " + std::to_string(idFlatZone));
 }
 
+template <>
+template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
+int NodeFZ::getFlatZoneID(int pixel){
+    for (auto& [id, flatzone] : this->cnps) { 
+        if (std::find(flatzone.begin(), flatzone.end(), pixel) != flatzone.end()) {
+            return flatzone.front(); 
+        }
+    }
+    throw std::runtime_error("Pixel não encontrado em nenhuma flatzone");
+}
+
 
 template <>
 template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
@@ -115,7 +126,7 @@ void NodeFZ::addCNPsToConnectedFlatzone(FlatZone&& flatZone, ComponentTreeFZ* tr
     assert(tree->flatzoneGraph[flatZoneID] != nullptr && "Erro: flatZone não está registrada no grafo!");
     assert(!tree->flatzoneGraph[flatZoneID]->empty() && "Erro: flatZone não tem vizinhos registrados no grafo!");
 
-    std::unordered_set<int>* flatZoneNeighbors = tree->flatzoneGraph[flatZoneID];
+    AdjacentFlatzones* flatZoneNeighbors = tree->flatzoneGraph[flatZoneID];
     std::list<int> flatzonesToMergeList; //flatzones que serão fundidas e removidas
     std::list<int>* unifiedFlatzone = nullptr;
     for (int neighborID : *flatZoneNeighbors) {
@@ -125,6 +136,9 @@ void NodeFZ::addCNPsToConnectedFlatzone(FlatZone&& flatZone, ComponentTreeFZ* tr
         }
     }
     int unifiedFlatzoneID = tree->getIdFlatZone(*unifiedFlatzone);
+    FlatZone& fz4330 = tree->getFlatzoneByID(4330);
+    NodeFZ* node4330 = tree->getSC(4330);
+
 
     // Encontrar as flatzones vizinhas usando o grafo
     flatZoneNeighbors->erase(unifiedFlatzoneID);
@@ -165,24 +179,16 @@ void NodeFZ::addCNPsToConnectedFlatzone(FlatZone&& flatZone, ComponentTreeFZ* tr
     }
 
     // Iterar diretamente sobre `flatzonesToMergeList` para fundir seus CNPs na `unifiedFlatzone`
-    for (int flatZoneID : flatzonesToMergeList) {
-        auto it = this->cnps.find(flatZoneID);
+    for (int fzID : flatzonesToMergeList) {
+        auto it = this->cnps.find(fzID);
         unifiedFlatzone->splice(unifiedFlatzone->end(), it->second);  // Fundir na unifiedFlatzone
         this->cnps.erase(it);  // Remove do unordered_map
     }
 
     // Fundir `flatZone` na `unifiedFlatzone`
     unifiedFlatzone->splice(unifiedFlatzone->end(), flatZone);
-
-    assert([&]() { 
-        for (const int& p : *unifiedFlatzone) {
-            if (tree->getFlatzoneRef(p) != *unifiedFlatzone) {
-                return false;
-            }
-        }
-        return true;
-    }() && "Erro: mapeamento pixelToFlatzone está errado para os pixels de unifiedFlatzone DEPOIS da fusão");
     
+
     assert([&]() {
         if (unifiedFlatzone->empty()) {
             std::cerr << "ERRO: unifiedFlatzone está vazia após a fusão!" << std::endl;
@@ -194,8 +200,18 @@ void NodeFZ::addCNPsToConnectedFlatzone(FlatZone&& flatZone, ComponentTreeFZ* tr
             return false;
         }
 
+        std::cerr << "unifiedFlatzoneID: " << unifiedFlatzoneID << std::endl;
+        for (int neighborID : *tree->flatzoneGraph[unifiedFlatzoneID])
+            std::cerr << "neighborID: " << neighborID << std::endl;
+
         for (int neighborID : *tree->flatzoneGraph[unifiedFlatzoneID]) {
-            const FlatZone& neighborFlatzone = tree->getFlatzoneRef(neighborID);
+            
+            if (tree->flatzoneGraph[neighborID] == nullptr) {
+                std::cerr << "ERRO: Conexão assimétrica entre unifiedFlatzone e seu vizinho!" << std::endl;
+                return false;
+            }
+
+            FlatZone& neighborFlatzone = tree->getFlatzoneByID(neighborID);
 
             if (neighborFlatzone.empty()) {
                 std::cerr << "neighborID: " << neighborID << std::endl;
@@ -203,10 +219,6 @@ void NodeFZ::addCNPsToConnectedFlatzone(FlatZone&& flatZone, ComponentTreeFZ* tr
                 return false;
             }
 
-            if (tree->flatzoneGraph[neighborID] == nullptr) {
-                std::cerr << "ERRO: Conexão assimétrica entre unifiedFlatzone e seu vizinho!" << std::endl;
-                return false;
-            }
         }
 
         return true;

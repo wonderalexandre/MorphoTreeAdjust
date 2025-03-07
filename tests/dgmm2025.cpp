@@ -83,6 +83,7 @@ int* computerCASF(int* img, int numRows, int numCols, double radioAdj, std::vect
 
     ComponentTreeFZ* maxtree = new ComponentTreeFZ(img, numRows, numCols, true, radioAdj);
     ComponentTreeFZ* mintree = new ComponentTreeFZ(img, numRows, numCols, false, radioAdj);
+    
     ComponentTreeAdjustment adjust(mintree, maxtree);
     
     if(PRINT_LOG){

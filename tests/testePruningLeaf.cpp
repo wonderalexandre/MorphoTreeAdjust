@@ -30,6 +30,7 @@ int main()
 
     ComponentTreeFZ* maxtree = new ComponentTreeFZ(img, numRows, numCols, true, radioAdj);
     ComponentTreeFZ* mintree = new ComponentTreeFZ(img, numRows, numCols, false, radioAdj);
+    
     testComponentTreeFZ(maxtree, "max-tree", img, numRows, numCols);
     testComponentTreeFZ(mintree, "min-tree", img, numRows, numCols);
 

@@ -2,12 +2,15 @@
 #define COMMONS_HPP  
 
 
-#define NDEBUG  // Remove os asserts do código
+//#define NDEBUG  // Remove os asserts do código
 #include <cassert>
 #include <list>
 #include <unordered_set>
 #include <unordered_map>
+#include <queue>
 #include <memory>
+
+
 #define PRINT_LOG 0  
 
 // Forward declaration dos templates
@@ -23,7 +26,7 @@ using FlatZone = std::list<int>;                 // Representa uma flatzone
 using FlatZones = std::unordered_map<int, FlatZone>;   // Representa uma lista de flatzones (CNPs ficarão separados em flatzones)
 
 //Alias em função do tipo dos CNPs
-using FlatZoneRef = std::reference_wrapper<std::list<int>>;   // Representa uma flatzone
+using FlatZoneRef = std::reference_wrapper<FlatZone>;   // Representa uma flatzone
 using FlatZonesRef = std::list<FlatZoneRef>;   // Representa uma lista de flatzones
 using ComponentTreeFZ = ComponentTree<FlatZones>; //representa um component tree por flatzones
 using ComponentTreeP = ComponentTree<Pixels>; //representa um component tree sem tratamento de flatzones
@@ -31,6 +34,8 @@ using NodeFZ = NodeCT<FlatZones>; //representa um node com separação dos cnps 
 using NodeP = NodeCT<Pixels>; //representa um node sem tratamento de flatzones
 
 using FlatzoneGraph = std::unordered_set<int>**;
+using AdjacentFlatzones = std::unordered_set<int>;
+
 
 struct FlatZoneNode {
     NodeFZ* node;
@@ -39,6 +44,7 @@ struct FlatZoneNode {
     // Construtor para mover a FlatZone
     FlatZoneNode(NodeFZ* n, FlatZone& fz) : node(n), flatzone(&fz) {}
 };
+
 
 
 #endif 

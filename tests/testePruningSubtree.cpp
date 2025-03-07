@@ -31,12 +31,13 @@ int main()
     ComponentTreeFZ* mintree = new ComponentTreeFZ(img, numRows, numCols, false, radioAdj);
     std::cout <<"\n=========== mapIDs min-tree ===========\n" << std::endl;
     printMappingSC(mintree);
+    
     std::cout <<"\n=========== mapIDs max-tree ===========\n" << std::endl;
     printMappingSC(maxtree);
     
 
     
-    NodeFZ* TauS_r = getNodeByIndex(maxtree, 14);
+    NodeFZ* TauS_r = getNodeByIndex(maxtree, 7);
     int id_TauS_r = TauS_r->getIndex();
     ComponentTreeAdjustment adjust(mintree, maxtree);
     
@@ -50,9 +51,7 @@ int main()
         
     std::cout << "NunNodes (mintree):" << mintree->getNumNodes() << "\tNumNodes (maxtree):" << maxtree->getNumNodes();
     std::cout <<"TauS_r(id): " << id_TauS_r << "\t Rec(maxtree) = Rec(mintree):" << isEquals(imgOutMaxtree, imgOutMintree, n) << std::endl;
-    delete[] imgOutMaxtree;
-    delete[] imgOutMintree;
-
+    
 
     std::cout <<"\n=========== mapIDs min-tree ===========\n" << std::endl;
     printMappingSC(mintree);
@@ -60,7 +59,13 @@ int main()
     printMappingSC(maxtree);
     
     
+    std::cout <<"\n===========  Rec(max-tree) ===========\n" << std::endl;
+    printImage(imgOutMaxtree, numRows, numCols);
+    std::cout <<"\n===========  Rec(min-tree) ===========\n" << std::endl;
+    printImage(imgOutMintree, numRows, numCols);
     
+    delete[] imgOutMaxtree;
+    delete[] imgOutMintree;
     delete maxtree;
     delete mintree;    
 	std::cout << "\n\nFim do teste...\n\n";

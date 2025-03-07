@@ -36,7 +36,7 @@ public:
     class IteratorAdjacency { 
     private:
         int index;
-        AdjacencyRelation* instance; // Agora usamos um ponteiro
+        AdjacencyRelation* instance; 
 
     public:
         using iterator_category = std::input_iterator_tag;
