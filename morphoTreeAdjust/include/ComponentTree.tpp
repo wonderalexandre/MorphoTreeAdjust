@@ -449,18 +449,18 @@ template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value
 void ComponentTreeFZ::updateGraph(std::list<FlatZoneNode>& flatZoneNodeList,  FlatZone& unifiedFlatzone, NodeFZ* node) {
     assert(!flatZoneNodeList.empty() && "ERRO: Lista de FlatZoneNode está vazia!");
 
+    int unifiedFlatzoneID = -1;
     for(FlatZoneNode& pair: flatZoneNodeList)   {
         NodeFZ* child = pair.node;
-        FlatZone* flatZone = pair.flatzone;
-        int flatZoneID = flatZone->front();
+        if(child == node){
+            FlatZone* flatZone = pair.flatzone;
+            unifiedFlatzoneID = flatZone->front();
+            unifiedFlatzone.splice(unifiedFlatzone.end(), *flatZone); 
+        }
     }
-    int unifiedFlatzoneID = node->getRepresentativeCNPs();
+    
     std::unordered_set<int>* unifiedFlatzoneSet = this->flatzoneGraph[unifiedFlatzoneID];
-    for(auto [flatZoneID, flatZone]: node->getCNPsByFlatZone()){
-        unifiedFlatzone.splice(unifiedFlatzone.end(), flatZone); 
-    }
-
-
+    
 
     for(FlatZoneNode& pair: flatZoneNodeList)   {
         NodeFZ* child = pair.node;
