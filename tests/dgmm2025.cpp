@@ -188,8 +188,8 @@ int main(int argc, char* argv[]) {
         delete[] imgOut2;
         delete[] img;
 
-        stbi_write_png(("out_naive_" + filename).c_str(), numCols, numRows, 1, imgOut1, numCols * sizeof(int));
-        stbi_write_png(("out_our_" + filename).c_str(), numCols, numRows, 1, imgOut2, numCols * sizeof(int));
+        //stbi_write_png(("/Users/wonderalexandre/GitHub/MorphoTreeAdjust/tests/build/out_naive_" + filename).c_str(), numCols, numRows, 1, imgOut1, numCols * sizeof(int));
+        //stbi_write_png(("/Users/wonderalexandre/GitHub/MorphoTreeAdjust/tests/build/out_our_" + filename).c_str(), numCols, numRows, 1, imgOut2, numCols * sizeof(int));
     }
     return 0;
 }
