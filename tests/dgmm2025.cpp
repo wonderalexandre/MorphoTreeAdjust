@@ -2,6 +2,7 @@
 #include <iostream>
 #include <list>
 #include <chrono>
+#include <filesystem>
 
 #include "../morphoTreeAdjust/include/NodeCT.hpp"
 #include "../morphoTreeAdjust/include/ComponentTree.hpp"
@@ -11,6 +12,9 @@
 #include "./external/stb/stb_image.h"
 #include "./external/stb/stb_image_write.h"
 #include "../tests/Tests.hpp"
+
+namespace fs = std::filesystem;
+
 
 /*
 import numpy as np
@@ -120,82 +124,72 @@ int* computerCASF(int* img, int numRows, int numCols, double radioAdj, std::vect
     return imgOut;
 }
 
+
 int main(int argc, char* argv[]) {
-    std::string filename;
-    if (argc > 2) {
-        std::cerr << "Use: " << argv[0] << " <file>\n";
-        return 1;  
-    }else if (argc == 1){
-        filename = "/Users/wonderalexandre/GitHub/MorphoTreeAdjust/tests/dat/lena.png";
-    }else{
-        filename = argv[1];  
-    }
-
-    
-    //std::string filename = argv[1];  
-    std::cout << "Image: " << filename << std::endl;
-
-    int numCols, numRows, nchannels;
-    unsigned char* data = stbi_load(filename.c_str(), &numCols, &numRows, &nchannels, 1);
-    
-    if (!data) {
-        std::cerr << "Erro: Não foi possível carregar a imagem " << filename << std::endl;
+    if (argc != 2) {
+        std::cerr << "Uso: " << argv[0] << " <diretorio_imagens>\n";
         return 1;
     }
 
-    std::cout << "Loaded image:" << numCols << "x" << numRows << std::endl;
+    std::string directoryPath = argv[1];
 
-    int* img = new int[numCols * numRows];
-    for (int i = 0; i < numCols * numRows; i++) {
-        img[i] = static_cast<int>(data[i]);  // Converte de `unsigned char` para `int`
+    if (!fs::is_directory(directoryPath)) {
+        std::cerr << "Caminho inválido ou não é um diretório.\n";
+        return 1;
     }
 
-    // Liberar a memória da imagem carregada
-    stbi_image_free(data);
+    std::vector<int> thresholds{50, 176, 303, 430, 557, 684, 811, 938, 1065, 1192, 1319, 1446, 1573, 1700, 1826, 1953, 2080, 2207, 2334, 2461, 2588, 2715, 2842, 2969, 3096, 3223, 3350, 3476, 3603, 3730, 3857, 3984, 4111, 4238, 4365, 4492, 4619, 4746, 4873, 5000, 5400, 5911, 6422, 6933, 7444, 7955, 8466, 8977, 9488, 10000};
+    std::cout << "Thresholds: {";
+    for(int i=0; i < thresholds.size(); i++)
+        std::cout << thresholds[i] << (i+1 < thresholds.size()? ", ": "}");
+    std::cout << "\n\n";
 
-    int n = numRows * numCols;
-    double radioAdj = 1.5;
-    
+    for (const auto& entry : fs::directory_iterator(directoryPath)) {
+        if (entry.path().extension() != ".png") continue;
+        
+        std::string filename = entry.path().string();
+        std::cout << "Image: " << filename << std::endl;
 
-    std::list< std::vector<int> > teste;
-    
-    teste.push_back( std::vector<int>{2500, 5000, 7500, 10000});
-    teste.push_back( std::vector<int>{2000, 4000, 6000, 8000, 10000});
-    teste.push_back( std::vector<int>{1666, 3333, 5000, 6666, 8333, 10000});
-    teste.push_back( std::vector<int>{1428, 2857, 4285, 5714, 7142, 8571, 10000});
-    teste.push_back( std::vector<int>{1250, 2500, 3750, 5000, 6250, 7500, 8750, 10000});
-    teste.push_back( std::vector<int>{1111, 2222, 3333, 4444, 5555, 6666, 7777, 8888, 10000});
-    teste.push_back( std::vector<int>{1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000});
-    teste.push_back( std::vector<int>{909, 1818, 2727, 3636, 4545, 5454, 6363, 7272, 8181, 9090, 10000});
-    teste.push_back( std::vector<int>{833, 1666, 2500, 3333, 4166, 5000, 5833, 6666, 7500, 8333, 9166, 10000});
-    teste.push_back( std::vector<int>{769, 1538, 2307, 3076, 3846, 4615, 5384, 6153, 6923, 7692, 8461, 9230, 10000});
-    teste.push_back( std::vector<int>{714, 1428, 2142, 2857, 3571, 4285, 5000, 5714, 6428, 7142, 7857, 8571, 9285, 10000});
-    teste.push_back( std::vector<int>{666, 1333, 2000, 2666, 3333, 4000, 4666, 5333, 6000, 6666, 7333, 8000, 8666, 9333, 10000});
-    teste.push_back( std::vector<int>{625, 1250, 1875, 2500, 3125, 3750, 4375, 5000, 5625, 6250, 6875, 7500, 8125, 8750, 9375, 10000});
-    teste.push_back( std::vector<int>{588, 1176, 1764, 2352, 2941, 3529, 4117, 4705, 5294, 5882, 6470, 7058, 7647, 8235, 8823, 9411, 10000});
-    teste.push_back( std::vector<int>{555, 1111, 1666, 2222, 2777, 3333, 3888, 4444, 5000, 5555, 6111, 6666, 7222, 7777, 8333, 8888, 9444, 10000});
-       
-    for (const std::vector<int>& thresholds : teste) {
-        std::cout << "\n\n#" << thresholds.size() << "   => ";
-	    for(int threshold: thresholds)
-		    std::cout << threshold << ", ";
-	    std::cout << "\n";
+        int numCols, numRows, nchannels;
+        unsigned char* data = stbi_load(filename.c_str(), &numCols, &numRows, &nchannels, 1);
+        
+        if (!data) {
+            std::cerr << "Erro: Não foi possível carregar a imagem " << filename << std::endl;
+            return 1;
+        }
 
+        std::cout << "Resolution: " << numCols << "x" << numRows << std::endl;
+
+        int* img = new int[numCols * numRows];
+        for (int i = 0; i < numCols * numRows; i++) {
+            img[i] = static_cast<int>(data[i]);  // Converte de `unsigned char` para `int`
+        }
+
+        // Liberar a memória da imagem carregada
+        stbi_image_free(data);
+
+        int n = numRows * numCols;
+        double radioAdj = 1.5;
+        
         auto start = std::chrono::high_resolution_clock::now();
         int* imgOut1 = computerCASF_naive(img, numRows, numCols, radioAdj, thresholds);
         auto end = std::chrono::high_resolution_clock::now();
-        std::cout << "Time, naive approach: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
-
+        std::cout << "Times" << std::endl;
+        std::cout << "\tnaive approach: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
+        
         start = std::chrono::high_resolution_clock::now();
         int* imgOut2 = computerCASF(img, numRows, numCols, radioAdj, thresholds);
         end = std::chrono::high_resolution_clock::now();
-        std::cout << "Time, our approach: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
+        std::cout << "\tour approach:   " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
 
-       
-        std::cout << "The images are equals: " << (isEquals(imgOut1, imgOut2, n)? "True":"False");
+        
+        std::cout << "The images are equals: " << (isEquals(imgOut1, imgOut2, n)? "True":"False") << "\n\n";
         delete[] imgOut1;
         delete[] imgOut2;
+        delete[] img;
+
+        stbi_write_png(("out_naive_" + filename).c_str(), numCols, numRows, 1, imgOut1, numCols * sizeof(int));
+        stbi_write_png(("out_our_" + filename).c_str(), numCols, numRows, 1, imgOut2, numCols * sizeof(int));
     }
-    delete[] img;
     return 0;
 }
