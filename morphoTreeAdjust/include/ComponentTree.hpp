@@ -63,7 +63,7 @@ public:
     void updateGraphAfterPruning(std::list<FlatZoneNode>& flatZoneNodeList, FlatZone& unifiedFlatzone, NodeFZ* nodeStar);
 
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    void updateGraph(std::list<FlatZoneNode>& flatZoneNodeList, FlatZone& unifiedFlatzone, NodeFZ* nodeStar);
+    void updateGraph(std::list<FlatZoneNode>& flatZoneNodeList, FlatZone& unifiedFlatzone);
 
     void assignCNPs();
 

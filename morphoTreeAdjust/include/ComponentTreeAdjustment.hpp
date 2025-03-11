@@ -95,7 +95,10 @@ public:
                 if(!visited[index]) {
                     collectionF[n->getLevel()].push_back(n);
                     visited[index] = true;
+                }else{
+                    break;
                 }
+                
                 if (n == nodeTauL) {
                     break;
                 }
@@ -130,7 +133,8 @@ protected:
     bool isMaxtree; // Se true, percorre de forma decrescente
     std::list<FlatZoneNode> flatZoneNodeList;
     std::list<int> listFlatzoneIDs;
-    NodeFZ* nodeStar;
+    FlatZoneNode nodeTauStar; //nodeTauStar é o nó correspondente da folha da sub-arvore a ser podada com maior (ou menor, para min-tree) intensidade
+
 public:
 
     // Construtor permite definir a ordem de iteração
@@ -141,10 +145,6 @@ public:
         return flatZoneNodeList;
     }
 
-    void setNodeStar(NodeFZ* nodeStar){
-       this->nodeStar = nodeStar; 
-    }
-
     std::vector<FlatZoneRef> getFlatzones() {
         std::vector<FlatZoneRef> flatzones;
         for(FlatZoneNode fzNode: flatZoneNodeList){
@@ -153,21 +153,23 @@ public:
         return flatzones;
     }
 
+    FlatZoneNode getNodeTauStar() {
+        return nodeTauStar;
+    }
+
 
     void addCNPsToConnectedFlatzone(NodeFZ* nodeUnion, ComponentTreeFZ* tree) {
+        FlatZone& fzTauStar = *nodeTauStar.flatzone;
         if (flatZoneNodeList.size() > 1) {
-            FlatZone unifiedFlatzone;
-            tree->updateGraph(flatZoneNodeList, unifiedFlatzone, nodeStar);
-            nodeUnion->addCNPsToConnectedFlatzone(std::move(unifiedFlatzone), tree);
-        } else {
-            nodeUnion->addCNPsToConnectedFlatzone(std::move(*flatZoneNodeList.front().flatzone), tree);
+            tree->updateGraph(flatZoneNodeList, fzTauStar);
         }
+        nodeUnion->addCNPsToConnectedFlatzone(std::move(fzTauStar), tree);
     }
 
     void removeFlatzones(ComponentTreeFZ* tree) {
-        for(int idFlatZone: listFlatzoneIDs){
-            NodeFZ* node = tree->getSC(idFlatZone);
-            node->removeFlatzone(idFlatZone);  
+        for(FlatZoneNode fzNode: flatZoneNodeList){
+            NodeFZ* node = fzNode.node;
+            node->removeFlatzone(fzNode.idFlatZone);  
         }
     }
     
@@ -175,11 +177,17 @@ public:
         this->isMaxtree = isMaxtree;
         flatZoneNodeList.clear();
         listFlatzoneIDs.clear();
+        nodeTauStar.node = nullptr;
     }
     
-    void addNode(NodeFZ* node, std::list<int>& fzTau) {
-        flatZoneNodeList.emplace_back(node, fzTau);
+    void addNode(NodeFZ* nodeTau, std::list<int>& fzTau) {
+        flatZoneNodeList.emplace_back(nodeTau, fzTau);
         listFlatzoneIDs.push_back(fzTau.front());
+        
+        if (!this->nodeTauStar.node || ( (!isMaxtree && nodeTau->getLevel() > nodeTauStar.node->getLevel()) || (isMaxtree && nodeTau->getLevel() < nodeTauStar.node->getLevel()))) {
+            this->nodeTauStar.node = nodeTau;
+            this->nodeTauStar.flatzone = &fzTau;
+        }
     }
 
 };

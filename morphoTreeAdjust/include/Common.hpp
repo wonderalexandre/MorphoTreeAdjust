@@ -2,7 +2,7 @@
 #define COMMONS_HPP  
 
 
-#define NDEBUG  // Remove os asserts do código
+// #define NDEBUG  // Remove os asserts do código
 #include <cassert>
 #include <list>
 #include <unordered_set>
@@ -38,11 +38,16 @@ using AdjacentFlatzones = std::unordered_set<int>;
 
 
 struct FlatZoneNode {
-    NodeFZ* node;
-    FlatZone* flatzone;
+    NodeFZ* node = nullptr;
+    FlatZone* flatzone = nullptr;
+    int idFlatZone;
+
+    FlatZoneNode(){}
 
     // Construtor para mover a FlatZone
-    FlatZoneNode(NodeFZ* n, FlatZone& fz) : node(n), flatzone(&fz) {}
+    FlatZoneNode(NodeFZ* n, FlatZone& fz) : node(n), flatzone(&fz), idFlatZone(fz.front()) {} 
+    
+
 };
 
 

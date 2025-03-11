@@ -13,8 +13,6 @@
 #include "../include/ComponentTree.hpp"
 #include "../include/AdjacencyRelation.hpp"
 
-//#define NDEBUG  // Remove os asserts do código
-#include <cassert>
 
 template <typename CNPsType>
 int* ComponentTree<CNPsType>::countingSort(int* img){
@@ -446,65 +444,75 @@ void ComponentTreeFZ::updateGraphAfterPruning(std::list<FlatZoneNode>& flatZoneN
 
 template <>
 template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
-void ComponentTreeFZ::updateGraph(std::list<FlatZoneNode>& flatZoneNodeList,  FlatZone& unifiedFlatzone, NodeFZ* node) {
+void ComponentTreeFZ::updateGraph(std::list<FlatZoneNode>& flatZoneNodeList,  FlatZone& unifiedFlatzone) {
     assert(!flatZoneNodeList.empty() && "ERRO: Lista de FlatZoneNode está vazia!");
 
-    int unifiedFlatzoneID = -1;
-    for(FlatZoneNode& pair: flatZoneNodeList)   {
-        NodeFZ* child = pair.node;
-        if(child == node){
-            FlatZone* flatZone = pair.flatzone;
-            unifiedFlatzoneID = flatZone->front();
-            unifiedFlatzone.splice(unifiedFlatzone.end(), *flatZone); 
-        }
-    }
-    
+    int unifiedFlatzoneID = unifiedFlatzone.front();
+    int levelTauStar = getSC(unifiedFlatzoneID)->getLevel();
     std::unordered_set<int>* unifiedFlatzoneSet = this->flatzoneGraph[unifiedFlatzoneID];
-    
-
     for(FlatZoneNode& pair: flatZoneNodeList)   {
         NodeFZ* child = pair.node;
         FlatZone& flatZone = *pair.flatzone;
         //atualiza o grafo e coleta os cnps em uma unica flatzone
 
         int flatZoneID = getIdFlatZone(flatZone);
+        if(flatZoneID == unifiedFlatzoneID)
+            continue;
 
-        std::unordered_set<int> neighborsCopy = *(flatzoneGraph[flatZoneID]);
-        
+        std::unordered_set<int> neighborsCopy = *(flatzoneGraph[flatZoneID]);    
+        for (int neighborID : neighborsCopy) {
+            if(neighborID != unifiedFlatzoneID && this->flatzoneGraph[neighborID] ){
 
-
-        if(flatZoneID == unifiedFlatzoneID){
-            for (int neighborID : neighborsCopy) {
-                //vizinhos que serão unificados
-                if( (this->maxtreeTreeType && node->getLevel() <= getSC(neighborID)->getLevel()) || (!this->maxtreeTreeType && node->getLevel() >= getSC(neighborID)->getLevel())){
-                    this->flatzoneGraph[neighborID]->erase(unifiedFlatzoneID);
-                    this->flatzoneGraph[unifiedFlatzoneID]->erase(neighborID);
-                }
-            }
-        }else{
-            for (int neighborID : neighborsCopy) {
-
-                if(this->flatzoneGraph[neighborID] ){
-
-                    //vizinhos que NÃO serão unificados
-                    if( (this->maxtreeTreeType && node->getLevel() <= getSC(neighborID)->getLevel()) || (!this->maxtreeTreeType && node->getLevel() >= getSC(neighborID)->getLevel())){
-                        this->flatzoneGraph[neighborID]->erase(flatZoneID);
-                        this->flatzoneGraph[flatZoneID]->erase(neighborID);
+                //vizinhos que NÃO serão unificados
+                if( (this->maxtreeTreeType && levelTauStar <= getSC(neighborID)->getLevel()) || (!this->maxtreeTreeType && levelTauStar >= getSC(neighborID)->getLevel())){
+                    this->flatzoneGraph[neighborID]->erase(flatZoneID);
+                    this->flatzoneGraph[flatZoneID]->erase(neighborID);
                         
-                        this->flatzoneGraph[unifiedFlatzoneID]->insert(neighborID);
-                        this->flatzoneGraph[neighborID]->insert(unifiedFlatzoneID);
+                    this->flatzoneGraph[unifiedFlatzoneID]->insert(neighborID);
+                    this->flatzoneGraph[neighborID]->insert(unifiedFlatzoneID);
                         
                             
-                    }
                 }
             }
-            delete this->flatzoneGraph[flatZoneID];
-            this->flatzoneGraph[flatZoneID] = nullptr;
-            unifiedFlatzone.splice(unifiedFlatzone.end(), flatZone); // Adicionar pixels ao cnpsCC
         }
+        
+        this->flatzoneGraph[unifiedFlatzoneID]->erase(flatZoneID);
+        delete this->flatzoneGraph[flatZoneID];
+        this->flatzoneGraph[flatZoneID] = nullptr;
+        unifiedFlatzone.splice(unifiedFlatzone.end(), flatZone); // Adicionar pixels ao cnpsCC
     }
     
-    assert(!unifiedFlatzone.empty() && "ERRO: unifiedFlatzone está vazio após a fusão!");
+    assert([&]() {
+        if (unifiedFlatzone.empty()) {
+            std::cerr << "ERRO: unifiedFlatzone está vazia após a fusão!" << std::endl;
+            return false;
+        }
+        
+        if (this->flatzoneGraph[unifiedFlatzoneID] == nullptr) {
+            std::cerr << "ERRO: unifiedFlatzone não está registrada no grafo!" << std::endl;
+            return false;
+        }
+
+        for (int neighborID : *this->flatzoneGraph[unifiedFlatzoneID]) {
+            if (this->flatzoneGraph[neighborID] == nullptr) {
+                std::cerr << "ERRO: Conexão assimétrica entre unifiedFlatzone e seu vizinho!" << std::endl;
+                std::cerr << "neighborID: " << neighborID << std::endl;
+                return false;
+            }
+            
+            const FlatZone& neighborFlatzone = this->getFlatzoneByID(neighborID);
+
+            if (neighborFlatzone.empty()) {
+                std::cerr << "ERRO: Flatzone vizinha de unifiedFlatzone está vazia APOS fusão!" << std::endl;
+                std::cerr << "neighborID: " << neighborID << std::endl;
+                return false;
+            }
+
+
+        }
+
+        return true;
+    }() && "Erro: Grafo de flatzones inconsistente após a fusão!");
 }
 
 

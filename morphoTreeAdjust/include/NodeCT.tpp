@@ -99,11 +99,19 @@ template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value
 void NodeFZ::removeFlatzone(int idFlatZone) {
     auto it = cnps.find(idFlatZone);
 
+    assert([&]() {
+        if (it == cnps.end()) {
+            std::cerr << "\n\nIndex: " << index << std::endl;
+            std::cerr << "idFlatZone: " << idFlatZone << std::endl;
+            std::cerr << "cnps.size: " << cnps.size() << std::endl;
+            return false;
+        }
+        return true;
+    }() && "Erro: A flatzone a ser removida não está presente no nó!");
+
     if (it != cnps.end()) {
         cnps.erase(it);  
-    } else {
-        assert(false && "Erro: A flatzone a ser removida não está presente no nó!");
-    }
+    } 
 }
 
 template <>

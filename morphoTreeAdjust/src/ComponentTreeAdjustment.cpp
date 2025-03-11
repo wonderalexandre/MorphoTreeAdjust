@@ -43,10 +43,10 @@ void ComponentTreeAdjustment::buildMergedAndNestedCollections(ComponentTreeFZ* t
             }
 	        // se a subtree tiver level = g(p), então ela entra em F[\lambda]
             if (nodeSubtree->getLevel() == newGrayLevel) {
-                F.addNodesOfPath(nodeSubtree, nodeTauL);
+                F.addNodesOfPath(nodeSubtree, nodeTauL); //F_lambda
             } 
             else {
-                B_L.push_back(nodeSubtree);
+                B_L.push_back(nodeSubtree); //F_{lambda} > b
             }
 	    }
         
@@ -61,7 +61,7 @@ void ComponentTreeAdjustment::updateTree2(ComponentTreeFZ* tree, NodeFZ* rootSub
     bool isMaxtree = tree->isMaxtree();
     int newGrayLevel = rootSubtree->getParent()->getLevel();  // g(p)
     
-    NodeFZ* nodeTauStar = tree->getSC(rootSubtree->getRepresentativeCNPs());
+    
     unionNodeTauSubtree.resetCollection(isMaxtree);
     for (NodeFZ* nSubtree : rootSubtree->getIteratorBreadthFirstTraversal()) {
         std::cout << "nSubtree: " << nSubtree->getIndex() <<  ", numFlatZone:"<< nSubtree->getNumFlatzone() << std::endl; //g(p)
@@ -73,18 +73,16 @@ void ComponentTreeAdjustment::updateTree2(ComponentTreeFZ* tree, NodeFZ* rootSub
 
             unionNodeTauSubtree.addNode(nodeTau, fzTau); //, fzSubtree.size() == fzTau.size()  
 
-            if ((!isMaxtree && nodeTau->getLevel() > nodeTauStar->getLevel()) || (isMaxtree && nodeTau->getLevel() < nodeTauStar->getLevel())) {
-                nodeTauStar = nodeTau;
-            }
         }
     }
-    unionNodeTauSubtree.setNodeStar(nodeTauStar);
-    this->pixelUpperBound = nodeTauStar->getRepresentativeCNPs(); 
+    NodeFZ* nodeTauStar = unionNodeTauSubtree.getNodeTauStar().node;
+    FlatZone* fzTauStar = unionNodeTauSubtree.getNodeTauStar().flatzone;
+    this->pixelUpperBound = fzTauStar->front();
     int grayTauStar = nodeTauStar->getLevel();  // f(pixelUpperBound)
     std::cout << "newGrayLevel: " << newGrayLevel  << std::endl; //g(p)
     std::cout << "Intervalo: [" << newGrayLevel << ", " << grayTauStar << "]" << std::endl;
     std::cout << "Area(rSubtree)= " << rootSubtree->getArea() <<  std::endl;
-    std::cout << "nodeTauStar: Id:" << nodeTauStar->getIndex() << "; level:" << nodeTauStar->getLevel() <<"; |cnps|:" << nodeTauStar->getNumCNPs() << std::endl;
+    std::cout << "nodeTauStar: Id:" << nodeTauStar->getIndex() << "; level:" << nodeTauStar->getLevel() <<"; |cnps|:" << nodeTauStar->getNumCNPs() <<"; flatZoneTauStar:" << fzTauStar->size() << std::endl;
     std::cout << "unionNodes: [";
     bool flagPrint = false;
     for(FlatZoneNode& fzNode: unionNodeTauSubtree.getFlatzoneNodeList()){
@@ -335,6 +333,7 @@ void ComponentTreeAdjustment::adjustMinTree(ComponentTreeFZ* mintree, ComponentT
         for (NodeFZ* Lmax : node->getIteratorPostOrderTraversal()) { 
             assert(Lmax != mintree->getRoot() && "Lmax is root");
             assert(Lmax->isLeaf() && "Lmax não é uma folha");
+   
             updateTree(mintree, Lmax); 
             maxtree->prunning(Lmax);
         }
