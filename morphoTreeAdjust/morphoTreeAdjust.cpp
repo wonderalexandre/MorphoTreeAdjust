@@ -101,6 +101,7 @@ void init_ComponentTree(py::module &m) {
         .def(py::init<py::array_t<int> &, int, int, bool>())
         .def("reconstructionImage", &PyBindTree::reconstructionImage)
         .def("recNode", &PyBindTree::reconstructionNode)
+        .def("isNodesInitialized", &PyBindTree::isNodesInitialized, "Verifica se todos os nós foram corretamente inicializados")
         .def("getSC", [](PyBindTree &self, int p) -> NodeCT<FlatZones>* {
             NodeCT<FlatZones>* result = self.getSC(p);
             if (!result) {
@@ -128,6 +129,7 @@ void init_ComponentTreeAdjustment(py::module &m) {
     py::class_<PyBindComponentTreeAdjustment>(m, "ComponentTreeAdjustment")
         .def(py::init<PyBindComponentTree<FlatZones>*, PyBindComponentTree<FlatZones>*>())
         .def("updateTree", &PyBindComponentTreeAdjustment::updateTree)
+        .def("updateTree2", &PyBindComponentTreeAdjustment::updateTree2)
         .def("buildCollections", &PyBindComponentTreeAdjustment::buildCollections);
 }
 

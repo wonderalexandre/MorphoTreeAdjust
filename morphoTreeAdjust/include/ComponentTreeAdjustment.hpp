@@ -128,6 +128,69 @@ public:
     }
 };
 
+class UnionNodes {
+protected:
+    bool isMaxtree; // Se true, percorre de forma decrescente
+    std::list<FlatZoneNode> flatZoneNodeList;
+    std::list<int> listFlatzoneIDs;
+    FlatZoneNode nodeTauStar; //nodeTauStar é o nó correspondente da folha da sub-arvore a ser podada com maior (ou menor, para min-tree) intensidade
+
+public:
+
+    // Construtor permite definir a ordem de iteração
+    UnionNodes(bool isMaxtree):  isMaxtree(isMaxtree) {}
+    
+    
+    std::list<FlatZoneNode>& getFlatzoneNodeList() {
+        return flatZoneNodeList;
+    }
+
+    std::vector<FlatZoneRef> getFlatzones() {
+        std::vector<FlatZoneRef> flatzones;
+        for(FlatZoneNode fzNode: flatZoneNodeList){
+            flatzones.push_back(*fzNode.flatzone);
+        }
+        return flatzones;
+    }
+
+    FlatZoneNode getNodeTauStar() {
+        return nodeTauStar;
+    }
+
+
+    void addCNPsToConnectedFlatzone(NodeFZ* nodeUnion, ComponentTreeFZ* tree) {
+        FlatZone& fzTauStar = *nodeTauStar.flatzone;
+        if (flatZoneNodeList.size() > 1) {
+            tree->updateGraph(flatZoneNodeList, fzTauStar);
+        }
+        nodeUnion->addCNPsToConnectedFlatzone(std::move(fzTauStar), tree);
+    }
+
+    void removeFlatzones(ComponentTreeFZ* tree) {
+        for(FlatZoneNode fzNode: flatZoneNodeList){
+            NodeFZ* node = fzNode.node;
+            node->removeFlatzone(fzNode.idFlatZone);  
+        }
+    }
+    
+    void resetCollection(bool isMaxtree) {
+        this->isMaxtree = isMaxtree;
+        flatZoneNodeList.clear();
+        listFlatzoneIDs.clear();
+        nodeTauStar.node = nullptr;
+    }
+    
+    void addNode(NodeFZ* nodeTau, std::list<int>& fzTau) {
+        flatZoneNodeList.emplace_back(nodeTau, fzTau);
+        listFlatzoneIDs.push_back(fzTau.front());
+        
+        if (!this->nodeTauStar.node || ( (!isMaxtree && nodeTau->getLevel() > nodeTauStar.node->getLevel()) || (isMaxtree && nodeTau->getLevel() < nodeTauStar.node->getLevel()))) {
+            this->nodeTauStar.node = nodeTau;
+            this->nodeTauStar.flatzone = &fzTau;
+        }
+    }
+
+};
 
 
 class ComponentTreeAdjustment {
@@ -137,6 +200,7 @@ protected:
     ComponentTreeFZ* maxtree; 
     int maxIndex; 
     int pixelUpperBound=-1;    
+    UnionNodes unionNodeTauSubtree;
     MergedNodesCollection F;
     std::vector<NodeFZ*> B_L;
 
@@ -169,9 +233,16 @@ public:
     
     void updateTree(ComponentTreeFZ* tree, NodeFZ *L_leaf);
 
+    void updateTree2(ComponentTreeFZ* tree, NodeFZ *rSubtree);
+
+
     void adjustMinTree(ComponentTreeFZ* mintree, ComponentTreeFZ* maxtree, std::vector<NodeFZ*> nodesToPruning);
     
     void adjustMaxTree(ComponentTreeFZ* maxtree, ComponentTreeFZ* mintree, std::vector<NodeFZ*> nodesToPruning);
+
+    void adjustMinTree2(ComponentTreeFZ* mintree, ComponentTreeFZ* maxtree, std::vector<NodeFZ*> nodesToPruning);
+    
+    void adjustMaxTree2(ComponentTreeFZ* maxtree, ComponentTreeFZ* mintree, std::vector<NodeFZ*> nodesToPruning);
 
 
 

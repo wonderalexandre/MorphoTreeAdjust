@@ -359,7 +359,6 @@ inline void ComponentTreeFZ::prunning(NodeFZ* rootSubtree) {
     assert(rootSubtree != nullptr && "Erro: node is nullptr");
     assert(rootSubtree->getParent() != nullptr && "Erro: node é a raiz");
     std::list<FlatZone> flatZoneList;
-    //std::list<NodeFZ*> toRemove;
     if (rootSubtree != this->root) {
         NodeFZ* parent = rootSubtree->getParent();
         parent->getChildren().remove(rootSubtree);
@@ -381,7 +380,6 @@ inline void ComponentTreeFZ::prunning(NodeFZ* rootSubtree) {
                 flatZoneList.push_back(flatzone);
             }
             
-            //toRemove.push_back(node);
             if(node != rootSubtree){
                 delete node;
             }
@@ -395,10 +393,6 @@ inline void ComponentTreeFZ::prunning(NodeFZ* rootSubtree) {
         parent->addCNPsToConnectedFlatzone(std::move(unifiedFlatzone), this);
         
         delete rootSubtree;
-        /*for (auto& node : toRemove) {
-            delete node;
-            node = nullptr;
-        }*/
     }
 }
 
@@ -445,6 +439,7 @@ void ComponentTreeFZ::updateGraphAfterPruning(std::list<FlatZone>& flatZoneNodeL
     
     assert(!unifiedFlatzone.empty() && "ERRO: unifiedFlatzone está vazio após a fusão!");
 }
+
 
 
 template <>

@@ -11,7 +11,7 @@
 #include <memory>
 
 
-#define PRINT_LOG 0  
+#define PRINT_LOG 1  
 
 // Forward declaration dos templates
 template <typename T>
@@ -47,6 +47,7 @@ struct FlatZoneNode {
     // Construtor para mover a FlatZone
     FlatZoneNode(NodeFZ* n, FlatZone& fz) : node(n), flatzone(&fz), idFlatZone(fz.front()) {} 
     
+
 };
 
 

@@ -80,6 +80,11 @@ std::map<int, NodeCT<CNPsType>*> PyBindComponentTree<CNPsType>::getNodes() {
     return nodes_map;
 }
 
+// Implementação de isNodesInitialized
+template <typename CNPsType>
+bool PyBindComponentTree<CNPsType>::isNodesInitialized() {
+    return this->getRoot() != nullptr;
+}
 
 // Implementação de recNode (estático)
 template <typename CNPsType>

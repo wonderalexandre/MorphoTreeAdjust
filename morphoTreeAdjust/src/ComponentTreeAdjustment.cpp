@@ -5,12 +5,14 @@
 #include <iostream>
 #include <functional>
 #include <utility>
+#include "../../tests/Tests.hpp"
 
 
 ComponentTreeAdjustment::ComponentTreeAdjustment(ComponentTreeFZ* maxtree, ComponentTreeFZ* mintree) 
     : maxtree(maxtree), mintree(mintree), 
       maxIndex(std::max(maxtree->getNumNodes(), mintree->getNumNodes())),
-      F(maxIndex)
+      F(maxIndex),
+      unionNodeTauSubtree(maxtree->isMaxtree()) 
 {    }
 
 ComponentTreeAdjustment::~ComponentTreeAdjustment() { }
@@ -49,6 +51,167 @@ void ComponentTreeAdjustment::buildMergedAndNestedCollections(ComponentTreeFZ* t
 	    }
         
 	}
+}
+
+
+void ComponentTreeAdjustment::updateTree2(ComponentTreeFZ* tree, NodeFZ* rootSubtree) {
+    assert(rootSubtree != nullptr && "rootSubtree is nullptr"); 
+    ComponentTreeFZ* otherTree = tree->isMaxtree()? this->mintree : this->maxtree;
+
+    bool isMaxtree = tree->isMaxtree();
+    int newGrayLevel = rootSubtree->getParent()->getLevel();  // g(p)
+    
+    
+    unionNodeTauSubtree.resetCollection(isMaxtree);
+    for (NodeFZ* nSubtree : rootSubtree->getIteratorBreadthFirstTraversal()) {
+        std::cout << "nSubtree: " << nSubtree->getIndex() <<  ", numFlatZone:"<< nSubtree->getNumFlatzone() << std::endl; //g(p)
+        for(auto& [idFlatZoneNSubtree, fzSubtree]: nSubtree->getCNPsByFlatZone()){
+            
+            NodeFZ* nodeTau = tree->getSC(idFlatZoneNSubtree);
+            FlatZone& fzTau = tree->getFlatzoneByID(idFlatZoneNSubtree);
+            std::cout << "nodeTau: " << nodeTau->getIndex() <<  ", fzTau:"<< fzTau.front() << std::endl; //g(p)
+
+            unionNodeTauSubtree.addNode(nodeTau, fzTau); //, fzSubtree.size() == fzTau.size()  
+
+        }
+    }
+    NodeFZ* nodeTauStar = unionNodeTauSubtree.getNodeTauStar().node;
+    FlatZone* fzTauStar = unionNodeTauSubtree.getNodeTauStar().flatzone;
+    this->pixelUpperBound = fzTauStar->front();
+    int grayTauStar = nodeTauStar->getLevel();  // f(pixelUpperBound)
+    std::cout << "newGrayLevel: " << newGrayLevel  << std::endl; //g(p)
+    std::cout << "Intervalo: [" << newGrayLevel << ", " << grayTauStar << "]" << std::endl;
+    std::cout << "Area(rSubtree)= " << rootSubtree->getArea() <<  std::endl;
+    std::cout << "nodeTauStar: Id:" << nodeTauStar->getIndex() << "; level:" << nodeTauStar->getLevel() <<"; |cnps|:" << nodeTauStar->getNumCNPs() <<"; flatZoneTauStar:" << fzTauStar->size() << std::endl;
+    std::cout << "unionNodes: [";
+    bool flagPrint = false;
+    for(FlatZoneNode& fzNode: unionNodeTauSubtree.getFlatzoneNodeList()){
+        NodeFZ* nodeTau = fzNode.node;
+        FlatZone* fzTau = fzNode.flatzone;
+        if(flagPrint){
+            std::cout << "\t";
+        }
+        flagPrint = true;
+        std::cout << "\t(id:" << nodeTau->getIndex() << ", level:" << nodeTau->getLevel() << ", |cnps|:"<< nodeTau->getNumCNPs() << ", idFZ:" << fzTau->front() <<", |fz|:" << fzTau->size() << "), \n";
+    }
+    std::cout << "]"<< std::endl;
+
+    bool nodeTauCNPsIsEqualL = (nodeTauStar->getNumFlatzone() ==  1);
+    std::vector<FlatZoneRef>  flatzonesTauSubtree = unionNodeTauSubtree.getFlatzones();
+    this->buildMergedAndNestedCollections(tree,  flatzonesTauSubtree, newGrayLevel, isMaxtree);
+    
+    // Ordenação dos lambdas (crescente para Min-Tree, decrescente para Max-Tree)
+    int lambda = F.firstLambda();
+    NodeFZ* nodeUnion = nullptr;
+    NodeFZ* nodeUnionPrevious = nullptr;
+    NodeFZ* nodeTauParentSubtree = nullptr;
+
+
+    
+    // Definição da direção do loop
+    while ((isMaxtree && lambda > grayTauStar) || (!isMaxtree && lambda < grayTauStar)) {
+        std::vector<NodeFZ*>& F_lambda = F.getMergedNodes(lambda);
+        std::cout << "Lambda:" << lambda << "; size(F_lambda):" << F_lambda.size() << std::endl;
+
+        nodeUnion = F_lambda.front();
+        disconnect(nodeUnion);
+
+        for (NodeFZ* n : F_lambda) {
+            if (n != nodeUnion) {
+                nodeUnion->addCNPsOfDisjointFlatzones(n->moveCNPsByFlatZone(), tree);
+                mergedParentAndChildren(nodeUnion, n);
+                disconnect(n, true);
+                tree->setNumNodes(tree->getNumNodes() - 1);
+            }
+        }
+        if (lambda == newGrayLevel) {
+            unionNodeTauSubtree.addCNPsToConnectedFlatzone(nodeUnion, tree); // Os mapeamentos são atualizados
+            unionNodeTauSubtree.removeFlatzones(tree);
+            for (NodeFZ* n : B_L) {
+                disconnect(n);
+                nodeUnion->addChild(n);
+                n->setParent(nodeUnion);
+            }
+            nodeTauParentSubtree = nodeUnion;
+
+        }
+        if (nodeUnionPrevious != nullptr) {
+            nodeUnionPrevious->setParent(nodeUnion);
+            nodeUnion->addChild(nodeUnionPrevious);
+        }
+
+        // Atualiza atributo de área
+        nodeUnion->setArea(nodeUnion->getNumCNPs());
+        for (NodeFZ* n : nodeUnion->getChildren()) {
+            nodeUnion->setArea(nodeUnion->getArea() + n->getArea());
+        }
+
+        nodeUnionPrevious = nodeUnion;
+        lambda = F.nextLambda();  // Avança para o próximo lambda
+    }
+    //std::cout << "==> Fez os merges" << std::endl;
+
+    if (nodeTauCNPsIsEqualL) {
+       // std::cout << "==> nodeTauCNPsIsEqualL";
+
+        NodeFZ* parentNodeTauL = nodeTauStar->getParent();
+        nodeUnion->setParent(parentNodeTauL);
+
+        if (parentNodeTauL != nullptr) {
+            parentNodeTauL->addChild(nodeUnion);
+            for (NodeFZ* n : nodeTauStar->getChildren()) {
+                if (n != nodeUnion && !nodeUnion->isChild(n)) {
+                    nodeUnion->getChildren().push_back(n);
+                    nodeUnion->setArea(nodeUnion->getArea() + n->getArea());
+                    n->setParent(nodeUnion);
+                }
+            }
+        } else {  // Novo root
+            NodeFZ* newRoot = nodeUnion;
+            if (!nodeTauStar->getChildren().empty()) {
+                for (NodeFZ* n : nodeTauStar->getChildren()) {
+                    if ((isMaxtree && n->getLevel() < newRoot->getLevel()) || (!isMaxtree && n->getLevel() > newRoot->getLevel())) {
+                        newRoot = n;
+                    }
+                }
+                if (newRoot != nodeUnion) {
+                    newRoot->addChild(nodeUnion);
+                    nodeUnion->setParent(newRoot);
+                }
+                for (NodeFZ* n : nodeTauStar->getChildren()) {
+                    if (n != newRoot && !nodeUnion->isChild(n)) {
+                        newRoot->addChild(n);
+                        n->setParent(newRoot);
+                    }
+                }
+            }
+            
+            newRoot->setArea(nodeTauStar->getArea());
+            newRoot->setParent(nullptr);
+            tree->setRoot(nodeUnion);
+            
+        }
+        tree->setNumNodes( tree->getNumNodes() -1 );  
+        disconnect(nodeTauStar);
+        nodeTauStar->getChildren().clear();
+        //nodeTauStar->getCNPs().clear();
+        delete nodeTauStar;
+        nodeTauStar = nullptr;
+       // std::cout << " OK"<< std::endl;
+    } else {
+       // std::cout << "==> NOT nodeTauCNPsIsEqualL";
+        if (nodeUnion != nodeTauStar) {
+            nodeUnion->setParent(nodeTauStar);
+            nodeTauStar->addChild(nodeUnion);
+        }
+        //nodeTauStar->removeCNPs(cnpsSubtree);
+        //nodeTauStar->getCNPs().remove_if([&tree, &nodeTauStar](int p) {
+        //   return tree->getSC(p) != nodeTauStar;
+        //});
+
+    }
+       
+    
 }
 
 
@@ -186,5 +349,22 @@ void ComponentTreeAdjustment::adjustMaxTree(ComponentTreeFZ* maxtree, ComponentT
             updateTree(maxtree, Lmin);             
             mintree->prunning(Lmin);
         }
+    }
+}
+
+void ComponentTreeAdjustment::adjustMinTree2(ComponentTreeFZ* mintree, ComponentTreeFZ* maxtree, std::vector<NodeFZ*> nodesToPruning) {
+    for (NodeFZ* rSubtree : nodesToPruning) {  	
+        assert(rSubtree != mintree->getRoot() && "rSubtree is root");
+        updateTree2(mintree, rSubtree); 
+        maxtree->prunning(rSubtree);
+    }
+}
+
+void ComponentTreeAdjustment::adjustMaxTree2(ComponentTreeFZ* maxtree, ComponentTreeFZ* mintree, std::vector<NodeFZ*> nodesToPruning) {
+    for (NodeFZ* rSubtree : nodesToPruning) {  
+        assert(rSubtree != mintree->getRoot() && "rSubtree is root");
+
+        updateTree(maxtree, rSubtree);   
+        mintree->prunning(rSubtree);
     }
 }
