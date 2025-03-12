@@ -1,16 +1,22 @@
 #include "../include/AdjacencyRelation.hpp"
 #include <math.h>
+#include <cmath> 
+#include <stdexcept>
 #define PI 3.14159265358979323846
 
-AdjacencyRelation::~AdjacencyRelation(){
+AdjacencyRelation::~AdjacencyRelation() {
     delete[] this->offsetCol;
+    this->offsetCol = nullptr;
+
     delete[] this->offsetRow;
+    this->offsetRow = nullptr;
 }
 
 AdjacencyRelation::AdjacencyRelation(int numRows, int numCols, double radius){
     this->numRows = numRows;
     this->numCols = numCols;
- 
+	this->radius = radius;
+
     int i, j, k, dx, dy, r0, r2, i0 = 0;
     this->n = 0;
     r0 = (int) radius;
@@ -124,25 +130,44 @@ int AdjacencyRelation::getSize(){
 	return this->n;
 }
 
-int AdjacencyRelation::nextValid(){
+bool AdjacencyRelation::isAdjacent(int px, int py, int qx, int qy) {
+	double distance = std::sqrt(std::pow(px - qx, 2) + std::pow(py - qy, 2));
+    return (distance <= radius);
+}
+
+bool AdjacencyRelation::isAdjacent(int p, int q) {
+    int py = p / numCols, px = p % numCols;
+    int qy = q / numCols, qx = q % numCols;
+
+    return isAdjacent(px, py, qx, qy);
+}
+
+int AdjacencyRelation::nextValid() {
     this->id += 1;
-    while (this->id < this->n){
-        if (0 <= this->row + this->offsetRow[this->id] && this->row + this->offsetRow[this->id] < this->numRows && 0 <= this->col + this->offsetCol[this->id] && this->col + this->offsetCol[this->id] < this->numCols)
-            break;
+    while (this->id < this->n) {
+        int newRow = this->row + this->offsetRow[this->id];
+        int newCol = this->col + this->offsetCol[this->id];
+
+        if (newRow >= 0 && newRow < this->numRows && newCol >= 0 && newCol < this->numCols) {
+            return this->id;
+        }
         this->id += 1;
     }
-    return this->id;
-} 
+    return this->n;
+}
 
 AdjacencyRelation::IteratorAdjacency AdjacencyRelation::begin() { 
-    return IteratorAdjacency(*this, nextValid()); 
+    return IteratorAdjacency(this, nextValid()); 
 }
 
 AdjacencyRelation::IteratorAdjacency AdjacencyRelation::end() { 
-    return IteratorAdjacency(*this, this->n); 
+    return IteratorAdjacency(this, this->n); 
 }
 
 AdjacencyRelation& AdjacencyRelation::getAdjPixels(int row, int col){
+	if (row < 0 || row >= this->numRows || col < 0 || col >= this->numCols) {
+        throw std::out_of_range("Índice fora dos limites.");
+    }
     this->row = row;
     this->col = col;
     this->id = -1;
