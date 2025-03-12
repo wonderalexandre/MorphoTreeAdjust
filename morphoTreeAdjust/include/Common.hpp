@@ -2,7 +2,7 @@
 #define COMMONS_HPP  
 
 
-// #define NDEBUG  // Remove os asserts do código
+#define NDEBUG  // Remove os asserts do código
 #include <cassert>
 #include <list>
 #include <unordered_set>

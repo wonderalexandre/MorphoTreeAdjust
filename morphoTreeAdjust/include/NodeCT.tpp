@@ -32,10 +32,11 @@ void NodeP::addCNPs(int p){
 }
 
 
-template <>
-template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
-int NodeFZ::getNumFlatzone() {
-    return this->cnps.size();  // Número de flatzones armazenadas
+//template <>
+//template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
+template <typename CNPsType>
+int NodeCT<CNPsType>::getNumFlatzone() {
+    return this->cnps.size();  //TODO: Esse método só está correto para FlatZones type
 }
 
 

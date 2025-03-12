@@ -524,6 +524,7 @@ std::vector<NodeCT<CNPsType>*> ComponentTree<CNPsType>::getNodesThreshold(int ar
 	std::stack<NodeCT<CNPsType>*> pilha;
 	pilha.push(this->getRoot());
     int sumArea = 0;
+    int numFlatZones=0;
 	while(!pilha.empty()) {
 	    NodeCT<CNPsType>* node = pilha.top(); pilha.pop();
 	    if(node->getArea() > areaThreshold) {
@@ -533,6 +534,7 @@ std::vector<NodeCT<CNPsType>*> ComponentTree<CNPsType>::getNodesThreshold(int ar
 	    }
 	    else {
             sumArea += node->getArea();
+            numFlatZones = node->getNumFlatzone();
 			lista.push_back(node);
 	    }
 	}
@@ -540,6 +542,8 @@ std::vector<NodeCT<CNPsType>*> ComponentTree<CNPsType>::getNodesThreshold(int ar
         int areaImage = this->getNumColsOfImage() * this->getNumRowsOfImage();
         std::cout << "\tArea threshold: " << areaThreshold 
           << ", #Nodes: " << lista.size() 
+          << ", #FlatZones: " << numFlatZones
+          << ", #InputTreeNodes: " << this->getNumNodes()
           << ", |Pruning Area|: " << sumArea 
           << " (" << std::fixed << std::setprecision(2) 
           << (static_cast<double>(sumArea) / areaImage) * 100.0 << "% of the image area)" 
