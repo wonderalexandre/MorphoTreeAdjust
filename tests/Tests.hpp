@@ -148,46 +148,6 @@ inline  void printImage(int* img, int numRows, int numCols, std::string nomeArqu
 
 }
 
-/*
-inline  void printMappingFZ(ComponentTreeFZ* tree, std::string nomeArquivo = "") {
-    int numRows = tree->getNumRowsOfImage();
-    int numCols = tree->getNumColsOfImage();
-    int n = numRows*numCols;
-    int map[n];
-    for (int p=0; p < n; p++){
-        map[p] = tree->getFlatzoneRef(p).size() > 99 ? 99 : tree->getFlatzoneRef(p).size();
-    }
-
-    std::ostream* streamSaida;
-    std::ofstream arquivoSaida;
-    if (nomeArquivo.empty()) {
-        streamSaida = &std::cout;
-    } else {
-        arquivoSaida.open(nomeArquivo);
-        if (!arquivoSaida.is_open()) {
-            std::cerr << "Erro ao abrir o arquivo para escrita." << std::endl;
-            return;
-        }
-        streamSaida = &arquivoSaida;
-    }
-    if(tree->isMaxtree()){
-        *streamSaida << "---- max-tree ----" << "\n";
-    }else{
-        *streamSaida << "---- min-tree ----" << "\n";
-    }
-    // Impressão bidimensional
-   for (int i = 0; i < tree->getNumRowsOfImage(); ++i) {
-        for (int j = 0; j < tree->getNumColsOfImage(); ++j) {
-            *streamSaida << std::setw(2) <<  map[i * tree->getNumColsOfImage() + j] << " ";
-        }
-        *streamSaida << "\n";
-    }
-    if (streamSaida != &std::cout){
-        dynamic_cast<std::ofstream*>(streamSaida)->close(); // std::cout não precisa ser fechado explicitamente
-    }
-
-}*/
-
 inline bool isEquals(int* imgOut1, int* imgOut2, int size){
     int equals = 0;
     for(int p=0; p < size; p++){
@@ -340,34 +300,6 @@ inline void testComponentTreeFZ(ComponentTreeFZ* tree, const std::string& treeTy
     if (allFlatzonesCorrect) {
         std::cout << "✅ Todas as flatzones estão corretamente definidas na " << treeType << "." << std::endl;
     }
-
-    /*
-    //Teste: Verifica se existem pixels mapeados em flatzones vazias
-    int pixelMappingFZIncorreto = 0;
-    for(int p=0; p < numRows*numCols; p++){
-        if(tree->getFlatzoneRef(p).size() == 0)
-            pixelMappingFZIncorreto++;
-    }
-    
-    if (pixelMappingFZIncorreto == 0) {
-        std::cout << "✅ Todas as flatzones estão corretamente definidas na " << treeType << "." << std::endl;
-    }else{
-        std::cout << "❌ Erro: Total de pixels mapeados em flatzones vazias: " << pixelMappingFZIncorreto << std::endl;
-    }
-    
-    // Verificar se todas as flatzones possuem pixels
-    bool allFlatzonesValid = true;
-    for (int p=0; p < numCols*numRows; p++){
-        if(tree->getFlatzoneRef(p).size() == 0){
-            allFlatzonesValid = false;
-            std::cout << "❌ Falha - Nem as flatzones possuem pixels. Pixel que falhou: " << p <<  std::endl;
-            break;
-        }
-    }
-    if (allFlatzonesValid) {
-        std::cout << "✅ Todas as flatzones possuem pixels." << std::endl;
-    }
-    */
 
     std::cout << "\n" << std::endl;
  }

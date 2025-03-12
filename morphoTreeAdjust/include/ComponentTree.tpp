@@ -355,10 +355,11 @@ inline void ComponentTreeP::prunning(NodeP* node) {
 
 template <>
 inline void ComponentTreeFZ::prunning(NodeFZ* rootSubtree) {
+    
     assert(rootSubtree != nullptr && "Erro: node is nullptr");
     assert(rootSubtree->getParent() != nullptr && "Erro: node é a raiz");
-    std::list<FlatZoneNode> flatZoneNodeList;
-    std::list<NodeFZ*> toRemove;
+    std::list<FlatZone> flatZoneList;
+    //std::list<NodeFZ*> toRemove;
     if (rootSubtree != this->root) {
         NodeFZ* parent = rootSubtree->getParent();
         parent->getChildren().remove(rootSubtree);
@@ -375,37 +376,40 @@ inline void ComponentTreeFZ::prunning(NodeFZ* rootSubtree) {
             for (NodeFZ* child : node->getChildren()) {
                 queue.push(child);
             }
-
-            toRemove.push_back(node);
+            
             for (auto& [id, flatzone] : node->getCNPsByFlatZone()) {
-                flatZoneNodeList.emplace_back(node, flatzone);
+                flatZoneList.push_back(flatzone);
+            }
+            
+            //toRemove.push_back(node);
+            if(node != rootSubtree){
+                delete node;
             }
         }
         
         //unifica todas as flatzones em uma unica flatzone na raiz da subtree e atualiza o grafo
         FlatZone unifiedFlatzone;
-        updateGraphAfterPruning(flatZoneNodeList, unifiedFlatzone, rootSubtree);
+        updateGraphAfterPruning(flatZoneList, unifiedFlatzone, rootSubtree);
         
         //a flatzone unificada será novamente unificada as flatzones conexas a ela presente no parent e atuliza o grafo
         parent->addCNPsToConnectedFlatzone(std::move(unifiedFlatzone), this);
-
-        for(NodeFZ* node: toRemove){
+        
+        delete rootSubtree;
+        /*for (auto& node : toRemove) {
             delete node;
-            node = nullptr; 
-        }
+            node = nullptr;
+        }*/
     }
 }
 
 
 template <>
 template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
-void ComponentTreeFZ::updateGraphAfterPruning(std::list<FlatZoneNode>& flatZoneNodeList, FlatZone& unifiedFlatzone, NodeFZ* node) {
+void ComponentTreeFZ::updateGraphAfterPruning(std::list<FlatZone>& flatZoneNodeList, FlatZone& unifiedFlatzone, NodeFZ* node) {
     assert(!flatZoneNodeList.empty() && "ERRO: Lista de FlatZoneNode está vazia!");
     int unifiedFlatzoneID = node->getRepresentativeCNPs();
     
-    for(FlatZoneNode& pair: flatZoneNodeList)   {
-        NodeFZ* child = pair.node;
-        FlatZone& flatZone = *pair.flatzone;
+    for(FlatZone& flatZone: flatZoneNodeList)   {
         //atualiza o grafo e coleta os cnps em uma unica flatzone
         int flatZoneID = getIdFlatZone(flatZone);
         std::unordered_set<int> neighborsCopy = *(flatzoneGraph[flatZoneID]);
@@ -420,7 +424,7 @@ void ComponentTreeFZ::updateGraphAfterPruning(std::list<FlatZoneNode>& flatZoneN
             unifiedFlatzone.splice(unifiedFlatzone.end(), flatZone); 
         }else{
             for (int neighborID : neighborsCopy) {
-                if(this->flatzoneGraph[neighborID] ){
+                if(neighborID != unifiedFlatzoneID && this->flatzoneGraph[neighborID] ){
                     //vizinhos que NÃO serão unificados
                     if( (this->maxtreeTreeType && node->getLevel() >= getSC(neighborID)->getLevel()) || (!this->maxtreeTreeType && node->getLevel() <= getSC(neighborID)->getLevel())){
                         this->flatzoneGraph[neighborID]->erase(flatZoneID);
@@ -432,7 +436,8 @@ void ComponentTreeFZ::updateGraphAfterPruning(std::list<FlatZoneNode>& flatZoneN
                 }
             }
             unifiedFlatzone.splice(unifiedFlatzone.end(), flatZone); // Adicionar pixels ao cnpsCC
-            
+
+            this->flatzoneGraph[unifiedFlatzoneID]->erase(flatZoneID);
             delete this->flatzoneGraph[flatZoneID];
             this->flatzoneGraph[flatZoneID] = nullptr;
         }
