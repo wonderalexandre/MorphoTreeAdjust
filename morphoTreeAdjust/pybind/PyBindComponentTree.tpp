@@ -15,7 +15,6 @@ PyBindComponentTree<CNPsType>::PyBindComponentTree(py::array_t<int> &input, int 
     this->build(img);
 }
 
-// Implementação de reconstructionImage
 template <typename CNPsType>
 py::array_t<int> PyBindComponentTree<CNPsType>::reconstructionImage() {
     int n = this->getNumRowsOfImage() * this->getNumColsOfImage();
@@ -28,7 +27,6 @@ py::array_t<int> PyBindComponentTree<CNPsType>::reconstructionImage() {
     return img_numpy;
 }
 
-// Implementação de reconstructionNode
 template <typename CNPsType>
 py::array_t<int> PyBindComponentTree<CNPsType>::reconstructionNode(NodeCT<CNPsType>* node) {
     int n = this->getNumRowsOfImage() * this->getNumColsOfImage();
@@ -59,18 +57,6 @@ py::array_t<int> PyBindComponentTree<CNPsType>::reconstructionNode(NodeCT<CNPsTy
     return img_numpy;
 }
 
-// Implementação de getNodeByIndex
-template <typename CNPsType>
-NodeCT<CNPsType>* PyBindComponentTree<CNPsType>::getNodeByIndex(int index) {
-    for (NodeCT<CNPsType>* node : this->getRoot()->getIteratorBreadthFirstTraversal()) {
-        if (node->getIndex() == index) {
-            return node;
-        }
-    }
-    return nullptr;
-}
-
-// Implementação de getNodes
 template <typename CNPsType>
 std::map<int, NodeCT<CNPsType>*> PyBindComponentTree<CNPsType>::getNodes() {
     std::map<int, NodeCT<CNPsType>*> nodes_map;
@@ -80,13 +66,7 @@ std::map<int, NodeCT<CNPsType>*> PyBindComponentTree<CNPsType>::getNodes() {
     return nodes_map;
 }
 
-// Implementação de isNodesInitialized
-template <typename CNPsType>
-bool PyBindComponentTree<CNPsType>::isNodesInitialized() {
-    return this->getRoot() != nullptr;
-}
 
-// Implementação de recNode (estático)
 template <typename CNPsType>
 py::array_t<int> PyBindComponentTree<CNPsType>::recNode(NodeCT<CNPsType>* _node) {
     int n = _node->getArea();

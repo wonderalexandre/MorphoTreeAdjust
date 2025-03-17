@@ -12,7 +12,7 @@
 
 #include <array>
 #include <vector>
-
+#include <unordered_set>
 class MergedNodesCollection {
 protected:
     std::array<std::vector<NodeFZ*>, 256> collectionF;
@@ -46,7 +46,7 @@ public:
         
         for (FlatZoneRef flatZonePRef : flatZones) {   
             FlatZone& flatZoneP = flatZonePRef.get();
-            int flatZoneID_P = tree->getIdFlatZone(flatZoneP);
+            int flatZoneID_P = flatZoneP.front();
             int grayFlatZoneP = tree->getSC(flatZoneID_P)->getLevel(); //is same that: f(p)
     
             for (int flatZoneID_Q : *tree->flatzoneGraph[flatZoneID_P]) {
@@ -134,6 +134,7 @@ protected:
     std::list<FlatZoneNode> flatZoneNodeList;
     std::list<int> listFlatzoneIDs;
     FlatZoneNode nodeTauStar; //nodeTauStar é o nó correspondente da folha da sub-arvore a ser podada com maior (ou menor, para min-tree) intensidade
+    std::unordered_set<NodeFZ*> nodesToBeRemoved; //nodes que foram removido devido ao fusão das zonas planas quando newGrayLevel = \lambda
 
 public:
 
@@ -156,28 +157,45 @@ public:
     FlatZoneNode getNodeTauStar() {
         return nodeTauStar;
     }
-
+   
+    std::unordered_set<NodeFZ*>& getNodesToBeRemoved() {
+        return nodesToBeRemoved;
+    }
 
     void addCNPsToConnectedFlatzone(NodeFZ* nodeUnion, ComponentTreeFZ* tree) {
-        FlatZone& fzTauStar = *nodeTauStar.flatzone;
         if (flatZoneNodeList.size() > 1) {
-            tree->updateGraph(flatZoneNodeList, fzTauStar);
+            FlatZone unifiedFlatzone;
+            tree->updateGraph(flatZoneNodeList, unifiedFlatzone, nodeTauStar.node);
+            nodeUnion->addCNPsToConnectedFlatzone(std::move(unifiedFlatzone), tree);
+        }else{
+            nodeUnion->addCNPsToConnectedFlatzone(std::move(*nodeTauStar.flatzone), tree);
         }
-        nodeUnion->addCNPsToConnectedFlatzone(std::move(fzTauStar), tree);
+        
     }
 
     void removeFlatzones(ComponentTreeFZ* tree) {
         for(FlatZoneNode fzNode: flatZoneNodeList){
             NodeFZ* node = fzNode.node;
             node->removeFlatzone(fzNode.idFlatZone);  
+            if(fzNode.node->getNumCNPs() == 0){
+                nodesToBeRemoved.insert(fzNode.node);
+            }
         }
+    }
+
+    bool isRemoved(NodeFZ* node){
+        return nodesToBeRemoved.find(node) == nodesToBeRemoved.end();
     }
     
     void resetCollection(bool isMaxtree) {
         this->isMaxtree = isMaxtree;
-        flatZoneNodeList.clear();
-        listFlatzoneIDs.clear();
-        nodeTauStar.node = nullptr;
+        this->flatZoneNodeList.clear();
+        this->listFlatzoneIDs.clear();
+        this->nodesToBeRemoved.clear();
+
+        this->nodeTauStar.node = nullptr;
+        this->nodeTauStar.flatzone = nullptr;
+        this->nodeTauStar.idFlatZone = -1;
     }
     
     void addNode(NodeFZ* nodeTau, std::list<int>& fzTau) {
@@ -202,7 +220,8 @@ protected:
     int pixelUpperBound=-1;    
     UnionNodes unionNodeTauSubtree;
     MergedNodesCollection F;
-    std::vector<NodeFZ*> B_L;
+    std::unordered_set<NodeFZ*> Fb;
+    
 
     void disconnect(NodeFZ* node, bool isFreeMemory=false) {
         if(node->getParent() != nullptr){

@@ -101,7 +101,6 @@ void init_ComponentTree(py::module &m) {
         .def(py::init<py::array_t<int> &, int, int, bool>())
         .def("reconstructionImage", &PyBindTree::reconstructionImage)
         .def("recNode", &PyBindTree::reconstructionNode)
-        .def("isNodesInitialized", &PyBindTree::isNodesInitialized, "Verifica se todos os nós foram corretamente inicializados")
         .def("getSC", [](PyBindTree &self, int p) -> NodeCT<FlatZones>* {
             NodeCT<FlatZones>* result = self.getSC(p);
             if (!result) {
@@ -117,7 +116,6 @@ void init_ComponentTree(py::module &m) {
         .def("getNodesThreshold", &PyBindTree::getNodesThreshold)
         .def("leaves", &PyBindTree::getLeaves)
         .def("nodes", &PyBindTree::getNodes)
-        .def("getNode", &PyBindTree::getNodeByIndex)
         .def_property_readonly("numNodes", &PyBindTree::getNumNodes)
         .def_property_readonly("root", &PyBindTree::getRoot)
         .def_property_readonly("isMaxtree", &PyBindTree::isMaxtree)

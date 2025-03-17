@@ -81,13 +81,12 @@ public:
 	void setLevel(int level);
 	bool isChild(NodeCT<CNPsType>* node) const;
     bool isLeaf() const;
-	void setNumDescendants(int num);
 	NodeCT<CNPsType>* getParent();
 	void setParent(NodeCT<CNPsType>* parent);
 	std::list<NodeCT<CNPsType>*>& getChildren();
 	int getNumSiblings() const;
     int getRepresentativeCNPs() const;
-
+    int computerNumDescendants();
 
 
 //============= Iterator para iterar os nodes do caminho até o root==============//

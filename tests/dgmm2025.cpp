@@ -125,6 +125,52 @@ int* computerCASF(int* img, int numRows, int numCols, double radioAdj, std::vect
 }
 
 
+int* computerCASF_subtree(int* img, int numRows, int numCols, double radioAdj, std::vector<int> thresholds){
+    std::chrono::high_resolution_clock::time_point start, start_all, end, end_all;
+    if(PRINT_LOG){
+        start = std::chrono::high_resolution_clock::now();
+    }
+
+    ComponentTreeFZ* maxtree = new ComponentTreeFZ(img, numRows, numCols, true, radioAdj);
+    ComponentTreeFZ* mintree = new ComponentTreeFZ(img, numRows, numCols, false, radioAdj);
+    
+    ComponentTreeAdjustment adjust(mintree, maxtree);
+    
+    if(PRINT_LOG){
+        end = std::chrono::high_resolution_clock::now();
+        std::cout << "\n\tTime (build trees): " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
+    }
+    
+    for(int i=0; i < thresholds.size(); i++) {
+        int threshold = thresholds[i];
+        if(PRINT_LOG){
+            std::cout << "Opening/Closing: " << (i+1) << " \t\tthreshold:" << threshold << std::endl;
+            start_all = std::chrono::high_resolution_clock::now();
+            start = std::chrono::high_resolution_clock::now();
+        }
+        adjust.adjustMinTree2(mintree, maxtree, maxtree->getNodesThreshold(threshold));
+        end = std::chrono::high_resolution_clock::now();
+        
+        if(PRINT_LOG){
+            std::cout << "\t- Time (update maxtree and pruning mintree): " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
+            start = std::chrono::high_resolution_clock::now();
+        }
+        adjust.adjustMaxTree2(maxtree, mintree, mintree->getNodesThreshold(threshold)); 
+        if(PRINT_LOG){
+            end = std::chrono::high_resolution_clock::now();
+            end_all = std::chrono::high_resolution_clock::now();
+            std::cout << "\t- Time (update mintree and pruning maxtree): " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
+            std::cout << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end_all - start_all).count() << " ms\n\n";
+        }
+
+	}
+    int* imgOut = mintree->reconstructionImage();
+    delete maxtree;
+    delete mintree;
+    return imgOut;
+}
+
+
 int main(int argc, char* argv[]) {
     if (argc != 2) {
         std::cerr << "Uso: " << argv[0] << " <diretorio_imagens>\n";
@@ -171,6 +217,7 @@ int main(int argc, char* argv[]) {
     for (const auto& entry : fs::directory_iterator(directoryPath)) {
         if (entry.path().extension() != ".png") continue;
         
+
         std::string filename = entry.path().string();
         std::cout << "Image: " << filename << std::endl;
 
@@ -181,16 +228,13 @@ int main(int argc, char* argv[]) {
             std::cerr << "Erro: Não foi possível carregar a imagem " << filename << std::endl;
             return 1;
         }
-
         std::cout << "Resolution: " << numCols << "x" << numRows << std::endl;
 
         int* img = new int[numCols * numRows];
         for (int i = 0; i < numCols * numRows; i++) {
             img[i] = static_cast<int>(data[i]);  // Converte de `unsigned char` para `int`
         }
-
-        // Liberar a memória da imagem carregada
-        stbi_image_free(data);
+        stbi_image_free(data); // Liberar a memória da imagem carregada
 
         int n = numRows * numCols;
         double radioAdj = 1.5;
@@ -206,14 +250,31 @@ int main(int argc, char* argv[]) {
         end = std::chrono::high_resolution_clock::now();
         std::cout << "\tour approach:   " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
 
+        start = std::chrono::high_resolution_clock::now();
+        int* imgOut3 = computerCASF_subtree(img, numRows, numCols, radioAdj, thresholds);
+        end = std::chrono::high_resolution_clock::now();
+        std::cout << "\tour approach 2: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
+
         
-        std::cout << "The images are equals: " << (isEquals(imgOut1, imgOut2, n)? "True":"False") << "\n\n";
+        std::cout << "The images (naive/our) are equals: " << (isEquals(imgOut1, imgOut2, n)? "True":"False") << "\n";
+        std::cout << "The images (our/our2) are equals: " << (isEquals(imgOut1, imgOut3, n)? "True":"False") << "\n\n";
+        
+        /*
+        data = new unsigned char[n];
+        for (int i = 0; i < numCols * numRows; i++) {
+            data[i] = static_cast<int>(imgOut3[i]);  // Converte de `unsigned char` para `int`
+        }
+        stbi_write_png(("/Users/wonderalexandre/GitHub/MorphoTreeAdjust/tests/build/out_our_" + entry.path().filename().string()).c_str(), numCols, numRows, 1, data, 0);
+        delete[] data;
+        */
+
         delete[] imgOut1;
         delete[] imgOut2;
+        delete[] imgOut3;
         delete[] img;
 
-        //stbi_write_png(("/Users/wonderalexandre/GitHub/MorphoTreeAdjust/tests/build/out_naive_" + filename).c_str(), numCols, numRows, 1, imgOut1, numCols * sizeof(int));
-        //stbi_write_png(("/Users/wonderalexandre/GitHub/MorphoTreeAdjust/tests/build/out_our_" + filename).c_str(), numCols, numRows, 1, imgOut2, numCols * sizeof(int));
+        
+        
     }
     return 0;
 }

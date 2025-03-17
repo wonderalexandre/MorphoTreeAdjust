@@ -28,5 +28,5 @@ py::tuple PyBindComponentTreeAdjustment::buildCollections(PyBindComponentTreeFZ*
         }
     }
 
-    return py::make_tuple(mapCollectionF, this->B_L);
+    return py::make_tuple(mapCollectionF, this->Fb);
 }
