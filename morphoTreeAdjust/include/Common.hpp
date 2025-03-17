@@ -11,7 +11,9 @@
 #include <memory>
 
 
-#define PRINT_LOG 0  
+#define PRINT_LOG 1  
+
+#define PRINT_DEBUG 0 
 
 // Forward declaration dos templates
 template <typename T>

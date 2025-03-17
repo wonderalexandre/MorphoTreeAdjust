@@ -73,7 +73,7 @@ void ComponentTreeAdjustment::updateTree2(ComponentTreeFZ* tree, NodeFZ* rootSub
     FlatZone* fzTauStar = unionNodeTauSubtree.getNodeTauStar().flatzone;
     this->pixelUpperBound = fzTauStar->front();
     int grayTauStar = nodeTauStar->getLevel();  // f(pixelUpperBound)
-    if(PRINT_LOG){
+    if(PRINT_DEBUG){
         std::cout << "Area(rSubtree)= " << rootSubtree->getArea() << ", level(rSubtree)= " << rootSubtree->getLevel() << ", level(parent(rSubtree))= " << rootSubtree->getParent()->getLevel() << std::endl;
         std::cout << "newGrayLevel: " << newGrayLevel  << std::endl; //g(p)
         if(tree->isMaxtree())
@@ -100,7 +100,7 @@ void ComponentTreeAdjustment::updateTree2(ComponentTreeFZ* tree, NodeFZ* rootSub
     std::vector<FlatZoneRef>  flatzonesTauSubtree = unionNodeTauSubtree.getFlatzones();
     this->buildMergedAndNestedCollections(tree,  flatzonesTauSubtree, newGrayLevel, isMaxtree);
 
-    if(PRINT_LOG){
+    if(PRINT_DEBUG){
         std::cout << "F_λ = { ";
         for(int lambda=newGrayLevel; lambda != grayTauStar; ){
             std::vector<NodeFZ*>& F_lambda = F.getMergedNodes(lambda);
@@ -150,7 +150,7 @@ void ComponentTreeAdjustment::updateTree2(ComponentTreeFZ* tree, NodeFZ* rootSub
             nodeUnion = nodeUnionPrevious;
             continue;
         }
-        if(PRINT_LOG){
+        if(PRINT_DEBUG){
             std::cout << "F_{" << lambda << "} = \n";
             std::cout << "\t(Id:" << nodeUnion->getIndex() << "; level:" << nodeUnion->getLevel() <<"; |cnps|:" << nodeUnion->getNumCNPs() << ") " << std::endl;
         }
@@ -160,14 +160,14 @@ void ComponentTreeAdjustment::updateTree2(ComponentTreeFZ* tree, NodeFZ* rootSub
         for (NodeFZ* n : F_lambda) {
             
             if (n != nodeUnion) {
-                if(PRINT_LOG){
+                if(PRINT_DEBUG){
                     std::cout << "\t(Id:" << n->getIndex() << "; level:" << n->getLevel() <<"; |cnps|:" << n->getNumCNPs() << ") " << std::endl;
                 }
 
                 if(unionNodeTauSubtree.isRemoved(n)){ //node não foi removido
                     nodeUnion->addCNPsOfDisjointFlatzones(n->moveCNPsByFlatZone(), tree);    
                 }else{
-                    if(PRINT_LOG)
+                    if(PRINT_DEBUG)
                         std::cout << "\t\twas removed" << std::endl;
                 }
                     
@@ -179,7 +179,7 @@ void ComponentTreeAdjustment::updateTree2(ComponentTreeFZ* tree, NodeFZ* rootSub
         if (lambda == newGrayLevel) {
             unionNodeTauSubtree.addCNPsToConnectedFlatzone(nodeUnion, tree); // Os mapeamentos são atualizados
             unionNodeTauSubtree.removeFlatzones(tree);
-            if(PRINT_LOG){
+            if(PRINT_DEBUG){
                 std::cout << "\t\tAfter add CNPs of TauStar: (Id:" << nodeUnion->getIndex() << "; level:" << nodeUnion->getLevel() <<"; |cnps|:" << nodeUnion->getNumCNPs() << ") " << std::endl;
             }
             for (NodeFZ* n : Fb) {
@@ -190,7 +190,7 @@ void ComponentTreeAdjustment::updateTree2(ComponentTreeFZ* tree, NodeFZ* rootSub
             nodeTauParentSubtree = nodeUnion;
             //nodesToBeRemoved = unionNodeTauSubtree.getNodesToBeRemoved();
             
-            if(PRINT_LOG){
+            if(PRINT_DEBUG){
                 if(!unionNodeTauSubtree.getNodesToBeRemoved().empty()){
                     std::cout << "\tNodes to be removed from tree: ";
                     for(NodeFZ* node: unionNodeTauSubtree.getNodesToBeRemoved()){
@@ -216,7 +216,7 @@ void ComponentTreeAdjustment::updateTree2(ComponentTreeFZ* tree, NodeFZ* rootSub
         for (NodeFZ* n : nodeUnion->getChildren()) {
             nodeUnion->setArea(nodeUnion->getArea() + n->getArea());
         }
-        if(PRINT_LOG)
+        if(PRINT_DEBUG)
             std::cout << "\tnodeUnion = union(F_{" << lambda << "}) = " << 
                 " id:" << nodeUnion->getIndex() << 
                 ", level: " << nodeUnion->getLevel() << 

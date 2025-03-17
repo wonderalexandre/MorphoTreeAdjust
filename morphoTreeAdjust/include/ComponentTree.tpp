@@ -594,7 +594,7 @@ std::vector<NodeCT<CNPsType>*> ComponentTree<CNPsType>::getNodesThreshold(int ar
 	    else {
             if(PRINT_LOG){ //somente para uso estatistico
                 sumArea += node->getArea(); 
-                numFlatZones = node->getNumFlatzone(); 
+                numFlatZones += node->getNumFlatzone(); 
             }
 			lista.push_back(node);
 	    }
@@ -603,7 +603,7 @@ std::vector<NodeCT<CNPsType>*> ComponentTree<CNPsType>::getNodesThreshold(int ar
         int areaImage = this->getNumColsOfImage() * this->getNumRowsOfImage();
         std::cout << "\tArea threshold: " << areaThreshold 
           << ", #Nodes: " << lista.size() 
-          //<< ", #FlatZones: " << numFlatZones
+          << ", #FlatZones: " << numFlatZones
           << ", #InputTreeNodes: " << this->getNumNodes()
           << ", |Pruning Area|: " << sumArea 
           << " (" << std::fixed << std::setprecision(2) 
