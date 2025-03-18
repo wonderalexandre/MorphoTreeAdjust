@@ -5,7 +5,6 @@
 #include <iostream>
 #include <functional>
 #include <utility>
-#include "../../tests/Tests.hpp"
 
 
 ComponentTreeAdjustment::ComponentTreeAdjustment(ComponentTreeFZ* maxtree, ComponentTreeFZ* mintree) 

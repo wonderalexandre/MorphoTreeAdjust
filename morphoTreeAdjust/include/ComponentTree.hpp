@@ -98,7 +98,6 @@ public:
 };
 
 
-#include "ComponentTree.tpp"
-
+#include "../include/ComponentTree.tpp"
 
 #endif

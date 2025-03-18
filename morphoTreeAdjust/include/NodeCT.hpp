@@ -597,7 +597,8 @@ class InternalIteratorPixelsOfCC_FlatZones {
     
 };
 
-#include "NodeCT.tpp"
+
+#include "../include/NodeCT.tpp"
 
 
 #endif

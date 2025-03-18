@@ -38,6 +38,6 @@ public:
 	
 };
 
-#include "PyBindComponentTree.tpp"
+#include "../pybind/PyBindComponentTree.tpp"
 
 #endif
