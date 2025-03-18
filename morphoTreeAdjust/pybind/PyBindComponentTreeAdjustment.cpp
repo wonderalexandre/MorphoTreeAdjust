@@ -7,6 +7,11 @@ void PyBindComponentTreeAdjustment::updateTree(PyBindComponentTreeFZ* tree, Node
 }
 
 
+void PyBindComponentTreeAdjustment::updateTree2(PyBindComponentTreeFZ* tree, NodeFZ* rSubtree) {
+   ComponentTreeAdjustment::updateTree2(tree, rSubtree);
+}
+
+
 py::tuple PyBindComponentTreeAdjustment::buildCollections(PyBindComponentTreeFZ* tree, std::vector<int> vflatZone, int newGrayLevel, bool isMaxtree) {
     FlatZone flatZone(vflatZone.begin(), vflatZone.end()); 
     std::vector<FlatZoneRef> flatZonesList;
@@ -23,5 +28,5 @@ py::tuple PyBindComponentTreeAdjustment::buildCollections(PyBindComponentTreeFZ*
         }
     }
 
-    return py::make_tuple(mapCollectionF, this->B_L);
+    return py::make_tuple(mapCollectionF, this->Fb);
 }

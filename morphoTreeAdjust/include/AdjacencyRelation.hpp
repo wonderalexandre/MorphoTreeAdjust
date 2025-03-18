@@ -32,7 +32,7 @@ public:
     AdjacencyRelation& getAdjPixels(int index);
     bool isAdjacent(int p, int q);
     bool isAdjacent(int px, int py, int qx, int qy);
-
+    double getRadius();
     class IteratorAdjacency { 
     private:
         int index;

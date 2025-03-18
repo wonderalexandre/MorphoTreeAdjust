@@ -26,18 +26,18 @@ public:
 	PyBindComponentTree(py::array_t<int> &input, int numRows, int numCols, bool isMaxtree);
     PyBindComponentTree(py::array_t<int> &input, int numRows, int numCols, bool isMaxtree, double radiusOfAdjacencyRelation);
 
+
 	py::array_t<int> reconstructionImage();
-    
+
     py::array_t<int> reconstructionNode(NodeCT<CNPsType>* node);
 
-    NodeCT<CNPsType>* getNodeByIndex(int index);
-    
     std::map<int, NodeCT<CNPsType>*> getNodes();
-    
+
     static py::array_t<int> recNode(NodeCT<CNPsType>* _node);
     
+	
 };
 
-#include "PyBindComponentTree.tpp"
+#include "../pybind/PyBindComponentTree.tpp"
 
 #endif

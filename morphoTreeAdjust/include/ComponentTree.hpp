@@ -5,6 +5,7 @@
 #include <utility>
 #include <optional>
 #include <functional>
+#include <variant>
 
 #include "../include/AdjacencyRelation.hpp"
 #include "../include/Common.hpp"
@@ -51,19 +52,13 @@ public:
     ~ComponentTree();
 
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    int getIdFlatZone(const FlatZone& fz);
-
-    template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
 	std::list<int>& getFlatzoneByID(int p);
 	
-    //template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    //void buildFlatzoneGraph(int* pixelToFlatzone, bool* isCountor);
-
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
     void updateGraphAfterPruning(std::list<FlatZone>& flatZoneList, FlatZone& unifiedFlatzone, NodeFZ* nodeStar);
 
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    void updateGraph(std::list<FlatZoneNode>& flatZoneNodeList, FlatZone& unifiedFlatzone);
+    void updateGraph(std::list<FlatZoneNode>& flatZoneNodeList, FlatZone& unifiedFlatzone, NodeFZ* nodeStar);
 
     void assignCNPs();
 
@@ -103,7 +98,6 @@ public:
 };
 
 
-#include "ComponentTree.tpp"
-
+#include "../include/ComponentTree.tpp"
 
 #endif

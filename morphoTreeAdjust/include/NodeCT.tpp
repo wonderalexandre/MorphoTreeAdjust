@@ -62,6 +62,19 @@ FlatZones NodeFZ::moveCNPsByFlatZone() {
 template <>
 template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
 FlatZones& NodeFZ::getCNPsByFlatZone() {
+    assert([&]() {
+        for (const auto& [idFlatZone, flatzone] : this->cnps) {
+            if(flatzone.empty()){
+                std::cerr << "\n\nIndex: " << index << std::endl;
+                std::cerr << "idFlatZone: " << idFlatZone << std::endl;
+                std::cerr << "|flatzone|: " << flatzone.size() << std::endl;
+                std::cerr << "cnps.size: " << cnps.size() << std::endl;
+                return false;
+            }
+        }
+        return true;
+    }() && "Erro: Existem flatzones vazias");
+
     return this->cnps;
 }
 
@@ -72,7 +85,23 @@ FlatZone& NodeFZ::getFlatZone(int idFlatZone) {
     if (it != this->cnps.end()) {
         return it->second;
     }
-    throw std::runtime_error("Erro: Nenhuma FlatZone encontrada com id = " + std::to_string(idFlatZone));
+    std::string msgErro = "Erro: Nenhuma FlatZone encontrada com idFlatZone = " + std::to_string(idFlatZone) + "\n\n";
+    msgErro += "Index: " + std::to_string(index) + "\n";
+    msgErro += "NumCNPs: " + std::to_string(this->getNumCNPs()) + "\n";
+    msgErro += "cnps.size: " + std::to_string(cnps.size()) + "\n";
+    for (const auto& [id, flatzone] : this->cnps) {
+        if(!flatzone.empty()){
+            msgErro += "\tidFlatZone: " + std::to_string(id) + "\n";
+            msgErro += "\t|FlatZone|: " + std::to_string(flatzone.size()) + "\n";
+            for(int p: flatzone){
+                if(p == idFlatZone){
+                    msgErro += "\tO pixel " + std::to_string(p) + " está na flatzone mas o id da flatzone é: " + std::to_string(id) + "\n";
+                    break;
+                }
+            }
+        }
+    }
+    throw std::runtime_error(msgErro);
 }
 
 
@@ -119,22 +148,21 @@ template <>
 template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
 void NodeFZ::addCNPsToConnectedFlatzone(FlatZone&& flatZone, ComponentTreeFZ* tree) {
     assert(!flatZone.empty() && "Erro: flatZone passada está vazia!");
-    int flatZoneID = tree->getIdFlatZone(flatZone);    
+    int flatZoneID = flatZone.front();    
     assert(tree->flatzoneGraph[flatZoneID] != nullptr && "Erro: flatZone não está registrada no grafo!");
     assert(!tree->flatzoneGraph[flatZoneID]->empty() && "Erro: flatZone não tem vizinhos registrados no grafo!");
 
     AdjacentFlatzones* flatZoneNeighbors = tree->flatzoneGraph[flatZoneID];
     std::list<int> flatzonesToMergeList; //flatzones que serão fundidas e removidas
-    std::list<int>* unifiedFlatzone = nullptr;
+    int unifiedFlatzoneID = std::numeric_limits<int>::max();
     for (int neighborID : *flatZoneNeighbors) {
         if (tree->getSC(neighborID) == this) {
-            unifiedFlatzone = &tree->getFlatzoneByID(neighborID);
-            break;
+            unifiedFlatzoneID = std::min(unifiedFlatzoneID, neighborID);
         }
     }
-    int unifiedFlatzoneID = tree->getIdFlatZone(*unifiedFlatzone);
+    std::list<int>* unifiedFlatzone = &tree->getFlatzoneByID(unifiedFlatzoneID);
+    
 
-    // Encontrar as flatzones vizinhas usando o grafo
     flatZoneNeighbors->erase(unifiedFlatzoneID);
     tree->flatzoneGraph[flatZoneID]->erase(unifiedFlatzoneID);
     tree->flatzoneGraph[unifiedFlatzoneID]->erase(flatZoneID);
@@ -180,9 +208,36 @@ void NodeFZ::addCNPsToConnectedFlatzone(FlatZone&& flatZone, ComponentTreeFZ* tr
     }
 
     // Fundir `flatZone` na `unifiedFlatzone`
-    unifiedFlatzone->splice(unifiedFlatzone->end(), flatZone);
+    if(unifiedFlatzoneID < flatZoneID){
+        unifiedFlatzone->splice(unifiedFlatzone->end(), flatZone);
+    }else{
+        //para manter a propriedade do id da flatzone ser o menor pixel
+        for (int neighborID : *tree->flatzoneGraph[unifiedFlatzoneID]) {
+            tree->flatzoneGraph[neighborID]->erase(unifiedFlatzoneID);
+            tree->flatzoneGraph[neighborID]->insert(flatZoneID);
+        }
+        tree->flatzoneGraph[flatZoneID] = tree->flatzoneGraph[unifiedFlatzoneID];
+        tree->flatzoneGraph[unifiedFlatzoneID] = nullptr;        
+        
+        flatZone.splice(flatZone.end(), *unifiedFlatzone);
+        
+        this->cnps[flatZoneID] = std::move(flatZone);
+        this->cnps.erase(unifiedFlatzoneID);
+
+        unifiedFlatzoneID = flatZoneID;
+        unifiedFlatzone = &tree->getFlatzoneByID(unifiedFlatzoneID);
+
+    }
+
 
     assert([&]() {
+        int minPixel = *std::min_element(unifiedFlatzone->begin(), unifiedFlatzone->end());
+        return minPixel == unifiedFlatzoneID && unifiedFlatzoneID == unifiedFlatzone->front();
+    }() && "ERRO: O menor pixel da flatzone unificada não é o seu ID!");
+    
+    assert([&]() {
+        
+        
         if (unifiedFlatzone->empty()) {
             std::cerr << "ERRO: unifiedFlatzone está vazia após a fusão!" << std::endl;
             return false;
@@ -213,6 +268,7 @@ void NodeFZ::addCNPsToConnectedFlatzone(FlatZone&& flatZone, ComponentTreeFZ* tr
 
         return true;
     }() && "Erro: Grafo de flatzones inconsistente após a fusão!");
+
 }
 
 
@@ -292,6 +348,21 @@ int NodeCT<CNPsType>::getRepresentativeCNPs() const{
     if constexpr (std::is_same<CNPsType, Pixels>::value) {
         return this->cnps.front();
     }else{
-        return this->cnps.begin()->second.front();
+        int minPixel = std::numeric_limits<int>::max();
+        for (const auto& [idFlatZone, flatZone] : this->cnps) {
+            minPixel = std::min(minPixel, idFlatZone);
+        }
+        return minPixel;
     }
+}
+
+template <typename CNPsType>
+int NodeCT<CNPsType>::computerNumDescendants() {
+    int numDescendants = 0;
+    for(NodeCT<CNPsType>* desc: this->getIteratorBreadthFirstTraversal()){
+        if(desc != this){
+            numDescendants++;
+        }
+    }
+    return numDescendants;
 }

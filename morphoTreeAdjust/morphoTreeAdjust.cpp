@@ -116,7 +116,6 @@ void init_ComponentTree(py::module &m) {
         .def("getNodesThreshold", &PyBindTree::getNodesThreshold)
         .def("leaves", &PyBindTree::getLeaves)
         .def("nodes", &PyBindTree::getNodes)
-        .def("getNode", &PyBindTree::getNodeByIndex)
         .def_property_readonly("numNodes", &PyBindTree::getNumNodes)
         .def_property_readonly("root", &PyBindTree::getRoot)
         .def_property_readonly("isMaxtree", &PyBindTree::isMaxtree)
@@ -128,7 +127,9 @@ void init_ComponentTreeAdjustment(py::module &m) {
     py::class_<PyBindComponentTreeAdjustment>(m, "ComponentTreeAdjustment")
         .def(py::init<PyBindComponentTree<FlatZones>*, PyBindComponentTree<FlatZones>*>())
         .def("updateTree", &PyBindComponentTreeAdjustment::updateTree)
-        .def("buildCollections", &PyBindComponentTreeAdjustment::buildCollections);
+        .def("updateTree2", &PyBindComponentTreeAdjustment::updateTree2)
+        .def("buildCollections", &PyBindComponentTreeAdjustment::buildCollections)
+        .def("log", &PyBindComponentTreeAdjustment::getOutputLog);
 }
 
 void init_AdjacencyRelation(py::module &m) {

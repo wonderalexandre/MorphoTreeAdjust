@@ -3,7 +3,7 @@
 
 #include "../include/NodeCT.hpp"
 #include "../include/ComponentTreeAdjustment.hpp"
-#include "PyBindComponentTree.hpp"
+#include "../pybind/PyBindComponentTree.hpp"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -24,6 +24,8 @@ public:
         : ComponentTreeAdjustment(maxtree, mintree) {} 
 
    void updateTree(PyBindComponentTreeFZ* tree, NodeFZ* L_leaf);
+
+   void updateTree2(PyBindComponentTreeFZ* tree, NodeFZ* rSubtree);
 
    py::tuple buildCollections(PyBindComponentTreeFZ* tree, std::vector<int> flatZone, int newGrayLevel, bool isMaxtree);
 

@@ -125,6 +125,52 @@ int* computerCASF(int* img, int numRows, int numCols, double radioAdj, std::vect
 }
 
 
+int* computerCASF_subtree(int* img, int numRows, int numCols, double radioAdj, std::vector<int> thresholds){
+    std::chrono::high_resolution_clock::time_point start, start_all, end, end_all;
+    if(PRINT_LOG){
+        start = std::chrono::high_resolution_clock::now();
+    }
+
+    ComponentTreeFZ* maxtree = new ComponentTreeFZ(img, numRows, numCols, true, radioAdj);
+    ComponentTreeFZ* mintree = new ComponentTreeFZ(img, numRows, numCols, false, radioAdj);
+    
+    ComponentTreeAdjustment adjust(mintree, maxtree);
+    
+    if(PRINT_LOG){
+        end = std::chrono::high_resolution_clock::now();
+        std::cout << "\n\tTime (build trees): " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
+    }
+    
+    for(int i=0; i < thresholds.size(); i++) {
+        int threshold = thresholds[i];
+        if(PRINT_LOG){
+            std::cout << "Opening/Closing: " << (i+1) << " \t\tthreshold:" << threshold << std::endl;
+            start_all = std::chrono::high_resolution_clock::now();
+            start = std::chrono::high_resolution_clock::now();
+        }
+        adjust.adjustMinTree2(mintree, maxtree, maxtree->getNodesThreshold(threshold));
+        end = std::chrono::high_resolution_clock::now();
+        
+        if(PRINT_LOG){
+            std::cout << "\t- Time (update maxtree and pruning mintree): " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
+            start = std::chrono::high_resolution_clock::now();
+        }
+        adjust.adjustMaxTree2(maxtree, mintree, mintree->getNodesThreshold(threshold)); 
+        if(PRINT_LOG){
+            end = std::chrono::high_resolution_clock::now();
+            end_all = std::chrono::high_resolution_clock::now();
+            std::cout << "\t- Time (update mintree and pruning maxtree): " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
+            std::cout << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end_all - start_all).count() << " ms\n\n";
+        }
+
+	}
+    int* imgOut = mintree->reconstructionImage();
+    delete maxtree;
+    delete mintree;
+    return imgOut;
+}
+
+
 int main(int argc, char* argv[]) {
     if (argc != 2) {
         std::cerr << "Uso: " << argv[0] << " <diretorio_imagens>\n";
@@ -139,7 +185,7 @@ int main(int argc, char* argv[]) {
     }
 
     //std::vector<int> thresholds{50, 176, 303, 430, 557, 684, 811, 938, 1065, 1192, 1319, 1446, 1573, 1700, 1826, 1953, 2080, 2207, 2334, 2461, 2588, 2715, 2842, 2969, 3096, 3223, 3350, 3476, 3603, 3730, 3857, 3984, 4111, 4238, 4365, 4492, 4619, 4746, 4873, 5000, 5400, 5911, 6422, 6933, 7444, 7955, 8466, 8977, 9488, 10000};
-  //  std::vector<int> thresholds = {10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200, 210, 220, 230, 240, 250, 260, 270, 280, 290, 300, 310, 320, 330, 340, 350, 360, 370, 380, 390, 400, 410, 420, 430, 440, 450, 460, 470, 480, 490, 500};
+   // std::vector<int> thresholds = {10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200, 210, 220, 230, 240, 250, 260, 270, 280, 290, 300, 310, 320, 330, 340, 350, 360, 370, 380, 390, 400, 410, 420, 430, 440, 450, 460, 470, 480, 490, 500};
     
    /*
     std::vector<int> thresholds = {10,   30,   50,   70,   90,  110,  130,  150,  170,  190,  210, //linear
@@ -149,18 +195,28 @@ int main(int argc, char* argv[]) {
         890,  910,  930,  950,  970, 1000};
 
 
+
     std::vector<int> thresholds = {10,   19,   31,   44,   58,   73,   89,  105,  122,  139,  157, //power=1.2
         174,  192,  211,  230,  249,  268,  287,  307,  327,  347,  368,
         388,  409,  430,  451,  472,  494,  515,  537,  559,  581,  603,
         626,  648,  671,  693,  716,  739,  762,  786,  809,  832,  856,
         880,  903,  927,  951,  975, 1000};
-*/   
-       
+   
+      
+
     std::vector<int> thresholds = {10,   14,   21,   29,   39,   50,   62,   74,   88,  102,  116, //power=1.4
         132,  148,  164,  181,  198,  216,  234,  253,  272,  292,  312,
         332,  353,  374,  395,  417,  439,  462,  485,  508,  531,  555,
         579,  603,  628,  652,  678,  703,  729,  755,  781,  807,  834,
         861,  888,  916,  943,  971, 1000};
+*/
+
+        std::vector<int> thresholds = {10,    19,    41,    75,   119,   174,   237,   310,   392,
+         482,   581,   688,   803,   926,  1057,  1196,  1342,  1496,
+        1657,  1825,  2000,  2183,  2373,  2570,  2774,  2985,  3202,
+        3427,  3658,  3896,  4140,  4391,  4649,  4913,  5184,  5461,
+        5745,  6035,  6331,  6634,  6942,  7258,  7579,  7906,  8240,
+        8580,  8926,  9278,  9636, 10000};
 
 
     std::cout << "Thresholds: {";
@@ -171,6 +227,7 @@ int main(int argc, char* argv[]) {
     for (const auto& entry : fs::directory_iterator(directoryPath)) {
         if (entry.path().extension() != ".png") continue;
         
+
         std::string filename = entry.path().string();
         std::cout << "Image: " << filename << std::endl;
 
@@ -181,16 +238,13 @@ int main(int argc, char* argv[]) {
             std::cerr << "Erro: Não foi possível carregar a imagem " << filename << std::endl;
             return 1;
         }
-
         std::cout << "Resolution: " << numCols << "x" << numRows << std::endl;
 
         int* img = new int[numCols * numRows];
         for (int i = 0; i < numCols * numRows; i++) {
             img[i] = static_cast<int>(data[i]);  // Converte de `unsigned char` para `int`
         }
-
-        // Liberar a memória da imagem carregada
-        stbi_image_free(data);
+        stbi_image_free(data); // Liberar a memória da imagem carregada
 
         int n = numRows * numCols;
         double radioAdj = 1.5;
@@ -206,14 +260,31 @@ int main(int argc, char* argv[]) {
         end = std::chrono::high_resolution_clock::now();
         std::cout << "\tour approach:   " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
 
+        start = std::chrono::high_resolution_clock::now();
+        int* imgOut3 = computerCASF_subtree(img, numRows, numCols, radioAdj, thresholds);
+        end = std::chrono::high_resolution_clock::now();
+        std::cout << "\tour approach 2: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
+
         
-        std::cout << "The images are equals: " << (isEquals(imgOut1, imgOut2, n)? "True":"False") << "\n\n";
+        std::cout << "The images (naive/our) are equals: " << (isEquals(imgOut1, imgOut2, n)? "True":"False") << "\n";
+        std::cout << "The images (our/our2) are equals: " << (isEquals(imgOut1, imgOut3, n)? "True":"False") << "\n\n";
+        
+        /*
+        data = new unsigned char[n];
+        for (int i = 0; i < numCols * numRows; i++) {
+            data[i] = static_cast<int>(imgOut3[i]);  // Converte de `unsigned char` para `int`
+        }
+        stbi_write_png(("/Users/wonderalexandre/GitHub/MorphoTreeAdjust/tests/build/out_our_" + entry.path().filename().string()).c_str(), numCols, numRows, 1, data, 0);
+        delete[] data;
+        */
+
         delete[] imgOut1;
         delete[] imgOut2;
+        delete[] imgOut3;
         delete[] img;
 
-        //stbi_write_png(("/Users/wonderalexandre/GitHub/MorphoTreeAdjust/tests/build/out_naive_" + filename).c_str(), numCols, numRows, 1, imgOut1, numCols * sizeof(int));
-        //stbi_write_png(("/Users/wonderalexandre/GitHub/MorphoTreeAdjust/tests/build/out_our_" + filename).c_str(), numCols, numRows, 1, imgOut2, numCols * sizeof(int));
+        
+        
     }
     return 0;
 }

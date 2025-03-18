@@ -130,6 +130,10 @@ int AdjacencyRelation::getSize(){
 	return this->n;
 }
 
+double AdjacencyRelation::getRadius(){
+	return this->radius;
+}
+
 bool AdjacencyRelation::isAdjacent(int px, int py, int qx, int qy) {
 	double distance = std::sqrt(std::pow(px - qx, 2) + std::pow(py - qy, 2));
     return (distance <= radius);
