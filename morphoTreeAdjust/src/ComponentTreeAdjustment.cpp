@@ -73,26 +73,27 @@ void ComponentTreeAdjustment::updateTree2(ComponentTreeFZ* tree, NodeFZ* rootSub
     FlatZone* fzTauStar = unionNodeTauSubtree.getNodeTauStar().flatzone;
     this->pixelUpperBound = fzTauStar->front();
     int grayTauStar = nodeTauStar->getLevel();  // f(pixelUpperBound)
-    if(PRINT_DEBUG){
-        std::cout << "Area(rSubtree)= " << rootSubtree->getArea() << ", level(rSubtree)= " << rootSubtree->getLevel() << ", level(parent(rSubtree))= " << rootSubtree->getParent()->getLevel() << std::endl;
-        std::cout << "newGrayLevel: " << newGrayLevel  << std::endl; //g(p)
+    if(PRINT_LOG){
+        outputLog.clear();
+        outputLog << "Area(rSubtree)= " << rootSubtree->getArea() << ", level(rSubtree)= " << rootSubtree->getLevel() << ", level(parent(rSubtree))= " << rootSubtree->getParent()->getLevel() << std::endl;
+        outputLog << "newGrayLevel: " << newGrayLevel  << std::endl; //g(p)
         if(tree->isMaxtree())
-            std::cout << "Intervalo: [" << grayTauStar << ", " << newGrayLevel << "]" << std::endl;
+            outputLog << "Intervalo: [" << grayTauStar << ", " << newGrayLevel << "]" << std::endl;
         else
-            std::cout << "Intervalo: [" << newGrayLevel << ", " << grayTauStar << "]" << std::endl;
-        std::cout << "nodeTauStar: Id:" << nodeTauStar->getIndex() << "; level:" << nodeTauStar->getLevel() <<"; |cnps|:" << nodeTauStar->getNumCNPs() <<"; |flatZoneTauStar|:" << fzTauStar->size() << std::endl;
-        std::cout << "unionNodes: [";
+            outputLog << "Intervalo: [" << newGrayLevel << ", " << grayTauStar << "]" << std::endl;
+        outputLog << "nodeTauStar: Id:" << nodeTauStar->getIndex() << "; level:" << nodeTauStar->getLevel() <<"; |cnps|:" << nodeTauStar->getNumCNPs() <<"; |flatZoneTauStar|:" << fzTauStar->size() << std::endl;
+        outputLog << "unionNodes: [";
         bool flagPrint = false;
         for(FlatZoneNode& fzNode: unionNodeTauSubtree.getFlatzoneNodeList()){
             NodeFZ* nodeTau = fzNode.node;
             FlatZone* fzTau = fzNode.flatzone;
             if(flagPrint){
-                std::cout << "\t";
+                outputLog << "\t";
             }
             flagPrint = true;
-            std::cout << "\t(id:" << nodeTau->getIndex() << ", level:" << nodeTau->getLevel() << ", |cnps|:"<< nodeTau->getNumCNPs() << ", idFZ:" << fzTau->front() <<", |fz|:" << fzTau->size() << "), \n";
+            outputLog << "\t(id:" << nodeTau->getIndex() << ", level:" << nodeTau->getLevel() << ", |cnps|:"<< nodeTau->getNumCNPs() << ", idFZ:" << fzTau->front() <<", |fz|:" << fzTau->size() << "), \n";
         }
-        std::cout << "]"<< std::endl;
+        outputLog << "]"<< std::endl;
     }    
 
 
@@ -100,24 +101,24 @@ void ComponentTreeAdjustment::updateTree2(ComponentTreeFZ* tree, NodeFZ* rootSub
     std::vector<FlatZoneRef>  flatzonesTauSubtree = unionNodeTauSubtree.getFlatzones();
     this->buildMergedAndNestedCollections(tree,  flatzonesTauSubtree, newGrayLevel, isMaxtree);
 
-    if(PRINT_DEBUG){
-        std::cout << "F_λ = { ";
+    if(PRINT_LOG){
+        outputLog << "F_λ = { ";
         for(int lambda=newGrayLevel; lambda != grayTauStar; ){
             std::vector<NodeFZ*>& F_lambda = F.getMergedNodes(lambda);
             if(!F_lambda.empty()){
-                std::cout << lambda << ":[ ";
+                outputLog << lambda << ":[ ";
                 for(NodeFZ* node: F_lambda){
-                    std::cout << "Id:" << node->getIndex() << " ";
+                    outputLog << "Id:" << node->getIndex() << " ";
                 }
-                std::cout << "] ";
+                outputLog << "] ";
             }
             if(tree->isMaxtree()) lambda--; else lambda++;       
         }
-        std::cout << "}\nF_{λ>b} = {";
+        outputLog << "}\nF_{λ>b} = {";
         for (NodeFZ* node : Fb) {
-            std::cout << " Id:" << node->getIndex() << " ";
+            outputLog << " Id:" << node->getIndex() << " ";
         }
-        std::cout << "}\n" << std::endl;
+        outputLog << "}\n" << std::endl;
     }    
 
 
@@ -150,9 +151,9 @@ void ComponentTreeAdjustment::updateTree2(ComponentTreeFZ* tree, NodeFZ* rootSub
             nodeUnion = nodeUnionPrevious;
             continue;
         }
-        if(PRINT_DEBUG){
-            std::cout << "F_{" << lambda << "} = \n";
-            std::cout << "\t(Id:" << nodeUnion->getIndex() << "; level:" << nodeUnion->getLevel() <<"; |cnps|:" << nodeUnion->getNumCNPs() << ") " << std::endl;
+        if(PRINT_LOG){
+            outputLog << "F_{" << lambda << "} = \n";
+            outputLog << "\t(Id:" << nodeUnion->getIndex() << "; level:" << nodeUnion->getLevel() <<"; |cnps|:" << nodeUnion->getNumCNPs() << ") " << std::endl;
         }
 
         disconnect(nodeUnion);
@@ -160,15 +161,15 @@ void ComponentTreeAdjustment::updateTree2(ComponentTreeFZ* tree, NodeFZ* rootSub
         for (NodeFZ* n : F_lambda) {
             
             if (n != nodeUnion) {
-                if(PRINT_DEBUG){
-                    std::cout << "\t(Id:" << n->getIndex() << "; level:" << n->getLevel() <<"; |cnps|:" << n->getNumCNPs() << ") " << std::endl;
+                if(PRINT_LOG){
+                    outputLog << "\t(Id:" << n->getIndex() << "; level:" << n->getLevel() <<"; |cnps|:" << n->getNumCNPs() << ") " << std::endl;
                 }
 
                 if(unionNodeTauSubtree.isRemoved(n)){ //node não foi removido
                     nodeUnion->addCNPsOfDisjointFlatzones(n->moveCNPsByFlatZone(), tree);    
                 }else{
-                    if(PRINT_DEBUG)
-                        std::cout << "\t\twas removed" << std::endl;
+                    if(PRINT_LOG)
+                        outputLog << "\t\twas removed" << std::endl;
                 }
                     
                 mergedParentAndChildren(nodeUnion, n);
@@ -179,8 +180,8 @@ void ComponentTreeAdjustment::updateTree2(ComponentTreeFZ* tree, NodeFZ* rootSub
         if (lambda == newGrayLevel) {
             unionNodeTauSubtree.addCNPsToConnectedFlatzone(nodeUnion, tree); // Os mapeamentos são atualizados
             unionNodeTauSubtree.removeFlatzones(tree);
-            if(PRINT_DEBUG){
-                std::cout << "\t\tAfter add CNPs of TauStar: (Id:" << nodeUnion->getIndex() << "; level:" << nodeUnion->getLevel() <<"; |cnps|:" << nodeUnion->getNumCNPs() << ") " << std::endl;
+            if(PRINT_LOG){
+                outputLog << "\t\tAfter add CNPs of TauStar: (Id:" << nodeUnion->getIndex() << "; level:" << nodeUnion->getLevel() <<"; |cnps|:" << nodeUnion->getNumCNPs() << ") " << std::endl;
             }
             for (NodeFZ* n : Fb) {
                 disconnect(n);
@@ -190,17 +191,17 @@ void ComponentTreeAdjustment::updateTree2(ComponentTreeFZ* tree, NodeFZ* rootSub
             nodeTauParentSubtree = nodeUnion;
             //nodesToBeRemoved = unionNodeTauSubtree.getNodesToBeRemoved();
             
-            if(PRINT_DEBUG){
+            if(PRINT_LOG){
                 if(!unionNodeTauSubtree.getNodesToBeRemoved().empty()){
-                    std::cout << "\tNodes to be removed from tree: ";
+                    outputLog << "\tNodes to be removed from tree: ";
                     for(NodeFZ* node: unionNodeTauSubtree.getNodesToBeRemoved()){
-                        std::cout << 
+                        outputLog << 
                             "(id:" << node->getIndex() << 
                             ", level: " << node->getLevel() << 
                             ", |cnps|: " << node->getNumCNPs() <<  
                             ", |children|: " << node->getChildren().size() << "), ";
                     }
-                    std::cout << std::endl;
+                    outputLog << std::endl;
                 }
             }
         }
@@ -216,8 +217,8 @@ void ComponentTreeAdjustment::updateTree2(ComponentTreeFZ* tree, NodeFZ* rootSub
         for (NodeFZ* n : nodeUnion->getChildren()) {
             nodeUnion->setArea(nodeUnion->getArea() + n->getArea());
         }
-        if(PRINT_DEBUG)
-            std::cout << "\tnodeUnion = union(F_{" << lambda << "}) = " << 
+        if(PRINT_LOG)
+            outputLog << "\tnodeUnion = union(F_{" << lambda << "}) = " << 
                 " id:" << nodeUnion->getIndex() << 
                 ", level: " << nodeUnion->getLevel() << 
                 ", |cnps|: " << nodeUnion->getNumCNPs() <<  
