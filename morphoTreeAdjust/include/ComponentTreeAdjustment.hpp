@@ -1,6 +1,8 @@
 #include <iterator>
 #include <functional>
 #include <iostream>
+#include <sstream>
+#include <string>
 
 #include "../include/AdjacencyRelation.hpp"
 #include "../include/NodeCT.hpp"
@@ -17,7 +19,8 @@ class MergedNodesCollection {
 protected:
     std::array<std::vector<NodeFZ*>, 256> collectionF;
     bool* visited;
-    
+    bool* visitedAdj;
+
     int maxIndex;
     std::vector<int> lambdaList; // Lista ordenada de lambdas (sempre crescente)
     int currentIndex = 0; // Índice atual
@@ -25,7 +28,7 @@ protected:
     std::vector<NodeFZ*> nodesNL;
 
 public:
-    bool* visitedAdj;
+    
     // Construtor permite definir a ordem de iteração
     MergedNodesCollection(int maxIndex): maxIndex(maxIndex) {
         this->visited = new bool[this->maxIndex]();  // Inicializa com false
@@ -221,6 +224,8 @@ protected:
     UnionNodes unionNodeTauSubtree;
     MergedNodesCollection F;
     std::unordered_set<NodeFZ*> Fb;
+    std::ostringstream outputLog;
+
     
 
     void disconnect(NodeFZ* node, bool isFreeMemory=false) {
@@ -247,13 +252,17 @@ public:
     ComponentTreeAdjustment(ComponentTreeFZ* maxtree, ComponentTreeFZ* mintree); 
 
     ~ComponentTreeAdjustment(); 
+
+    std::string getOutputLog() {
+        return outputLog.str();
+    }
+
  
     void buildMergedAndNestedCollections(ComponentTreeFZ* tree, std::vector<FlatZoneRef>& flatZone, int newGrayLevel, bool isMaxtree);
     
     void updateTree(ComponentTreeFZ* tree, NodeFZ *L_leaf);
 
     void updateTree2(ComponentTreeFZ* tree, NodeFZ *rSubtree);
-
 
     void adjustMinTree(ComponentTreeFZ* mintree, ComponentTreeFZ* maxtree, std::vector<NodeFZ*> nodesToPruning);
     

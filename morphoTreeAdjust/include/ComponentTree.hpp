@@ -5,6 +5,7 @@
 #include <utility>
 #include <optional>
 #include <functional>
+#include <variant>
 
 #include "../include/AdjacencyRelation.hpp"
 #include "../include/Common.hpp"
@@ -97,7 +98,6 @@ public:
 };
 
 
-#include "ComponentTree.tpp"
-
+#include "../include/ComponentTree.tpp"
 
 #endif

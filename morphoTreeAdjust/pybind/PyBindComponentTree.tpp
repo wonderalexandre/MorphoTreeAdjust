@@ -1,5 +1,5 @@
 
-#include "PyBindComponentTree.hpp"
+#include "../pybind/PyBindComponentTree.hpp"
 
 
 // Implementação dos construtores

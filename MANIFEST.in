@@ -1,2 +1,2 @@
 include README.md LICENSE CMakeLists.txt pybind11.cmake
-recursive-include morphoTreeAdjust *.cpp *.hpp CMakeLists.txt
+recursive-include morphoTreeAdjust *.cpp *.hpp *.tpp CMakeLists.txt

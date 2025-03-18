@@ -3,7 +3,7 @@
 
 #include "../include/NodeCT.hpp"
 #include "../include/ComponentTreeAdjustment.hpp"
-#include "PyBindComponentTree.hpp"
+#include "../pybind/PyBindComponentTree.hpp"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>

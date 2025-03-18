@@ -128,7 +128,8 @@ void init_ComponentTreeAdjustment(py::module &m) {
         .def(py::init<PyBindComponentTree<FlatZones>*, PyBindComponentTree<FlatZones>*>())
         .def("updateTree", &PyBindComponentTreeAdjustment::updateTree)
         .def("updateTree2", &PyBindComponentTreeAdjustment::updateTree2)
-        .def("buildCollections", &PyBindComponentTreeAdjustment::buildCollections);
+        .def("buildCollections", &PyBindComponentTreeAdjustment::buildCollections)
+        .def("log", &PyBindComponentTreeAdjustment::getOutputLog);
 }
 
 void init_AdjacencyRelation(py::module &m) {
