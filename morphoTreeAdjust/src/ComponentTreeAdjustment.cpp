@@ -76,12 +76,7 @@ void ComponentTreeAdjustment::updateTree2(ComponentTreeFZ* tree, NodeFZ* rootSub
         outputLog.clear();
         outputLog << "Area(rSubtree)= " << rootSubtree->getArea() << ", level(rSubtree)= " << rootSubtree->getLevel() << ", level(parent(rSubtree))= " << rootSubtree->getParent()->getLevel() << std::endl;
         outputLog << "newGrayLevel: " << newGrayLevel  << std::endl; //g(p)
-        if(tree->isMaxtree())
-            outputLog << "Intervalo: [" << grayTauStar << ", " << newGrayLevel << "]" << std::endl;
-        else
-            outputLog << "Intervalo: [" << newGrayLevel << ", " << grayTauStar << "]" << std::endl;
-        outputLog << "nodeTauStar: Id:" << nodeTauStar->getIndex() << "; level:" << nodeTauStar->getLevel() <<"; |cnps|:" << nodeTauStar->getNumCNPs() <<"; |flatZoneTauStar|:" << fzTauStar->size() << std::endl;
-        outputLog << "unionNodes: [";
+        outputLog << "unionNodes (Tau_S): [";
         bool flagPrint = false;
         for(FlatZoneNode& fzNode: unionNodeTauSubtree.getFlatzoneNodeList()){
             NodeFZ* nodeTau = fzNode.node;
@@ -93,6 +88,11 @@ void ComponentTreeAdjustment::updateTree2(ComponentTreeFZ* tree, NodeFZ* rootSub
             outputLog << "\t(id:" << nodeTau->getIndex() << ", level:" << nodeTau->getLevel() << ", |cnps|:"<< nodeTau->getNumCNPs() << ", idFZ:" << fzTau->front() <<", |fz|:" << fzTau->size() << "), \n";
         }
         outputLog << "]"<< std::endl;
+        if(tree->isMaxtree())
+            outputLog << "Intervalo: [" << grayTauStar << ", " << newGrayLevel << "]" << std::endl;
+        else
+            outputLog << "Intervalo: [" << newGrayLevel << ", " << grayTauStar << "]" << std::endl;
+        outputLog << "nodeTauStar: Id:" << nodeTauStar->getIndex() << "; level:" << nodeTauStar->getLevel() <<"; |cnps|:" << nodeTauStar->getNumCNPs() <<"; |flatZoneTauStar|:" << fzTauStar->size() << std::endl;
     }    
 
 
@@ -180,7 +180,7 @@ void ComponentTreeAdjustment::updateTree2(ComponentTreeFZ* tree, NodeFZ* rootSub
             unionNodeTauSubtree.addCNPsToConnectedFlatzone(nodeUnion, tree); // Os mapeamentos são atualizados
             unionNodeTauSubtree.removeFlatzones(tree);
             if(PRINT_LOG){
-                outputLog << "\t\tAfter add CNPs of TauStar: (Id:" << nodeUnion->getIndex() << "; level:" << nodeUnion->getLevel() <<"; |cnps|:" << nodeUnion->getNumCNPs() << ") " << std::endl;
+                outputLog << "\t\tAfter add CNPs of S: (Id:" << nodeUnion->getIndex() << "; level:" << nodeUnion->getLevel() <<"; |cnps|:" << nodeUnion->getNumCNPs() << ") " << std::endl;
             }
             for (NodeFZ* n : Fb) {
                 disconnect(n);
