@@ -242,7 +242,7 @@ inline void ComponentTreeFZ::assignCNPs() {
 
         }
         assert(flatZone.size() > 0 && "ERRO: Existem flatzones vazias!");
-        node->addCNPsOfDisjointFlatzone(std::move(flatZone), this);
+        node->createFlatzone(std::move(flatZone), this);
     }
 
     //build graph
@@ -341,6 +341,55 @@ template <typename CNPsType>
 int ComponentTree<CNPsType>::getNumColsOfImage(){
 	return this->numCols;
 }
+
+template <>
+inline void ComponentTreeP::mergeParent(NodeP* node){
+    if(node->getParent() != nullptr){
+        NodeP* parent = node->getParent();
+        std::list<NodeP*>& childrenParent = parent->getChildren();
+        childrenParent.remove( node );			
+        this->numNodes--;
+
+        for( int p: node->getCNPs() ) {				
+            parent->addCNPs(p);
+            this->pixelToNode[p] = parent;	
+        }
+
+        for(NodeP* child : node->getChildren()) {							
+            childrenParent.push_back(child);				
+            child->setParent(parent);			
+        }	
+        
+        delete node;
+    }
+}
+
+template <>
+inline void ComponentTreeFZ::mergeParent(NodeFZ* node){
+    if(node->getParent() != nullptr){
+        NodeFZ* parent = node->getParent();
+        std::list<NodeFZ*>& childrenParent = parent->getChildren();
+        childrenParent.remove( node );			
+        this->numNodes--;
+
+        for(auto& [id, flatzone]: node->getCNPsByFlatZone()){
+            if(parent->isAdjacent(id, this)){
+                parent->addCNPsToConnectedFlatzone(std::move(flatzone), this);
+            }else{
+                parent->addCNPsOfDisjointFlatzone(std::move(flatzone), this);
+            }
+        }
+        
+        for(NodeFZ* child : node->getChildren()) {							
+            childrenParent.push_back(child);				
+            child->setParent(parent);			
+        }			
+
+        delete node;
+    }
+}
+
+
 
 template <>
 inline void ComponentTreeP::prunning(NodeP* node) {

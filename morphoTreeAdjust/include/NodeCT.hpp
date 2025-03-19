@@ -55,6 +55,9 @@ public:
     void addCNPsOfDisjointFlatzone(FlatZone&& flatZone, ComponentTree<CNPsType>* tree);
 
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
+    void createFlatzone(FlatZone&& flatZone, ComponentTree<CNPsType>* tree);
+
+    template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
     void addCNPsOfDisjointFlatzones(CNPsType&& flatZones, ComponentTree<CNPsType>* tree);
 
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
@@ -62,6 +65,9 @@ public:
 
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
     void removeFlatzone(int idFlatZone);
+
+    template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
+    bool isAdjacent(int nodeFlatZoneID, ComponentTree<CNPsType>* tree);
 
     //template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
     //int getFlatZoneID(int pixel);

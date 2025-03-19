@@ -14,7 +14,13 @@ include_directories(
   "${CMAKE_CURRENT_SOURCE_DIR}/tests"
   )
 
+# Exemplos com a morphotree
+add_executable(testeRemovingAnyNode testeRemovingAnyNode.cpp
+    ../morphoTreeAdjust/src/AdjacencyRelation.cpp
+    ../morphoTreeAdjust/src/ComponentTreeAdjustment.cpp
+)
 
+#[[
 # Exemplos com a morphotree
 add_executable(testePruningLeaf testePruningLeaf.cpp
     ../morphoTreeAdjust/src/AdjacencyRelation.cpp
@@ -51,3 +57,5 @@ add_executable(dgmm2025 dgmm2025.cpp
     ./external/stb/stb_image.cpp
 )
 target_compile_options(dgmm2025 PRIVATE -Wno-deprecated-declarations)
+
+]]

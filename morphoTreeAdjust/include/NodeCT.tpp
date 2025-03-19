@@ -104,11 +104,20 @@ FlatZone& NodeFZ::getFlatZone(int idFlatZone) {
     throw std::runtime_error(msgErro);
 }
 
+template <>
+template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
+void NodeFZ::createFlatzone(FlatZone&& flatZone, ComponentTreeFZ* tree) {
+    this->cnps[flatZone.front()] = std::move(flatZone);
+}
 
 template <>
 template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
 void NodeFZ::addCNPsOfDisjointFlatzone(FlatZone&& flatZone, ComponentTreeFZ* tree) {
-    this->cnps[flatZone.front()] = std::move(flatZone);
+    int id = flatZone.front();
+    this->cnps[id] = std::move(flatZone);
+    for (int p : this->cnps[id]) {
+        tree->setSC(p, this);
+    }
 }
 
 template <>
@@ -142,6 +151,22 @@ void NodeFZ::removeFlatzone(int idFlatZone) {
     if (it != cnps.end()) {
         cnps.erase(it);  
     } 
+}
+
+template <>
+template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
+bool NodeFZ::isAdjacent(int nodeFlatZoneID, ComponentTreeFZ* tree) {
+    // Obtém o conjunto de flatzones adjacentes ao nodeFlatZoneID
+    const std::unordered_set<int>& adjacentFlatzones = *(tree->flatzoneGraph[nodeFlatZoneID]);
+
+    // Percorre os IDs das flatzones do parent para verificar se há alguma adjacente
+    for (auto& [id, flatzone]: this->cnps) {
+        if (adjacentFlatzones.find(id) != adjacentFlatzones.end()) {
+            return true;  
+        }
+    }
+
+    return false; 
 }
 
 template <>

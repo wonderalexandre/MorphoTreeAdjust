@@ -89,6 +89,8 @@ public:
     void setSC(int p, NodeCT<CNPsType>* n);
 
     void prunning(NodeCT<CNPsType>* node);
+
+    void mergeParent(NodeCT<CNPsType>* node);
     
     std::vector<NodeCT<CNPsType>*> getLeaves();
 
