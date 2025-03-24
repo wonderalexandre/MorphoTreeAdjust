@@ -3,7 +3,7 @@ MorphoTreeAdjust is a C++/Python implementation of a solution for the following 
 
 Let $f$ be an image, and $T^\min_f$ and $T^\max_f$ be the min-tree and the max-tree of $f$.
 We set:
-- $L$, a leaf node in the min-tree T^\min_f$;
+- $L$, a leaf node in the min-tree $T^\min_f$;
 - $T^\min_g$, the min-tree obtained after pruning the leaf node $L$;
 - $g$, the image reconstructed from the pruned min-tree $T^\min_g$;
 - $T^\max_g$ the max-tree of the image $g$.  
