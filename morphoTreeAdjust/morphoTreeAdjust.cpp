@@ -113,6 +113,11 @@ void init_ComponentTree(py::module &m) {
             tree.prunning(raw_node);
             node = py::none();
         })
+        .def("mergeWithParent", [](PyBindTree& tree, py::object node) {
+            NodeCT<FlatZones>* raw_node = node.cast<NodeCT<FlatZones>*>();
+            tree.mergeWithParent(raw_node);
+            node = py::none();
+        })
         .def("getNodesThreshold", &PyBindTree::getNodesThreshold)
         .def("leaves", &PyBindTree::getLeaves)
         .def("nodes", &PyBindTree::getNodes)
@@ -128,6 +133,7 @@ void init_ComponentTreeAdjustment(py::module &m) {
         .def(py::init<PyBindComponentTree<FlatZones>*, PyBindComponentTree<FlatZones>*>())
         .def("updateTree", &PyBindComponentTreeAdjustment::updateTree)
         .def("updateTree2", &PyBindComponentTreeAdjustment::updateTree2)
+        .def("updateTree3", &PyBindComponentTreeAdjustment::updateTree3)
         .def("buildCollections", &PyBindComponentTreeAdjustment::buildCollections)
         .def("log", &PyBindComponentTreeAdjustment::getOutputLog);
 }

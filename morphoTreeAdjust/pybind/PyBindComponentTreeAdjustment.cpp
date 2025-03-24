@@ -6,6 +6,9 @@ void PyBindComponentTreeAdjustment::updateTree(PyBindComponentTreeFZ* tree, Node
    ComponentTreeAdjustment::updateTree(tree, L_leaf);
 }
 
+void PyBindComponentTreeAdjustment::updateTree3(PyBindComponentTreeFZ* tree, NodeFZ* node) {
+    ComponentTreeAdjustment::updateTree3(tree, node);
+ }
 
 void PyBindComponentTreeAdjustment::updateTree2(PyBindComponentTreeFZ* tree, NodeFZ* rSubtree) {
    ComponentTreeAdjustment::updateTree2(tree, rSubtree);

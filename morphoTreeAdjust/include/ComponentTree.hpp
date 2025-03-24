@@ -90,7 +90,7 @@ public:
 
     void prunning(NodeCT<CNPsType>* node);
 
-    void mergeParent(NodeCT<CNPsType>* node);
+    void mergeWithParent(NodeCT<CNPsType>* node);
     
     std::vector<NodeCT<CNPsType>*> getLeaves();
 

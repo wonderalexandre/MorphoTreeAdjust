@@ -9,6 +9,8 @@
 #include <iomanip>
 #include <fstream>
 #include <iostream>
+#include <map>
+
 
 #include "../morphoTreeAdjust/include/NodeCT.hpp"
 #include "../morphoTreeAdjust/include/ComponentTree.hpp"
@@ -39,11 +41,17 @@ int main()
     //std::cout <<"\n\n" << std::endl;
     //printMappingSC(mintree);
     
+    NodeFZ* N = nullptr;
+    int index = 5;
+    for (NodeFZ* node : mintree->getRoot()->getIteratorBreadthFirstTraversal()) {
+        if(node->getIndex() == index){
+            N = node;
+            break;
+        }
+    }    
 
     ComponentTreeAdjustment adjust(mintree, maxtree);
-    int numNodes = mintree->getNumNodes()-1;
-
-    NodeFZ* N = mintree->getSC(2327);
+    
 
     //for(int i=0; i < numNodes; i++){
     //    NodeCT* L_leaf = mintree->getLeaves().front();
@@ -51,8 +59,8 @@ int main()
     //for(NodeFZ* L_leaf : mintree->getRoot()->getIteratorPostOrderTraversal()){
         
         std::cout <<"\nN:" << N->getIndex() << ", level:" << N->getLevel() << ", |cnps|:" << N->getNumCNPs() <<  std::endl;
-        adjust.updateTree2(maxtree, N);
-        mintree->mergeParent(N);
+        adjust.updateTree3(maxtree, N);
+        mintree->mergeWithParent(N);
 
         int* imgOutMaxtree = maxtree->reconstructionImage();
         int* imgOutMintree = mintree->reconstructionImage();

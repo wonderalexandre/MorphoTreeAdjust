@@ -224,8 +224,9 @@ protected:
     UnionNodes unionNodeTauSubtree;
     MergedNodesCollection F;
     std::unordered_set<NodeFZ*> Fb;
-    std::ostringstream outputLog;
-
+    //std::ostringstream outputLog;
+    std::ostringstream oss;
+    std::ostream& outputLog = std::cout;//oss; 
     
 
     void disconnect(NodeFZ* node, bool isFreeMemory=false) {
@@ -254,7 +255,7 @@ public:
     ~ComponentTreeAdjustment(); 
 
     std::string getOutputLog() {
-        return outputLog.str();
+        return oss.str();
     }
 
  
@@ -264,6 +265,8 @@ public:
 
     void updateTree2(ComponentTreeFZ* tree, NodeFZ *rSubtree);
 
+    void updateTree3(ComponentTreeFZ* tree, NodeFZ* node);
+
     void adjustMinTree(ComponentTreeFZ* mintree, ComponentTreeFZ* maxtree, std::vector<NodeFZ*> nodesToPruning);
     
     void adjustMaxTree(ComponentTreeFZ* maxtree, ComponentTreeFZ* mintree, std::vector<NodeFZ*> nodesToPruning);
@@ -272,7 +275,7 @@ public:
     
     void adjustMaxTree2(ComponentTreeFZ* maxtree, ComponentTreeFZ* mintree, std::vector<NodeFZ*> nodesToPruning);
 
-
+    
 
     
 };

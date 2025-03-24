@@ -343,7 +343,7 @@ int ComponentTree<CNPsType>::getNumColsOfImage(){
 }
 
 template <>
-inline void ComponentTreeP::mergeParent(NodeP* node){
+inline void ComponentTreeP::mergeWithParent(NodeP* node){
     if(node->getParent() != nullptr){
         NodeP* parent = node->getParent();
         std::list<NodeP*>& childrenParent = parent->getChildren();
@@ -365,7 +365,7 @@ inline void ComponentTreeP::mergeParent(NodeP* node){
 }
 
 template <>
-inline void ComponentTreeFZ::mergeParent(NodeFZ* node){
+inline void ComponentTreeFZ::mergeWithParent(NodeFZ* node){
     if(node->getParent() != nullptr){
         NodeFZ* parent = node->getParent();
         std::list<NodeFZ*>& childrenParent = parent->getChildren();
@@ -552,7 +552,6 @@ void ComponentTreeFZ::updateGraph(std::list<FlatZoneNode>& flatZoneNodeList,  Fl
     unifiedFlatzone.splice(unifiedFlatzone.end(), *unifiedFlatzoneInitial); 
 
 
-    std::unordered_set<int>* unifiedFlatzoneSet = this->flatzoneGraph[unifiedFlatzoneID];
     for(FlatZoneNode& flatZoneNode: flatZoneNodeList)   {
         FlatZone& flatZone = *flatZoneNode.flatzone;
         if(flatZone.empty())
