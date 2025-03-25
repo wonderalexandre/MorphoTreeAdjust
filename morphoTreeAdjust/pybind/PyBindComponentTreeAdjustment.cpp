@@ -2,28 +2,28 @@
 
 
 
-void PyBindComponentTreeAdjustment::updateTree(PyBindComponentTreeFZ* tree, NodeFZ* L_leaf) {
+void PyBindComponentTreeAdjustment::updateTree(PyBindComponentTreeFZPtr tree, NodeFZPtr L_leaf) {
    ComponentTreeAdjustment::updateTree(tree, L_leaf);
 }
 
 
-void PyBindComponentTreeAdjustment::updateTree2(PyBindComponentTreeFZ* tree, NodeFZ* rSubtree) {
+void PyBindComponentTreeAdjustment::updateTree2(PyBindComponentTreeFZPtr tree, NodeFZPtr rSubtree) {
    ComponentTreeAdjustment::updateTree2(tree, rSubtree);
 }
 
 
-py::tuple PyBindComponentTreeAdjustment::buildCollections(PyBindComponentTreeFZ* tree, std::vector<int> vflatZone, int newGrayLevel, bool isMaxtree) {
+py::tuple PyBindComponentTreeAdjustment::buildCollections(PyBindComponentTreeFZPtr tree, std::vector<int> vflatZone, int newGrayLevel, bool isMaxtree) {
     FlatZone flatZone(vflatZone.begin(), vflatZone.end()); 
     std::vector<FlatZoneRef> flatZonesList;
     flatZonesList.push_back(flatZone);
 
     ComponentTreeAdjustment::buildMergedAndNestedCollections(tree, flatZonesList, newGrayLevel, isMaxtree);
-    std::array<std::vector<NodeFZ*>, 256> collectionF = this->F.getCollectionF();
+    std::array<std::vector<NodeFZPtr>, 256> collectionF = this->F.getCollectionF();
 
-    std::map<int, std::vector<NodeFZ*>> mapCollectionF;
+    std::map<int, std::vector<NodeFZPtr>> mapCollectionF;
     for (int i = 0; i < 256; ++i) {
         if (!collectionF[i].empty()) {
-            std::vector<NodeCT<FlatZones>*> nodes = collectionF[i];
+            std::vector<NodeFZPtr> nodes = collectionF[i];
             mapCollectionF[i] = nodes;
         }
     }

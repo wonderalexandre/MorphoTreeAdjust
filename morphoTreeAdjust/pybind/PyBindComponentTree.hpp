@@ -16,6 +16,8 @@
 #ifndef PYBIND_COMPONENT_TREE_H
 #define PYBIND_COMPONENT_TREE_H
 
+
+
 namespace py = pybind11;
 
 template<typename CNPsType>
@@ -29,11 +31,11 @@ public:
 
 	py::array_t<int> reconstructionImage();
 
-    py::array_t<int> reconstructionNode(NodeCT<CNPsType>* node);
+    py::array_t<int> reconstructionNode(NodeCTPtr<CNPsType> node);
 
-    std::map<int, NodeCT<CNPsType>*> getNodes();
+    std::map<int, NodeCTPtr<CNPsType>> getNodes();
 
-    static py::array_t<int> recNode(NodeCT<CNPsType>* _node);
+    static py::array_t<int> recNode(NodeCTPtr<CNPsType> _node);
     
 	
 };

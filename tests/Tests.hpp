@@ -25,7 +25,7 @@ inline void printFlatzoneGraph(FlatzoneGraph flatzoneGraph, int size) {
 }
 
 template <typename CNPsType>
-inline void printTree(NodeCT<CNPsType>* root, int indent = 0) {
+inline void printTree(NodeCTPtr<CNPsType> root, int indent = 0) {
     
     // Imprime o nó atual com indentação
     for (int i = 0; i < indent; ++i) {
@@ -34,13 +34,13 @@ inline void printTree(NodeCT<CNPsType>* root, int indent = 0) {
     std::cout << "Node: " << root->getIndex() <<  ", Level: " << root->getLevel()<< std::endl;
 
     // Chama recursivamente a função para cada filho
-    for (NodeCT<CNPsType>* child : root->getChildren()) {
+    for (NodeCTPtr<CNPsType> child : root->getChildren()) {
         printTree(child, indent + 1);
     }
 }
 
 template <typename CNPsType>
-inline void printMappingSC(ComponentTree<CNPsType>* tree, std::string nomeArquivo = "") {
+inline void printMappingSC(ComponentTreePtr<CNPsType> tree, std::string nomeArquivo = "") {
 
     int numRows = tree->getNumRowsOfImage();
     int numCols = tree->getNumColsOfImage();
@@ -81,7 +81,7 @@ inline void printMappingSC(ComponentTree<CNPsType>* tree, std::string nomeArquiv
 }
 
 template <typename CNPsType>
-inline  void printConnectedComponent(NodeCT<CNPsType>* node, ComponentTree<CNPsType>* tree, std::string nomeArquivo = "") {
+inline  void printConnectedComponent(NodeCTPtr<CNPsType> node, ComponentTreePtr<CNPsType> tree, std::string nomeArquivo = "") {
     int numRows = tree->getNumRowsOfImage();
     int numCols = tree->getNumColsOfImage();
     int n = numRows*numCols;
@@ -149,7 +149,7 @@ inline  void printImage(int* img, int numRows, int numCols, std::string nomeArqu
 }
 
 /*
-inline  void printMappingFZ(ComponentTreeFZ* tree, std::string nomeArquivo = "") {
+inline  void printMappingFZ(ComponentTreeFZPtr tree, std::string nomeArquivo = "") {
     int numRows = tree->getNumRowsOfImage();
     int numCols = tree->getNumColsOfImage();
     int n = numRows*numCols;
@@ -203,7 +203,7 @@ inline bool isEquals(int* imgOut1, int* imgOut2, int size){
 
 
  template <typename CNPsType>
- inline  void testComponentTree(ComponentTree<CNPsType>* tree, const std::string& treeType, int* img, int numRows, int numCols) {
+ inline  void testComponentTree(ComponentTreePtr<CNPsType> tree, const std::string& treeType, int* img, int numRows, int numCols) {
     std::cout << "🔍 Testando " << treeType << "..." << std::endl;
 
     if (!tree) {
@@ -238,7 +238,7 @@ inline bool isEquals(int* imgOut1, int* imgOut2, int size){
 
 
     // Teste: Raiz da árvore não nula
-    NodeCT<CNPsType>* root = tree->getRoot();
+    NodeCTPtr<CNPsType> root = tree->getRoot();
     if (!root) {
         std::cerr << "❌ Erro: Raiz da " << treeType << " é nula!" << std::endl;
         return;
@@ -255,7 +255,7 @@ inline bool isEquals(int* imgOut1, int* imgOut2, int size){
 
     // Teste: Verificando se todos os nós possuem um pai correto (exceto a raiz)
     bool allParentsCorrect = true;
-    for (NodeCT<CNPsType>* node : tree->getRoot()->getIteratorBreadthFirstTraversal()) {
+    for (NodeCTPtr<CNPsType> node : tree->getRoot()->getIteratorBreadthFirstTraversal()) {
         if (node != root && node->getParent() == nullptr) {
             std::cerr << "❌ Erro: Nó sem pai encontrado na " << treeType << "!" << std::endl;
             allParentsCorrect = false;
@@ -267,8 +267,8 @@ inline bool isEquals(int* imgOut1, int* imgOut2, int size){
 
     // Teste: Verificando se cada nó tem filhos corretos
     bool allChildrenCorrect = true;
-    for (NodeCT<CNPsType>* node : tree->getRoot()->getIteratorBreadthFirstTraversal()) {
-        for (NodeCT<CNPsType>* child : node->getChildren()) {
+    for (NodeCTPtr<CNPsType> node : tree->getRoot()->getIteratorBreadthFirstTraversal()) {
+        for (NodeCTPtr<CNPsType> child : node->getChildren()) {
             if (child->getParent() != node) {
                 std::cerr << "❌ Erro: Nó com filho sem referência ao pai na " << treeType << "!" << std::endl;
                 allChildrenCorrect = false;
@@ -281,7 +281,7 @@ inline bool isEquals(int* imgOut1, int* imgOut2, int size){
 
     // Teste: Verificando se os pixels estão corretamente armazenados nos nós
     bool allPixelsCorrect = true;
-    for (NodeCT<CNPsType>* node : tree->getRoot()->getIteratorBreadthFirstTraversal()) {
+    for (NodeCTPtr<CNPsType> node : tree->getRoot()->getIteratorBreadthFirstTraversal()) {
         for (int p : node->getCNPs()) {
             if (tree->getSC(p) != node) {
                 std::cerr << "❌ Erro: Pixel " << p << " não está corretamente associado ao nó na " << treeType << "!" << std::endl;
@@ -298,7 +298,7 @@ inline bool isEquals(int* imgOut1, int* imgOut2, int size){
     bool allMappedCorrectly = true;
     int numPixels = numRows * numCols;
     for (int p = 0; p < numPixels; p++) {
-        NodeCT<CNPsType>* mappedNode = tree->getSC(p);
+        NodeCTPtr<CNPsType> mappedNode = tree->getSC(p);
         if (!mappedNode) {
             std::cerr << "❌ Erro: Pixel " << p << " não foi mapeado para nenhum nó na " << treeType << "!" << std::endl;
             allMappedCorrectly = false;
@@ -315,9 +315,9 @@ inline bool isEquals(int* imgOut1, int* imgOut2, int size){
 
 }
 
-inline bool computerArea(NodeFZ* node){
+inline bool computerArea(NodeFZPtr node){
 	long int area = node->getNumCNPs();
-	for(NodeFZ* child: node->getChildren()){
+	for(NodeFZPtr child: node->getChildren()){
 		if(!computerArea(child))
             return false;
 		area += child->getArea();
@@ -325,12 +325,12 @@ inline bool computerArea(NodeFZ* node){
     return node->getArea() == area;
 }
 
-inline void testComponentTreeFZ(ComponentTreeFZ* tree, const std::string& treeType, int* img, int numRows, int numCols) {
+inline void testComponentTreeFZ(ComponentTreeFZPtr tree, const std::string& treeType, int* img, int numRows, int numCols) {
     testComponentTree(tree, treeType, img, numRows, numCols);
 
     // Teste: Verificando se as flatzones estão corretamente definidas
     bool allFlatzonesCorrect = true;
-    for (NodeFZ* node : tree->getRoot()->getIteratorBreadthFirstTraversal()) {
+    for (NodeFZPtr node : tree->getRoot()->getIteratorBreadthFirstTraversal()) {
         if(node->getNumCNPs() == 0){
             std::cerr << "❌ Erro: O nó de id " << node->getIndex() << " não possui flatzones vazias na " << treeType << "!" << std::endl;
             allFlatzonesCorrect = false;
@@ -356,7 +356,7 @@ inline void testComponentTreeFZ(ComponentTreeFZ* tree, const std::string& treeTy
     }
     /*
     bool isEqualsGraph = true;
-    ComponentTreeFZ* recTree = new ComponentTreeFZ(img, numRows, numCols, tree->isMaxtree(), tree->getAdjacencyRelation()->getRadius());
+    ComponentTreeFZPtr recTree = new ComponentTreeFZ(img, numRows, numCols, tree->isMaxtree(), tree->getAdjacencyRelation()->getRadius());
     for (int p = 0; p < numRows * numCols; p++) {
         std::unordered_set<int>* recNeighbors = recTree->flatzoneGraph[p];
         std::unordered_set<int>* treeNeighbors = tree->flatzoneGraph[p];
@@ -369,8 +369,8 @@ inline void testComponentTreeFZ(ComponentTreeFZ* tree, const std::string& treeTy
                 continue;
 
         }
-        NodeFZ* node = tree->getSC(p);
-        NodeFZ* recNode = recTree->getSC(p);
+        NodeFZPtr node = tree->getSC(p);
+        NodeFZPtr recNode = recTree->getSC(p);
         if(recNode->getRepresentativeCNPs() != node->getRepresentativeCNPs()){
             isEqualsGraph = false;
             std::cerr << "ERRO: O pixel representative de SC(" << p << ") é "<< node->getRepresentativeCNPs() <<" mas deveria ser o pixel " << recNode->getRepresentativeCNPs() << std::endl;
@@ -399,8 +399,8 @@ inline void testComponentTreeFZ(ComponentTreeFZ* tree, const std::string& treeTy
  }
 
 template <typename CNPsType>
-inline NodeCT<CNPsType>* getNodeByIndex(ComponentTree<CNPsType>* tree, int index){
-	for (NodeCT<CNPsType>* node : tree->getRoot()->getIteratorBreadthFirstTraversal()) {
+inline NodeCTPtr<CNPsType> getNodeByIndex(ComponentTreePtr<CNPsType> tree, int index){
+	for (NodeCTPtr<CNPsType> node : tree->getRoot()->getIteratorBreadthFirstTraversal()) {
 		if(node->getIndex() == index){
 			return node;
 		}

@@ -22,6 +22,9 @@ class ComponentTree;
 template <typename T>
 class NodeCT;
 
+
+
+
 // Definição de tipos para CNPs
 using Pixels = std::list<int>;                 // Representa uma lista de pixels (CNPs)
 using FlatZone = std::list<int>;                 // Representa uma flatzone
@@ -35,19 +38,31 @@ using ComponentTreeP = ComponentTree<Pixels>; //representa um component tree sem
 using NodeFZ = NodeCT<FlatZones>; //representa um node com separação dos cnps em flatzones
 using NodeP = NodeCT<Pixels>; //representa um node sem tratamento de flatzones
 
-using FlatzoneGraph = std::unordered_set<int>**;
+
+template <typename CNPsType>
+using NodeCTPtr = std::shared_ptr<NodeCT<CNPsType>>;
+using NodeFZPtr = std::shared_ptr<NodeCT<FlatZones>>;
+using NodePPtr  = std::shared_ptr<NodeCT<Pixels>>;
+
+template <typename CNPsType>
+using ComponentTreePtr = std::shared_ptr<ComponentTree<CNPsType>>; 
+using ComponentTreeFZPtr = std::shared_ptr<ComponentTreeFZ>; //representa um component tree por flatzones
+using ComponentTreePPtr = std::shared_ptr<ComponentTreeP>; //representa um component tree sem tratamento de flatzones
+
+
 using AdjacentFlatzones = std::unordered_set<int>;
+using FlatzoneGraph = std::vector<std::unique_ptr<AdjacentFlatzones>>;
 
 
 struct FlatZoneNode {
-    NodeFZ* node = nullptr;
+    NodeFZPtr node = nullptr;
     FlatZone* flatzone = nullptr;
     int idFlatZone;
 
     FlatZoneNode(){}
 
     // Construtor para mover a FlatZone
-    FlatZoneNode(NodeFZ* n, FlatZone& fz) : node(n), flatzone(&fz), idFlatZone(fz.front()) {} 
+    FlatZoneNode(NodeFZPtr n, FlatZone& fz) : node(n), flatzone(&fz), idFlatZone(fz.front()) {} 
     
 
 };

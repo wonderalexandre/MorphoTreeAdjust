@@ -17,10 +17,10 @@ template <typename CNPsType>
 class NodeCT;  // Forward declaration
 
 template <typename CNPsType>
-class ComponentTree {
+class ComponentTree : public std::enable_shared_from_this<ComponentTree<CNPsType>> {
 protected:
-    NodeCT<CNPsType>* root;
-    NodeCT<CNPsType>** pixelToNode; //mapping from pixel to node
+    NodeCTPtr<CNPsType> root;
+    std::vector<NodeCTPtr<CNPsType>> pixelToNode; //mapping from pixel to node
     
     int numNodes;
     int maxIndex;
@@ -30,12 +30,12 @@ protected:
     int numRows;
     int numPixels;
     
-    AdjacencyRelation* adj; //disk of a given ratio: ratio(1) for 4-connect and ratio(1.5) for 8-connect 
+    AdjacencyRelation adj; //disk of a given ratio: ratio(1) for 4-connect and ratio(1.5) for 8-connect 
     
     int* countingSort(int* img);
     int* createTreeByUnionFind(int* orderedPixels, int* img);
     int findRoot(int* zPar, int x);
-    void reconstruction(NodeCT<CNPsType>* node, int* imgOut);
+    void reconstruction(NodeCTPtr<CNPsType> node, int* imgOut);
 
 public:
 
@@ -49,26 +49,26 @@ public:
 
     ComponentTree(int* img, int numRows, int numCols, bool isMaxtree, double radiusOfAdjacencyRelation);
 
-    ~ComponentTree();
+    virtual ~ComponentTree() = default;
 
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
 	std::list<int>& getFlatzoneByID(int p);
 	
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    void updateGraphAfterPruning(std::list<FlatZone>& flatZoneList, FlatZone& unifiedFlatzone, NodeFZ* nodeStar);
+    void updateGraphAfterPruning(std::list<FlatZone>& flatZoneList, FlatZone& unifiedFlatzone, NodeFZPtr nodeStar);
 
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    void updateGraph(std::list<FlatZoneNode>& flatZoneNodeList, FlatZone& unifiedFlatzone, NodeFZ* nodeStar);
+    void updateGraph(std::list<FlatZoneNode>& flatZoneNodeList, FlatZone& unifiedFlatzone, NodeFZPtr nodeStar);
 
     void assignCNPs();
 
     void build(int* img);
 
-    NodeCT<CNPsType>* getSC(int p);
+    NodeCTPtr<CNPsType> getSC(int p);
 
-    NodeCT<CNPsType>* getRoot();
+    NodeCTPtr<CNPsType> getRoot();
 
-    void setRoot(NodeCT<CNPsType>* n);
+    void setRoot(NodeCTPtr<CNPsType> n);
 
     bool isMaxtree();
 
@@ -80,19 +80,19 @@ public:
 
     int getNumColsOfImage();
 
-    void computerArea(NodeCT<CNPsType>* node);
+    void computerArea(NodeCTPtr<CNPsType> node);
 
     int* reconstructionImage();
 
-    AdjacencyRelation* getAdjacencyRelation();
+    AdjacencyRelation& getAdjacencyRelation();
 
-    void setSC(int p, NodeCT<CNPsType>* n);
+    void setSC(int p, NodeCTPtr<CNPsType> n);
 
-    void prunning(NodeCT<CNPsType>* node);
+    void prunning(NodeCTPtr<CNPsType> node);
     
-    std::vector<NodeCT<CNPsType>*> getLeaves();
+    std::vector<NodeCTPtr<CNPsType>> getLeaves();
 
-    std::vector<NodeCT<CNPsType>*> getNodesThreshold(int threshold);
+    std::vector<NodeCTPtr<CNPsType>> getNodesThreshold(int threshold);
     
 
 };

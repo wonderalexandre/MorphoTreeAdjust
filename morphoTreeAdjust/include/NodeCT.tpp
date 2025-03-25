@@ -17,7 +17,7 @@ NodeCT<CNPsType>::NodeCT() : children(), cnps() {}
 
 // Construtor parametrizado
 template <typename CNPsType>
-NodeCT<CNPsType>::NodeCT(int index, NodeCT* parent, int threshold1, int threshold2) {
+NodeCT<CNPsType>::NodeCT(int index, NodeCTPtr<CNPsType> parent, int threshold1, int threshold2) {
     this->index = index;
     this->parent = parent;
     this->threshold2 = threshold2;
@@ -107,18 +107,18 @@ FlatZone& NodeFZ::getFlatZone(int idFlatZone) {
 
 template <>
 template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
-void NodeFZ::addCNPsOfDisjointFlatzone(FlatZone&& flatZone, ComponentTreeFZ* tree) {
+void NodeFZ::addCNPsOfDisjointFlatzone(FlatZone&& flatZone) {
     this->cnps[flatZone.front()] = std::move(flatZone);
 }
 
 template <>
 template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
-void NodeFZ::addCNPsOfDisjointFlatzones(FlatZones&& flatZones, ComponentTreeFZ* tree) {
+void NodeFZ::addCNPsOfDisjointFlatzones(FlatZones&& flatZones, ComponentTreeFZPtr tree) {
     for (auto& [id, flatzone] : flatZones) {  
         this->cnps[id] = std::move(flatzone); 
 
         for (int p : this->cnps[id]) {
-            tree->setSC(p, this);
+            tree->setSC(p, this->shared_from_this());
         }
     }
 }
@@ -146,29 +146,27 @@ void NodeFZ::removeFlatzone(int idFlatZone) {
 
 template <>
 template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
-void NodeFZ::addCNPsToConnectedFlatzone(FlatZone&& flatZone, ComponentTreeFZ* tree) {
+void NodeFZ::addCNPsToConnectedFlatzone(FlatZone&& flatZone, ComponentTreeFZPtr tree) {
     assert(!flatZone.empty() && "Erro: flatZone passada está vazia!");
     int flatZoneID = flatZone.front();    
     assert(tree->flatzoneGraph[flatZoneID] != nullptr && "Erro: flatZone não está registrada no grafo!");
     assert(!tree->flatzoneGraph[flatZoneID]->empty() && "Erro: flatZone não tem vizinhos registrados no grafo!");
 
-    AdjacentFlatzones* flatZoneNeighbors = tree->flatzoneGraph[flatZoneID];
     std::list<int> flatzonesToMergeList; //flatzones que serão fundidas e removidas
     int unifiedFlatzoneID = std::numeric_limits<int>::max();
-    for (int neighborID : *flatZoneNeighbors) {
-        if (tree->getSC(neighborID) == this) {
+    for (int neighborID : *tree->flatzoneGraph[flatZoneID]) {
+        if (tree->getSC(neighborID).get() == this) {
             unifiedFlatzoneID = std::min(unifiedFlatzoneID, neighborID);
         }
     }
     std::list<int>* unifiedFlatzone = &tree->getFlatzoneByID(unifiedFlatzoneID);
     
 
-    flatZoneNeighbors->erase(unifiedFlatzoneID);
     tree->flatzoneGraph[flatZoneID]->erase(unifiedFlatzoneID);
     tree->flatzoneGraph[unifiedFlatzoneID]->erase(flatZoneID);
     
-    for (int flatzonMergedID : *flatZoneNeighbors) {
-        if (tree->getSC(flatzonMergedID) == this) {
+    for (int flatzonMergedID : *tree->flatzoneGraph[flatZoneID]) {
+        if (tree->getSC(flatzonMergedID).get() == this) {
             flatzonesToMergeList.push_back(flatzonMergedID); 
         }
     }
@@ -181,23 +179,23 @@ void NodeFZ::addCNPsToConnectedFlatzone(FlatZone&& flatZone, ComponentTreeFZ* tr
             }
             tree->flatzoneGraph[neighborID]->erase(flatzonMergedID);
         }
-        delete tree->flatzoneGraph[flatzonMergedID];
+        //delete tree->flatzoneGraph[flatzonMergedID];
         tree->flatzoneGraph[flatzonMergedID] = nullptr;
     }
 
     // Remover `flatZone` do grafo
-    for (int neighborID : *flatZoneNeighbors) {
+    for (int neighborID : *tree->flatzoneGraph[flatZoneID]) {
         tree->flatzoneGraph[neighborID]->erase(flatZoneID);
         tree->flatzoneGraph[unifiedFlatzoneID]->insert(neighborID);
         tree->flatzoneGraph[neighborID]->insert(unifiedFlatzoneID);  
     }
-    delete tree->flatzoneGraph[flatZoneID];
+    //delete tree->flatzoneGraph[flatZoneID];
     tree->flatzoneGraph[flatZoneID] = nullptr; 
     
 
     // Atualizar SC para os novos pixels antes de modificar `flatZone`
     for (int p : flatZone) {
-        tree->setSC(p, this);
+        tree->setSC(p, this->shared_from_this());
     }
 
     // Iterar diretamente sobre `flatzonesToMergeList` para fundir seus CNPs na `unifiedFlatzone`
@@ -216,9 +214,7 @@ void NodeFZ::addCNPsToConnectedFlatzone(FlatZone&& flatZone, ComponentTreeFZ* tr
             tree->flatzoneGraph[neighborID]->erase(unifiedFlatzoneID);
             tree->flatzoneGraph[neighborID]->insert(flatZoneID);
         }
-        tree->flatzoneGraph[flatZoneID] = tree->flatzoneGraph[unifiedFlatzoneID];
-        tree->flatzoneGraph[unifiedFlatzoneID] = nullptr;        
-        
+        tree->flatzoneGraph[flatZoneID] = std::move(tree->flatzoneGraph[unifiedFlatzoneID]);
         flatZone.splice(flatZone.end(), *unifiedFlatzone);
         
         this->cnps[flatZoneID] = std::move(flatZone);
@@ -274,12 +270,12 @@ void NodeFZ::addCNPsToConnectedFlatzone(FlatZone&& flatZone, ComponentTreeFZ* tr
 
 
 template <typename CNPsType>
-void NodeCT<CNPsType>::addChild(NodeCT<CNPsType>* child) {
+void NodeCT<CNPsType>::addChild(NodeCTPtr<CNPsType> child) {
     this->children.push_back(child);
 } 
 
 template <typename CNPsType>
-bool NodeCT<CNPsType>::isChild(NodeCT<CNPsType>* child) const {
+bool NodeCT<CNPsType>::isChild(NodeCTPtr<CNPsType> child) const {
     return std::find(this->children.begin(), this->children.end(), child) != children.end();
 }
 
@@ -319,12 +315,12 @@ long int NodeCT<CNPsType>::getArea() const {
 }
 
 template <typename CNPsType>
-NodeCT<CNPsType>* NodeCT<CNPsType>::getParent() {  
+NodeCTPtr<CNPsType> NodeCT<CNPsType>::getParent() {  
     return this->parent; 
 }
 
 template <typename CNPsType>
-void NodeCT<CNPsType>::setParent(NodeCT<CNPsType>* parent) { 
+void NodeCT<CNPsType>::setParent(NodeCTPtr<CNPsType> parent) { 
     this->parent = parent; 
 }
 
@@ -334,7 +330,7 @@ bool NodeCT<CNPsType>::isLeaf() const {
 }
 
 template <typename CNPsType>
-std::list<NodeCT<CNPsType>*>& NodeCT<CNPsType>::getChildren() {  
+std::list<NodeCTPtr<CNPsType>>& NodeCT<CNPsType>::getChildren() {  
     return this->children; 
 }
 
@@ -359,8 +355,8 @@ int NodeCT<CNPsType>::getRepresentativeCNPs() const{
 template <typename CNPsType>
 int NodeCT<CNPsType>::computerNumDescendants() {
     int numDescendants = 0;
-    for(NodeCT<CNPsType>* desc: this->getIteratorBreadthFirstTraversal()){
-        if(desc != this){
+    for(NodeCTPtr<CNPsType> desc: this->getIteratorBreadthFirstTraversal()){
+        if(desc != this->shared_from_this()){
             numDescendants++;
         }
     }
