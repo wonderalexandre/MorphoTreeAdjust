@@ -41,7 +41,7 @@ public:
 
     void computerAdjacentNodes(ComponentTreeFZPtr tree, std::vector<FlatZoneRef>& flatZones) {
         bool isMaxtree = tree->isMaxtree();
-        FlatzoneGraph& flatzoneGraph = tree->getFlatzoneGraph();
+        ListOfAdjacentFlatzones& flatzoneGraph = tree->getListOfAdjacentFlatzones();
         for (FlatZoneRef flatZonePRef : flatZones) {   
             FlatZone& flatZoneP = flatZonePRef.get();
             int flatZoneID_P = flatZoneP.front();
@@ -82,7 +82,7 @@ public:
         }
         nodesNL.clear();
         lambdaList.clear();
-        visited.clear();
+        std::fill(visited.begin(), visited.end(), false);
         currentIndex = 0;
     }
 
@@ -163,8 +163,8 @@ public:
     void addCNPsToConnectedFlatzone(NodeFZPtr nodeUnion, ComponentTreeFZPtr tree) {
         if (flatZoneNodeList.size() > 1) {
             FlatZone unifiedFlatzone;
-           // FlatzoneGraph& flatzoneGraph = tree->getFlatzoneGraph();
-            tree->updateGraph(flatZoneNodeList, unifiedFlatzone, nodeTauStar.node);
+            std::unique_ptr<FlatZonesGraph>& flatzoneGraph = tree->getFlatZonesGraph();
+            flatzoneGraph->updateGraph(flatZoneNodeList, unifiedFlatzone, nodeTauStar.node, tree);
             nodeUnion->addCNPsToConnectedFlatzone(std::move(unifiedFlatzone), tree);
         }else{
             nodeUnion->addCNPsToConnectedFlatzone(std::move(*nodeTauStar.flatzone), tree);

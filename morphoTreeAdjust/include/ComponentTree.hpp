@@ -13,7 +13,7 @@
 #ifndef COMPONENT_TREE_H
 #define COMPONENT_TREE_H
 
-class GraphOfFlatZones;
+class FlatZonesGraph;
 
 template <typename CNPsType>
 class NodeCT;  // Forward declaration
@@ -42,7 +42,7 @@ protected:
 
     // Define `flatzoneGraph` apenas para `FlatZones`
     using FlatzoneGraphType = std::conditional_t<std::is_same_v<CNPsType, FlatZones>,
-        std::unique_ptr<GraphOfFlatZones>, 
+        std::unique_ptr<FlatZonesGraph>, 
         std::monostate>;
     FlatzoneGraphType flatzoneGraph;
 
@@ -59,13 +59,10 @@ public:
 	std::list<int>& getFlatzoneByID(int p);
 	
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    void updateGraphAfterPruning(std::list<FlatZone>& flatZoneList, FlatZone& unifiedFlatzone, NodeFZPtr nodeStar);
+    ListOfAdjacentFlatzones& getListOfAdjacentFlatzones();
 
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    void updateGraph(std::list<FlatZoneNode>& flatZoneNodeList, FlatZone& unifiedFlatzone, NodeFZPtr nodeStar);
-
-    template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    FlatzoneGraph& getFlatzoneGraph();
+    std::unique_ptr<FlatZonesGraph>& getFlatZonesGraph();
 
     void assignCNPs(int* img);
 

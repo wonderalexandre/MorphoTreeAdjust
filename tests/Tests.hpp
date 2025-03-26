@@ -12,7 +12,7 @@
 #include <fstream>
 #include <iostream>
 
-inline void printFlatzoneGraph(FlatzoneGraph flatzoneGraph, int size) {
+inline void printFlatzoneGraph(ListOfAdjacentFlatzones flatzoneGraph, int size) {
     std::cout << "Grafo de FlatZones:\n";
 
     for (int i = 0; i < size; ++i) {

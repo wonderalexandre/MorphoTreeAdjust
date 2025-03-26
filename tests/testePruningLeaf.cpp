@@ -52,7 +52,7 @@ int main()
         
         int id = L_leaf->getIndex();
         std::cout <<"\nPruning L_leaf:" << id << ", level:" << L_leaf->getLevel() << ", |cnps|:" << L_leaf->getNumCNPs() <<  std::endl;
-        adjust.updateTree2(maxtree, L_leaf);
+        adjust.updateTree(maxtree, L_leaf);
         mintree->prunning(L_leaf);
 
         int* imgOutMaxtree = maxtree->reconstructionImage();

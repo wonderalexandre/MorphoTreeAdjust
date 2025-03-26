@@ -12,7 +12,6 @@
 #include <limits>
 
 #define PRINT_LOG 1 
-
 #define PRINT_DEBUG 0 
 
 // Forward declaration dos templates
@@ -51,7 +50,7 @@ using ComponentTreePPtr = std::shared_ptr<ComponentTreeP>; //representa um compo
 
 
 using AdjacentFlatzones = std::unordered_set<int>;
-using FlatzoneGraph = std::vector<std::unique_ptr<AdjacentFlatzones>>;
+using ListOfAdjacentFlatzones = std::vector<std::unique_ptr<AdjacentFlatzones>>;
 
 
 struct FlatZoneNode {
