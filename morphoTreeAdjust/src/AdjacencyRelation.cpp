@@ -4,13 +4,6 @@
 #include <stdexcept>
 #define PI 3.14159265358979323846
 
-AdjacencyRelation::~AdjacencyRelation() {
-    delete[] this->offsetCol;
-    this->offsetCol = nullptr;
-
-    delete[] this->offsetRow;
-    this->offsetRow = nullptr;
-}
 
 AdjacencyRelation::AdjacencyRelation(int numRows, int numCols, double radius){
     this->numRows = numRows;
@@ -27,9 +20,9 @@ AdjacencyRelation::AdjacencyRelation(int numRows, int numCols, double radius){
 				this->n++;
 	
 	i = 0;
-    this->offsetCol = new int[this->n];
-    this->offsetRow = new int[this->n];
-
+    this->offsetCol.resize(this->n);
+    this->offsetRow.resize(this->n);
+	
 	for (dy = -r0; dy <= r0; dy++) {
 		for (dx = -r0; dx <= r0; dx++) {
 			if (((dx * dx) + (dy * dy)) <= r2) {

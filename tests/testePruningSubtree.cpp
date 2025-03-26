@@ -30,8 +30,8 @@ int main()
     int n = numRows * numCols;
     double radioAdj = 1.5;
 
-    ComponentTreeFZ* maxtree = new ComponentTreeFZ(img, numRows, numCols, true, radioAdj);
-    ComponentTreeFZ* mintree = new ComponentTreeFZ(img, numRows, numCols, false, radioAdj);
+    ComponentTreeFZPtr maxtree = std::make_shared<ComponentTreeFZ>(img, numRows, numCols, true, radioAdj);
+    ComponentTreeFZPtr mintree = std::make_shared<ComponentTreeFZ>(img, numRows, numCols, false, radioAdj);
     testComponentTreeFZ(maxtree, "max-tree", img, numRows, numCols);
     testComponentTreeFZ(mintree, "min-tree", img, numRows, numCols);
     //std::cout <<"\n=========== mapIDs min-tree ===========\n" << std::endl;
@@ -41,7 +41,7 @@ int main()
     ComponentTreeAdjustment adjust(mintree, maxtree);
     for(int threshold = 10; threshold <= 1000; threshold += 10){
         int cont = 1;
-        for(NodeFZ* rootSubtree: mintree->getNodesThreshold(threshold)){
+        for(NodeFZPtr rootSubtree: mintree->getNodesThreshold(threshold)){
             
             std::cout<< "\n" << cont++ << " - Processing the subtree rooted (mintree) at node id: " << rootSubtree->getIndex()<< ", numDescendants: "<< rootSubtree->computerNumDescendants()  << ", area: "<< rootSubtree->getArea() << std::endl;
             
@@ -66,7 +66,7 @@ int main()
     
      std::cout << "\n\n\n====================================================\n\n\n";
         cont = 1;
-        for(NodeFZ* rootSubtree: maxtree->getNodesThreshold(threshold)){
+        for(NodeFZPtr rootSubtree: maxtree->getNodesThreshold(threshold)){
             std::cout << "\n" << cont++ << " - Processing the subtree rooted (maxtree) at node id: " << rootSubtree->getIndex()<< ", numDescendants: "<< rootSubtree->computerNumDescendants()  << ", area: "<< rootSubtree->getArea() << std::endl;
    
             adjust.updateTree2(mintree, rootSubtree);
@@ -99,8 +99,8 @@ int main()
     printImage(imgOutMintree, numRows, numCols);
     */
 
-    delete maxtree;
-    delete mintree;    
+    //delete maxtree;
+    //delete mintree;    
 	std::cout << "\n\nFim do teste...\n\n";
 
     delete[] img;

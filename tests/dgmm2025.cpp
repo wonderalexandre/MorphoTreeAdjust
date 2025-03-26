@@ -46,8 +46,8 @@ int* computerCASF_naive(int* img, int numRows, int numCols, double radioAdj, std
             start_all = std::chrono::high_resolution_clock::now();
             start = std::chrono::high_resolution_clock::now();
         }
-        ComponentTreeP* maxtree = new ComponentTreeP(imgOut, numRows, numCols, true, radioAdj);
-	    for(NodeP* node: maxtree->getNodesThreshold(threshold)) {
+        ComponentTreePPtr maxtree = std::make_shared<ComponentTreeP>(imgOut, numRows, numCols, true, radioAdj);
+	    for(NodePPtr node: maxtree->getNodesThreshold(threshold)) {
 	        maxtree->prunning(node);    
 	    }
         delete[] imgOut;
@@ -57,8 +57,8 @@ int* computerCASF_naive(int* img, int numRows, int numCols, double radioAdj, std
             std::cout << "\t- Time (build/prunning/rec maxtree) naive: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
             start = std::chrono::high_resolution_clock::now();
         }
-	    ComponentTreeP* mintree = new ComponentTreeP(imgOut, numRows, numCols, false, radioAdj);
-	    for(NodeP* node: mintree->getNodesThreshold(threshold)) {
+	    ComponentTreePPtr mintree = std::make_shared<ComponentTreeP>(imgOut, numRows, numCols, false, radioAdj);
+	    for(NodePPtr node: mintree->getNodesThreshold(threshold)) {
 	        mintree->prunning(node);    
 	    }
 
@@ -71,8 +71,8 @@ int* computerCASF_naive(int* img, int numRows, int numCols, double radioAdj, std
             auto end_all = std::chrono::high_resolution_clock::now();
             std::cout << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end_all - start_all).count() << " ms\n\n";
         }
-        delete maxtree;
-        delete mintree;      	    
+        //delete maxtree;
+        //delete mintree;      	    
 	}
     
     return imgOut;
@@ -85,8 +85,8 @@ int* computerCASF(int* img, int numRows, int numCols, double radioAdj, std::vect
         start = std::chrono::high_resolution_clock::now();
     }
 
-    ComponentTreeFZ* maxtree = new ComponentTreeFZ(img, numRows, numCols, true, radioAdj);
-    ComponentTreeFZ* mintree = new ComponentTreeFZ(img, numRows, numCols, false, radioAdj);
+    ComponentTreeFZPtr maxtree = std::make_shared<ComponentTreeFZ>(img, numRows, numCols, true, radioAdj);
+    ComponentTreeFZPtr mintree = std::make_shared<ComponentTreeFZ>(img, numRows, numCols, false, radioAdj);
     
     ComponentTreeAdjustment adjust(mintree, maxtree);
     
@@ -119,8 +119,8 @@ int* computerCASF(int* img, int numRows, int numCols, double radioAdj, std::vect
 
 	}
     int* imgOut = mintree->reconstructionImage();
-    delete maxtree;
-    delete mintree;
+    //delete maxtree;
+    //delete mintree;
     return imgOut;
 }
 
@@ -131,8 +131,8 @@ int* computerCASF_subtree(int* img, int numRows, int numCols, double radioAdj, s
         start = std::chrono::high_resolution_clock::now();
     }
 
-    ComponentTreeFZ* maxtree = new ComponentTreeFZ(img, numRows, numCols, true, radioAdj);
-    ComponentTreeFZ* mintree = new ComponentTreeFZ(img, numRows, numCols, false, radioAdj);
+    ComponentTreeFZPtr maxtree = std::make_shared<ComponentTreeFZ>(img, numRows, numCols, true, radioAdj);
+    ComponentTreeFZPtr mintree = std::make_shared<ComponentTreeFZ>(img, numRows, numCols, false, radioAdj);
     
     ComponentTreeAdjustment adjust(mintree, maxtree);
     
@@ -165,8 +165,8 @@ int* computerCASF_subtree(int* img, int numRows, int numCols, double radioAdj, s
 
 	}
     int* imgOut = mintree->reconstructionImage();
-    delete maxtree;
-    delete mintree;
+    //delete maxtree;
+    //delete mintree;
     return imgOut;
 }
 
