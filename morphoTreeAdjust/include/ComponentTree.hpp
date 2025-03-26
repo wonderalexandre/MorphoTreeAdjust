@@ -13,6 +13,8 @@
 #ifndef COMPONENT_TREE_H
 #define COMPONENT_TREE_H
 
+class GraphOfFlatZones;
+
 template <typename CNPsType>
 class NodeCT;  // Forward declaration
 
@@ -37,13 +39,15 @@ protected:
     int findRoot(int* zPar, int x);
     void reconstruction(NodeCTPtr<CNPsType> node, int* imgOut);
 
-public:
 
     // Define `flatzoneGraph` apenas para `FlatZones`
     using FlatzoneGraphType = std::conditional_t<std::is_same_v<CNPsType, FlatZones>,
-        FlatzoneGraph, 
+        std::unique_ptr<GraphOfFlatZones>, 
         std::monostate>;
     FlatzoneGraphType flatzoneGraph;
+
+public:
+
     
     ComponentTree(int numRows, int numCols, bool isMaxtree, double radiusOfAdjacencyRelation);
 
@@ -60,7 +64,10 @@ public:
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
     void updateGraph(std::list<FlatZoneNode>& flatZoneNodeList, FlatZone& unifiedFlatzone, NodeFZPtr nodeStar);
 
-    void assignCNPs();
+    template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
+    FlatzoneGraph& getFlatzoneGraph();
+
+    void assignCNPs(int* img);
 
     void build(int* img);
 

@@ -149,12 +149,16 @@ template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value
 void NodeFZ::addCNPsToConnectedFlatzone(FlatZone&& flatZone, ComponentTreeFZPtr tree) {
     assert(!flatZone.empty() && "Erro: flatZone passada está vazia!");
     int flatZoneID = flatZone.front();    
-    assert(tree->flatzoneGraph[flatZoneID] != nullptr && "Erro: flatZone não está registrada no grafo!");
-    assert(!tree->flatzoneGraph[flatZoneID]->empty() && "Erro: flatZone não tem vizinhos registrados no grafo!");
+    
+    FlatzoneGraph& flatzoneGraph = tree->getFlatzoneGraph();
+    
+    
+    assert(flatzoneGraph[flatZoneID] && "Erro: flatZone não está registrada no grafo!");
+    assert(!flatzoneGraph[flatZoneID]->empty() && "Erro: flatZone não tem vizinhos registrados no grafo!");
 
     std::list<int> flatzonesToMergeList; //flatzones que serão fundidas e removidas
     int unifiedFlatzoneID = std::numeric_limits<int>::max();
-    for (int neighborID : *tree->flatzoneGraph[flatZoneID]) {
+    for (int neighborID : *flatzoneGraph[flatZoneID]) {
         if (tree->getSC(neighborID).get() == this) {
             unifiedFlatzoneID = std::min(unifiedFlatzoneID, neighborID);
         }
@@ -162,35 +166,35 @@ void NodeFZ::addCNPsToConnectedFlatzone(FlatZone&& flatZone, ComponentTreeFZPtr 
     std::list<int>* unifiedFlatzone = &tree->getFlatzoneByID(unifiedFlatzoneID);
     
 
-    tree->flatzoneGraph[flatZoneID]->erase(unifiedFlatzoneID);
-    tree->flatzoneGraph[unifiedFlatzoneID]->erase(flatZoneID);
+    flatzoneGraph[flatZoneID]->erase(unifiedFlatzoneID);
+    flatzoneGraph[unifiedFlatzoneID]->erase(flatZoneID);
     
-    for (int flatzonMergedID : *tree->flatzoneGraph[flatZoneID]) {
+    for (int flatzonMergedID : *flatzoneGraph[flatZoneID]) {
         if (tree->getSC(flatzonMergedID).get() == this) {
             flatzonesToMergeList.push_back(flatzonMergedID); 
         }
     }
     
     for (int flatzonMergedID : flatzonesToMergeList) { //vizinhos de flatzoneID
-        for (int neighborID : *tree->flatzoneGraph[flatzonMergedID]) {
+        for (int neighborID : *flatzoneGraph[flatzonMergedID]) {
             if ( flatZoneID != neighborID) {
-                tree->flatzoneGraph[unifiedFlatzoneID]->insert(neighborID);
-                tree->flatzoneGraph[neighborID]->insert(unifiedFlatzoneID); 
+                flatzoneGraph[unifiedFlatzoneID]->insert(neighborID);
+                flatzoneGraph[neighborID]->insert(unifiedFlatzoneID); 
             }
-            tree->flatzoneGraph[neighborID]->erase(flatzonMergedID);
+            flatzoneGraph[neighborID]->erase(flatzonMergedID);
         }
-        //delete tree->flatzoneGraph[flatzonMergedID];
-        tree->flatzoneGraph[flatzonMergedID] = nullptr;
+        //delete flatzoneGraph[flatzonMergedID];
+        flatzoneGraph[flatzonMergedID] = nullptr;
     }
 
     // Remover `flatZone` do grafo
-    for (int neighborID : *tree->flatzoneGraph[flatZoneID]) {
-        tree->flatzoneGraph[neighborID]->erase(flatZoneID);
-        tree->flatzoneGraph[unifiedFlatzoneID]->insert(neighborID);
-        tree->flatzoneGraph[neighborID]->insert(unifiedFlatzoneID);  
+    for (int neighborID : *flatzoneGraph[flatZoneID]) {
+        flatzoneGraph[neighborID]->erase(flatZoneID);
+        flatzoneGraph[unifiedFlatzoneID]->insert(neighborID);
+        flatzoneGraph[neighborID]->insert(unifiedFlatzoneID);  
     }
-    //delete tree->flatzoneGraph[flatZoneID];
-    tree->flatzoneGraph[flatZoneID] = nullptr; 
+    //delete flatzoneGraph[flatZoneID];
+    flatzoneGraph[flatZoneID] = nullptr; 
     
 
     // Atualizar SC para os novos pixels antes de modificar `flatZone`
@@ -210,11 +214,11 @@ void NodeFZ::addCNPsToConnectedFlatzone(FlatZone&& flatZone, ComponentTreeFZPtr 
         unifiedFlatzone->splice(unifiedFlatzone->end(), flatZone);
     }else{
         //para manter a propriedade do id da flatzone ser o menor pixel
-        for (int neighborID : *tree->flatzoneGraph[unifiedFlatzoneID]) {
-            tree->flatzoneGraph[neighborID]->erase(unifiedFlatzoneID);
-            tree->flatzoneGraph[neighborID]->insert(flatZoneID);
+        for (int neighborID : *flatzoneGraph[unifiedFlatzoneID]) {
+            flatzoneGraph[neighborID]->erase(unifiedFlatzoneID);
+            flatzoneGraph[neighborID]->insert(flatZoneID);
         }
-        tree->flatzoneGraph[flatZoneID] = std::move(tree->flatzoneGraph[unifiedFlatzoneID]);
+        flatzoneGraph[flatZoneID] = std::move(flatzoneGraph[unifiedFlatzoneID]);
         flatZone.splice(flatZone.end(), *unifiedFlatzone);
         
         this->cnps[flatZoneID] = std::move(flatZone);
@@ -239,14 +243,14 @@ void NodeFZ::addCNPsToConnectedFlatzone(FlatZone&& flatZone, ComponentTreeFZPtr 
             return false;
         }
         
-        if (tree->flatzoneGraph[unifiedFlatzoneID] == nullptr) {
+        if (flatzoneGraph[unifiedFlatzoneID] == nullptr) {
             std::cerr << "ERRO: unifiedFlatzone não está registrada no grafo!" << std::endl;
             return false;
         }
 
-        for (int neighborID : *tree->flatzoneGraph[unifiedFlatzoneID]) {
+        for (int neighborID : *flatzoneGraph[unifiedFlatzoneID]) {
 
-            if (tree->flatzoneGraph[neighborID] == nullptr) {
+            if (flatzoneGraph[neighborID] == nullptr) {
                 std::cerr << "ERRO: Conexão assimétrica entre unifiedFlatzone e seu vizinho!" << std::endl;
                 return false;
             }
