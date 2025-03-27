@@ -12,8 +12,8 @@ Problem:
 > How to modify $T^\max_f$ to obtain $T^\max_g$?
 
 <br><br>
-Demo:
+### Demo:
 > [Click here and see a demo on jupyter notebook](./notebooks/morphoTreeAdjust_example_leaf.ipynb)
 
-Paper:
+### Paper:
 > Alves, W. A. L., Passat, N., Silva, D. J., Morimitsu, A., & Hashimoto, R. F. (2025). *Efficient connected alternating sequential filters based on component trees*. Paper submitted to the 4th International Conference on Discrete Geometry and Mathematical Morphology (DGMM 2025).
