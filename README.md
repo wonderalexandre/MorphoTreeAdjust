@@ -12,4 +12,4 @@ Problem:
 > How to modify $T^\max_f$ to obtain $T^\max_g$?
 
 
-[See the jupyter notebook:](./notebook/morphoTreeAdjust_example_leaf.ipynb)
+[Click here and see a demo on jupyter notebook](./notebooks/morphoTreeAdjust_example_leaf.ipynb)
