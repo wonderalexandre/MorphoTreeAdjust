@@ -260,6 +260,8 @@ public:
 
     void updateTree2(ComponentTreeFZPtr tree, NodeFZPtr rSubtree);
 
+    void updateTree3(ComponentTreeFZPtr tree, NodeFZPtr node);
+
     void adjustMinTree(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree, std::vector<NodeFZPtr> nodesToPruning);
     
     void adjustMaxTree(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree, std::vector<NodeFZPtr> nodesToPruning);

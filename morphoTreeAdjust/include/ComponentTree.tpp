@@ -332,6 +332,56 @@ inline void ComponentTreeFZ::prunning(NodeFZPtr rootSubtree) {
 
 
 
+template <>
+inline void ComponentTreeP::mergeWithParent(NodePPtr node){
+    if(node->getParent() != nullptr){
+        NodePPtr parent = node->getParent();
+        std::list<NodePPtr>& childrenParent = parent->getChildren();
+        childrenParent.remove( node );			
+        this->numNodes--;
+
+        for( int p: node->getCNPs() ) {				
+            parent->addCNPs(p);
+            this->pixelToNode[p] = parent;	
+        }
+
+        for(NodePPtr child : node->getChildren()) {							
+            childrenParent.push_back(child);				
+            child->setParent(parent);			
+        }	
+        
+        node = nullptr;
+    }
+}
+
+template <>
+inline void ComponentTreeFZ::mergeWithParent(NodeFZPtr node){
+    if(node->getParent() != nullptr){
+        NodeFZPtr parent = node->getParent();
+        std::list<NodeFZPtr>& childrenParent = parent->getChildren();
+        childrenParent.remove( node );			
+        this->numNodes--;
+
+        for(auto& [id, flatzone]: node->getCNPsByFlatZone()){
+            if(flatzoneGraph->isAdjacent(id, parent)){
+                parent->addCNPsToConnectedFlatzone(std::move(flatzone), this->shared_from_this());
+            }else{
+                parent->addCNPsOfDisjointFlatzone(std::move(flatzone), this->shared_from_this());
+            }
+        }
+        
+        for(NodeFZPtr child : node->getChildren()) {							
+            childrenParent.push_back(child);				
+            child->setParent(parent);			
+        }			
+
+        node = nullptr;
+    }
+}
+
+
+
+
 template <typename CNPsType>
 std::vector<NodeCTPtr<CNPsType>> ComponentTree<CNPsType>::getNodesThreshold(int areaThreshold){
 	std::vector<NodeCTPtr<CNPsType>> lista;

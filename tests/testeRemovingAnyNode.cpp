@@ -31,8 +31,8 @@ int main()
     int n = numRows * numCols;
     double radioAdj = 1.5;
 
-    ComponentTreeFZ* maxtree = new ComponentTreeFZ(img, numRows, numCols, true, radioAdj);
-    ComponentTreeFZ* mintree = new ComponentTreeFZ(img, numRows, numCols, false, radioAdj);
+    ComponentTreeFZPtr maxtree = std::make_shared<ComponentTreeFZ>(img, numRows, numCols, true, radioAdj);
+    ComponentTreeFZPtr mintree = std::make_shared<ComponentTreeFZ>(img, numRows, numCols, false, radioAdj);
     
     testComponentTreeFZ(maxtree, "max-tree", img, numRows, numCols);
     testComponentTreeFZ(mintree, "min-tree", img, numRows, numCols);
@@ -41,9 +41,9 @@ int main()
     //std::cout <<"\n\n" << std::endl;
     //printMappingSC(mintree);
     
-    NodeFZ* N = nullptr;
+    NodeFZPtr N = nullptr;
     int index = 5;
-    for (NodeFZ* node : mintree->getRoot()->getIteratorBreadthFirstTraversal()) {
+    for (NodeFZPtr node : mintree->getRoot()->getIteratorBreadthFirstTraversal()) {
         if(node->getIndex() == index){
             N = node;
             break;
@@ -56,7 +56,7 @@ int main()
     //for(int i=0; i < numNodes; i++){
     //    NodeCT* L_leaf = mintree->getLeaves().front();
        // if(L_leaf->getIndex() != 293) continue;
-    //for(NodeFZ* L_leaf : mintree->getRoot()->getIteratorPostOrderTraversal()){
+    //for(NodeFZPtr L_leaf : mintree->getRoot()->getIteratorPostOrderTraversal()){
         
         std::cout <<"\nN:" << N->getIndex() << ", level:" << N->getLevel() << ", |cnps|:" << N->getNumCNPs() <<  std::endl;
         adjust.updateTree3(maxtree, N);
@@ -83,8 +83,6 @@ int main()
     delete[] imgOutMintree;
 
     
-    delete maxtree;
-    delete mintree;    
 	std::cout << "\n\nFim do teste...\n\n";
 
     delete[] img;

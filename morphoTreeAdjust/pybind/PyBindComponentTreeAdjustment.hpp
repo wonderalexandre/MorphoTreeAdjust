@@ -28,6 +28,9 @@ public:
 
    void updateTree2(PyBindComponentTreeFZPtr tree, NodeFZPtr rSubtree);
 
+   void updateTree3(PyBindComponentTreeFZ* tree, NodeFZ* node);
+
+
    py::tuple buildCollections(PyBindComponentTreeFZPtr tree, std::vector<int> flatZone, int newGrayLevel, bool isMaxtree);
 
 };

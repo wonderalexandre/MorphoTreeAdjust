@@ -212,7 +212,8 @@ inline bool isEquals(int* imgOut1, int* imgOut2, int size){
     }
 
     //Teste: Verifica se o Iterator getPixelsOfCC está correto
-   /* int area = tree->getRoot()->getArea();
+    /*
+    int area = tree->getRoot()->getArea();
     int count_area = 0;
     for(int p : tree->getRoot()->getPixelsOfCC()){
         count_area++;
@@ -221,8 +222,8 @@ inline bool isEquals(int* imgOut1, int* imgOut2, int size){
         std::cout << "✅ Iterator getPixelsOfCC da " << treeType << " está correto." << std::endl;
     }else{
         std::cout << "❌ Erro: Iterator getPixelsOfCC da " << treeType << ". Valor de count_area:" << count_area << std::endl;
-    }
-        */
+    }*/
+        
 
     //Teste: Verifica se o Iterator getCNPs está correto
     int num_cnps = tree->getRoot()->getNumCNPs();

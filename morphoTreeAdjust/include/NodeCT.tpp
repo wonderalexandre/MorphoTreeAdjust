@@ -107,8 +107,14 @@ FlatZone& NodeFZ::getFlatZone(int idFlatZone) {
 
 template <>
 template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
-void NodeFZ::addCNPsOfDisjointFlatzone(FlatZone&& flatZone) {
-    this->cnps[flatZone.front()] = std::move(flatZone);
+void NodeFZ::addCNPsOfDisjointFlatzone(FlatZone&& flatZone, ComponentTreeFZPtr tree) {
+    int id = flatZone.front();
+    this->cnps[id] = std::move(flatZone);
+    if (tree) {
+        for (int p : this->cnps[id]) {
+            tree->setSC(p, this->shared_from_this());
+        }
+    }
 }
 
 template <>

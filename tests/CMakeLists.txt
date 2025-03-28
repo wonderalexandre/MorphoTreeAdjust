@@ -28,7 +28,7 @@ add_executable(dgmm2025 dgmm2025.cpp
 target_compile_options(dgmm2025 PRIVATE -Wno-deprecated-declarations)
 
 
-#[[
+#
 # Exemplos com a morphotree
 add_executable(testePruningLeaf testePruningLeaf.cpp
     ../morphoTreeAdjust/src/AdjacencyRelation.cpp
@@ -51,13 +51,3 @@ add_executable(testeComponentTreeGeneralAdjustment testeComponentTreeGeneralAdju
     ../morphoTreeAdjust/src/ComponentTreeAdjustment.cpp
 )
 
-# Exemplos com a morphotree
-add_executable(dgmm2024 dgmm2024.cpp
-    ../morphoTreeAdjust/src/AdjacencyRelation.cpp
-    ../morphoTreeAdjust/src/ComponentTreeAdjustment.cpp
-    ./external/stb/stb_image.cpp
-)
-target_compile_options(dgmm2024 PRIVATE -Wno-deprecated-declarations)
-
-
-]]

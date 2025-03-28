@@ -127,7 +127,19 @@ public:
         listOfAdjacentFlatzones[newID] = std::move(listOfAdjacentFlatzones[oldID]);
     }
 
-
+    bool isAdjacent(int flatZoneID, NodeFZPtr node) {
+        // Obtém o conjunto de flatzones adjacentes ao nodeFlatZoneID
+        const std::unordered_set<int>& adjacentFlatzones = *(listOfAdjacentFlatzones[flatZoneID]);
+    
+        // Percorre os IDs das flatzones do parent para verificar se há alguma adjacente
+        for (auto& [id, flatzone]: node->getCNPsByFlatZone()) {
+            if (adjacentFlatzones.find(id) != adjacentFlatzones.end()) {
+                return true;  
+            }
+        }
+    
+        return false; 
+    }
 
     /**
      * Esse método unifica a lista de flatzones flatZoneNodeList em uma unica flatzone e atualiza o grafo.
@@ -284,8 +296,7 @@ public:
     /**
      * Esse método fundirá a flatzoneID com uma outra flatzone adjacentes presente na lista de flatzones do node 
      */
-    std::tuple<int, std::unique_ptr<std::list<int>>> mergeConnectedFlatzone(
-        int flatZoneID, NodeFZPtr node, std::shared_ptr<ComponentTreeFZ> tree) 
+    std::tuple<int, std::unique_ptr<std::list<int>>> mergeConnectedFlatzone(int flatZoneID, NodeFZPtr node, std::shared_ptr<ComponentTreeFZ> tree) 
     {
         assert(listOfAdjacentFlatzones[flatZoneID] && "Erro: flatZone não está registrada no grafo!");
         assert(!listOfAdjacentFlatzones[flatZoneID]->empty() && "Erro: flatZone não tem vizinhos registrados no grafo!");
