@@ -17,22 +17,22 @@ class ComponentTree;  //Forward declaration
 
 
 template <typename CNPsType>
-class NodeCT {
-private:
+class NodeCT : public std::enable_shared_from_this<NodeCT<CNPsType>> {
+    private:
 	int index=-1; 
     int threshold2; //for maxtree: maximal threshold, same that "level"
 	int threshold1;  //for maxtree: minimal threshold
 	long int areaCC;
 	
-	NodeCT* parent;
+	NodeCTPtr<CNPsType> parent;
 	CNPsType cnps; //pixels of the proper part 
-    std::list<NodeCT*> children;
+    std::list<NodeCTPtr<CNPsType>> children;
 
 
 public:
 	
     NodeCT();
-    NodeCT(int index, NodeCT* parent, int threshold1, int threshold2);
+    NodeCT(int index, NodeCTPtr<CNPsType> parent, int threshold1, int threshold2);
 	~NodeCT() {
         parent = nullptr;
     }
@@ -52,22 +52,16 @@ public:
     int getNumFlatzone();
 
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    void addCNPsOfDisjointFlatzone(FlatZone&& flatZone, ComponentTree<CNPsType>* tree);
+    void addCNPsOfDisjointFlatzone(FlatZone&& flatZone);
 
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    void createFlatzone(FlatZone&& flatZone, ComponentTree<CNPsType>* tree);
+    void addCNPsOfDisjointFlatzones(CNPsType&& flatZones, ComponentTreeFZPtr tree);
 
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    void addCNPsOfDisjointFlatzones(CNPsType&& flatZones, ComponentTree<CNPsType>* tree);
-
-    template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    void addCNPsToConnectedFlatzone(FlatZone&& flatZone, ComponentTree<CNPsType>* tree);
+    void addCNPsToConnectedFlatzone(FlatZone&& flatZone, ComponentTreeFZPtr tree);
 
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
     void removeFlatzone(int idFlatZone);
-
-    template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    bool isAdjacent(int nodeFlatZoneID, ComponentTree<CNPsType>* tree);
 
     //template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
     //int getFlatZoneID(int pixel);
@@ -78,123 +72,126 @@ public:
 
     void setArea(long int area);
 	long int getArea() const;
-    void addChild(NodeCT<CNPsType>* child);
+    void addChild(NodeCTPtr<CNPsType> child);
     int getIndex() const;
 	int getThreshold1() const;
 	int getThreshold2() const;
     int getNumCNPs() const;
 	int getLevel() const;
 	void setLevel(int level);
-	bool isChild(NodeCT<CNPsType>* node) const;
+	bool isChild(NodeCTPtr<CNPsType> node) const;
     bool isLeaf() const;
-	NodeCT<CNPsType>* getParent();
-	void setParent(NodeCT<CNPsType>* parent);
-	std::list<NodeCT<CNPsType>*>& getChildren();
+	NodeCTPtr<CNPsType> getParent();
+	void setParent(NodeCTPtr<CNPsType> parent);
+	std::list<NodeCTPtr<CNPsType>>& getChildren();
 	int getNumSiblings() const;
     int getRepresentativeCNPs() const;
     int computerNumDescendants();
 
 
 //============= Iterator para iterar os nodes do caminho até o root==============//
-	class InternalIteratorNodesOfPathToRoot {
+class InternalIteratorNodesOfPathToRoot {
     private:
-        NodeCT* currentNode;
+        NodeCTPtr<CNPsType> currentNode;
+    
     public:
         using iterator_category = std::input_iterator_tag;
-        using value_type = NodeCT*;
+        using value_type = NodeCTPtr<CNPsType>;
         using difference_type = std::ptrdiff_t;
-        using pointer = NodeCT*;
-        using reference = NodeCT*; 
-
-        InternalIteratorNodesOfPathToRoot(NodeCT* obj) : currentNode(obj) {}
-
+        using pointer = NodeCTPtr<CNPsType>*;
+        using reference = NodeCTPtr<CNPsType>&;
+    
+        InternalIteratorNodesOfPathToRoot(NodeCTPtr<CNPsType> obj) : currentNode(obj) {}
+    
         InternalIteratorNodesOfPathToRoot& operator++() {
             if (currentNode) {
-                currentNode = currentNode->getParent();
+                currentNode = currentNode->getParent();  // Retorna outro shared_ptr
             }
             return *this;
         }
-
+    
         bool operator==(const InternalIteratorNodesOfPathToRoot& other) const {
             return currentNode == other.currentNode;
         }
-
+    
         bool operator!=(const InternalIteratorNodesOfPathToRoot& other) const {
             return !(*this == other);
         }
-
-        reference operator*() {  
-            return currentNode;  // Retorna ponteiro para o nó atual
+    
+        reference operator*() {
+            return currentNode;
         }
     };
-
-	class IteratorNodesOfPathToRoot {
+    
+    class IteratorNodesOfPathToRoot {
     private:
-        NodeCT* instance;
+        NodeCTPtr<CNPsType> instance;
+    
     public:
-        explicit IteratorNodesOfPathToRoot(NodeCT* obj) : instance(obj) {}
-
+        explicit IteratorNodesOfPathToRoot(NodeCTPtr<CNPsType> obj) : instance(obj) {}
+    
         InternalIteratorNodesOfPathToRoot begin() const { return InternalIteratorNodesOfPathToRoot(instance); }
         InternalIteratorNodesOfPathToRoot end() const { return InternalIteratorNodesOfPathToRoot(nullptr); }
     };
-
-    IteratorNodesOfPathToRoot getNodesOfPathToRoot() { return IteratorNodesOfPathToRoot(this); }
+    
+    // Chamador usa this como shared_ptr:
+    IteratorNodesOfPathToRoot getNodesOfPathToRoot() {
+        return IteratorNodesOfPathToRoot(this->shared_from_this());
+    }
+    
 
 /////////
 // **Iterador para coletar ramos em pós-ordem**
 // Classe do Iterador Pós-Ordem por Ramos
 class InternalIteratorBranchPostOrderTraversal {
     private:
-        std::stack<NodeCT*> processingStack;
-        std::stack<NodeCT*> postOrderStack;
-        std::list<std::list<NodeCT*>> branches; // Lista de ramos
-        //std::list<std::list<NodeCT*>>::iterator branchIterator;
-        typename std::list<typename std::list<NodeCT<CNPsType>*>>::iterator branchIterator;
+        std::stack<NodeCTPtr<CNPsType>> processingStack;
+        std::stack<NodeCTPtr<CNPsType>> postOrderStack;
+        std::list<std::list<NodeCTPtr<CNPsType>>> branches;
+        typename std::list<std::list<NodeCTPtr<CNPsType>>>::iterator branchIterator;
     
     public:
         using iterator_category = std::input_iterator_tag;
-        using value_type = std::list<NodeCT*>;
-        using pointer = std::list<NodeCT*>*;
-        using reference = std::list<NodeCT*>&;
+        using value_type = std::list<NodeCTPtr<CNPsType>>;
+        using pointer = std::list<NodeCTPtr<CNPsType>>*;
+        using reference = std::list<NodeCTPtr<CNPsType>>&;
     
-        // Construtor: Faz percurso pós-ordem e coleta ramos
-        InternalIteratorBranchPostOrderTraversal(NodeCT* root) {
+        InternalIteratorBranchPostOrderTraversal(NodeCTPtr<CNPsType> root) {
             if (!root) return;
     
-            // Passo 1: Gerar percurso pós-ordem
-            std::stack<NodeCT*> tempStack;
+            std::stack<NodeCTPtr<CNPsType>> tempStack;
             tempStack.push(root);
     
             while (!tempStack.empty()) {
-                NodeCT* current = tempStack.top();
+                auto current = tempStack.top();
                 tempStack.pop();
                 postOrderStack.push(current);
     
-                for (NodeCT* child : current->getChildren()) {
+                for (auto& child : current->getChildren()) {
                     tempStack.push(child);
                 }
             }
     
-            // Passo 2: Construir ramos baseando-se no percurso pós-ordem
-            std::list<NodeCT*> currentBranch;
+            std::list<NodeCTPtr<CNPsType>> currentBranch;
             while (!postOrderStack.empty()) {
-                NodeCT* node = postOrderStack.top();
+                auto node = postOrderStack.top();
                 postOrderStack.pop();
     
                 if (!currentBranch.empty()) {
-                    NodeCT* lastNode = currentBranch.back();
-                    if (lastNode->parent && lastNode->parent->getChildren().back() != lastNode) {
+                    auto lastNode = currentBranch.back();
+                    if (lastNode->getParent() && lastNode->getParent()->getChildren().back() != lastNode) {
                         branches.push_back(currentBranch);
                         currentBranch.clear();
                     }
                 }
+    
                 currentBranch.push_back(node);
             }
+    
             if (!currentBranch.empty()) {
                 branches.push_back(currentBranch);
             }
     
-            // Iniciar o iterador
             branchIterator = branches.begin();
         }
     
@@ -218,42 +215,43 @@ class InternalIteratorBranchPostOrderTraversal {
         }
     };
     
-    // Classe Externa para o Iterador
+    // Classe externa
     class IteratorBranchPostOrderTraversal {
     private:
-        NodeCT* root;
+        NodeCTPtr<CNPsType> root;
     public:
-        explicit IteratorBranchPostOrderTraversal(NodeCT* root) : root(root) {}
+        explicit IteratorBranchPostOrderTraversal(NodeCTPtr<CNPsType> root) : root(root) {}
     
         InternalIteratorBranchPostOrderTraversal begin() { return InternalIteratorBranchPostOrderTraversal(root); }
         InternalIteratorBranchPostOrderTraversal end() { return InternalIteratorBranchPostOrderTraversal(nullptr); }
     };
     
-    // Método auxiliar para obter o iterador
+    // Método da classe
     IteratorBranchPostOrderTraversal getIteratorBranchPostOrderTraversal() {
-        return IteratorBranchPostOrderTraversal(this);
+        return IteratorBranchPostOrderTraversal(this->shared_from_this());
     }
+    
 
 
 //============= Iterator para iterar os nodes de um percuso em pos-ordem ==============//
 	class InternalIteratorPostOrderTraversal {
     private:
-        std::stack<NodeCT*> nodeStack;
-        std::stack<NodeCT*> outputStack;
+        std::stack<NodeCTPtr<CNPsType>> nodeStack;
+        std::stack<NodeCTPtr<CNPsType>> outputStack;
     public:
         using iterator_category = std::input_iterator_tag;
-        using value_type = NodeCT*;
+        using value_type = NodeCTPtr<CNPsType>;
         using difference_type = std::ptrdiff_t;
-        using pointer = NodeCT*;
-        using reference = NodeCT*; // Retorna ponteiro!
+        using pointer = NodeCTPtr<CNPsType>*;
+        using reference = NodeCTPtr<CNPsType>&; 
 
-        InternalIteratorPostOrderTraversal(NodeCT* root) {
+        InternalIteratorPostOrderTraversal(NodeCTPtr<CNPsType> root) {
             if (root) {
                 nodeStack.push(root);
                 while (!nodeStack.empty()) {
-                    NodeCT* current = nodeStack.top();nodeStack.pop();
+                    NodeCTPtr<CNPsType> current = nodeStack.top();nodeStack.pop();
                     outputStack.push(current);
-                    for (NodeCT* child : current->getChildren()) {
+                    for (NodeCTPtr<CNPsType> child : current->getChildren()) {
                         nodeStack.push(child);
                     }
                 }
@@ -282,31 +280,31 @@ class InternalIteratorBranchPostOrderTraversal {
 
 	class IteratorPostOrderTraversal {
     private:
-        NodeCT* root;
+        NodeCTPtr<CNPsType> root;
     public:
-        explicit IteratorPostOrderTraversal(NodeCT* root) : root(root) {}
+        explicit IteratorPostOrderTraversal(NodeCTPtr<CNPsType> root) : root(root) {}
 
         InternalIteratorPostOrderTraversal begin() { return InternalIteratorPostOrderTraversal(root); }
         InternalIteratorPostOrderTraversal end() { return InternalIteratorPostOrderTraversal(nullptr); }
     };
 
-    IteratorPostOrderTraversal getIteratorPostOrderTraversal() { return IteratorPostOrderTraversal(this); }
+    IteratorPostOrderTraversal getIteratorPostOrderTraversal() { return IteratorPostOrderTraversal(this->shared_from_this()); }
 
 
 
 //============= Iterator para iterar os nodes de um percuso em largura ==============//
     class InternalIteratorBreadthFirstTraversal {
     private:
-        std::queue<NodeCT*> nodeQueue;
+        std::queue<NodeCTPtr<CNPsType>> nodeQueue;
 
     public:
         using iterator_category = std::input_iterator_tag;
-        using value_type = NodeCT*;
+        using value_type = NodeCTPtr<CNPsType>;
         using difference_type = std::ptrdiff_t;
-        using pointer = NodeCT*;
-        using reference = NodeCT*; // Retorna ponteiro!
+        using pointer = NodeCTPtr<CNPsType>*;
+        using reference = NodeCTPtr<CNPsType>&; // Retorna ponteiro!
 
-        InternalIteratorBreadthFirstTraversal(NodeCT* root) {
+        InternalIteratorBreadthFirstTraversal(NodeCTPtr<CNPsType> root) {
             if (root) {
                 nodeQueue.push(root);
             }
@@ -314,9 +312,9 @@ class InternalIteratorBranchPostOrderTraversal {
 
         InternalIteratorBreadthFirstTraversal& operator++() {
             if (!nodeQueue.empty()) {
-                NodeCT* current = nodeQueue.front();
+                NodeCTPtr<CNPsType> current = nodeQueue.front();
                 nodeQueue.pop();
-                for (NodeCT* child : current->getChildren()) {
+                for (NodeCTPtr<CNPsType> child : current->getChildren()) {
                     nodeQueue.push(child);
                 }
             }
@@ -338,10 +336,10 @@ class InternalIteratorBranchPostOrderTraversal {
 
     class IteratorBreadthFirstTraversal {
     private:
-        NodeCT* root;
+    NodeCTPtr<CNPsType> root;
 
     public:
-        explicit IteratorBreadthFirstTraversal(NodeCT* root) : root(root) {}
+        explicit IteratorBreadthFirstTraversal(NodeCTPtr<CNPsType> root) : root(root) {}
 
         InternalIteratorBreadthFirstTraversal begin() { return InternalIteratorBreadthFirstTraversal(root); }
         InternalIteratorBreadthFirstTraversal end() { return InternalIteratorBreadthFirstTraversal(nullptr); }
@@ -349,7 +347,7 @@ class InternalIteratorBranchPostOrderTraversal {
 
     // Método para expor o iterador na classe NodeCT
     IteratorBreadthFirstTraversal getIteratorBreadthFirstTraversal() { 
-        return IteratorBreadthFirstTraversal(this); 
+        return IteratorBreadthFirstTraversal(this->shared_from_this()); 
     }
 
 
@@ -413,7 +411,7 @@ class InternalIteratorBranchPostOrderTraversal {
         std::unordered_map<int, std::list<int>>* cnpsByFlatzone;
 
     public:
-        explicit IteratorCNPs(NodeCT* node) : cnpsByFlatzone(&node->cnps) {}
+        explicit IteratorCNPs(NodeCTPtr<CNPsType> node) : cnpsByFlatzone(&node->cnps) {}
         explicit IteratorCNPs(std::unordered_map<int, std::list<int>>* cnpsByFlatzone) 
             : cnpsByFlatzone(cnpsByFlatzone) {}
 
@@ -434,7 +432,7 @@ class InternalIteratorBranchPostOrderTraversal {
     // Método getCNPs() quando CNPsType == FlatZones
     template<typename T = CNPsType>
     std::enable_if_t<std::is_same<T, FlatZones>::value, IteratorCNPs> getCNPs() {
-        return IteratorCNPs(this);
+        return IteratorCNPs(this->shared_from_this());
     }
 
     // Método getCNPs() quando CNPsType == Pixels
@@ -452,19 +450,19 @@ class InternalIteratorBranchPostOrderTraversal {
 template <typename T = CNPsType, typename std::enable_if_t<std::is_same_v<T, Pixels>, int> = 0>
 class InternalIteratorPixelsOfCC_Pixels{
     private:
-        NodeCT<CNPsType>* currentNode;
-        std::stack<NodeCT<CNPsType>*> s;
+        NodeCTPtr<CNPsType> currentNode;
+        std::stack<NodeCTPtr<CNPsType>> s;
 
         std::list<int>::iterator iter;
         int countArea;
         using iterator_category = std::input_iterator_tag;
         using value_type = int; 
     public:
-        InternalIteratorPixelsOfCC_Pixels(NodeCT<CNPsType>* obj, int area)  {
+        InternalIteratorPixelsOfCC_Pixels(NodeCTPtr<CNPsType> obj, int area)  {
             this->currentNode = obj;
             this->countArea =area;
             this->iter = this->currentNode->cnps.begin();
-            for (NodeCT<CNPsType>* child: this->currentNode->getChildren()){
+            for (NodeCTPtr<CNPsType> child: this->currentNode->getChildren()){
                 s.push(child);
             }	
         }
@@ -474,7 +472,7 @@ class InternalIteratorPixelsOfCC_Pixels{
                 if(!s.empty()){
                     this->currentNode = s.top(); s.pop();
                     this->iter = this->currentNode->cnps.begin();
-                    for (NodeCT<CNPsType>* child: currentNode->getChildren()){
+                    for (NodeCTPtr<CNPsType> child: currentNode->getChildren()){
                         s.push(child);
                     }
                 }
@@ -496,8 +494,8 @@ class InternalIteratorPixelsOfCC_Pixels{
 template <typename T = CNPsType, typename std::enable_if_t<std::is_same_v<T, FlatZones>, int> = 0>
 class InternalIteratorPixelsOfCC_FlatZones {
     private:
-        NodeCT<CNPsType>* currentNode;
-        std::stack<NodeCT<CNPsType>*> s;
+    NodeCTPtr<CNPsType> currentNode;
+        std::stack<NodeCTPtr<CNPsType>> s;
         typename std::unordered_map<int, std::list<int>>::iterator iterMap;  
         typename std::unordered_map<int, std::list<int>>::iterator endIterMap;  
         typename std::list<int>::iterator iterList;
@@ -508,7 +506,7 @@ class InternalIteratorPixelsOfCC_FlatZones {
         using value_type = int;
 
     public:
-     InternalIteratorPixelsOfCC_FlatZones(NodeCT<CNPsType>* obj, int area) : currentNode(obj), countArea(area) {
+     InternalIteratorPixelsOfCC_FlatZones(NodeCTPtr<CNPsType> obj, int area) : currentNode(obj), countArea(area) {
             //if (area > 0) {
                 iterMap = this->currentNode->cnps.begin();
                 endIterMap = this->currentNode->cnps.end();
@@ -516,7 +514,7 @@ class InternalIteratorPixelsOfCC_FlatZones {
                 iterList = iterMap->second.begin(); 
                 endIterList = iterMap->second.end(); 
                 
-                for (NodeCT<CNPsType>* child : this->currentNode->getChildren()) {
+                for (NodeCTPtr<CNPsType> child : this->currentNode->getChildren()) {
                     s.push(child);
                 }
            // }
@@ -543,7 +541,7 @@ class InternalIteratorPixelsOfCC_FlatZones {
                 iterList = iterMap->second.begin(); 
                 endIterList = iterMap->second.end(); 
                 
-                for (NodeCT<CNPsType>* child : this->currentNode->getChildren()) {
+                for (NodeCTPtr<CNPsType> child : this->currentNode->getChildren()) {
                     s.push(child);
                 }
             }
@@ -567,10 +565,10 @@ class InternalIteratorPixelsOfCC_FlatZones {
 
     class IteratorPixelsOfCC {
     private:
-        NodeCT<CNPsType>* instance;
+        NodeCTPtr<CNPsType> instance;
         int area;
     public:
-        explicit IteratorPixelsOfCC(NodeCT<CNPsType>* obj, int _area) : instance(obj), area(_area) {}
+        explicit IteratorPixelsOfCC(NodeCTPtr<CNPsType> obj, int _area) : instance(obj), area(_area) {}
 
         auto begin() {
             if constexpr (std::is_same_v<CNPsType, Pixels>) {
@@ -593,9 +591,8 @@ class InternalIteratorPixelsOfCC_FlatZones {
         }
     };
     IteratorPixelsOfCC getPixelsOfCC() {
-        return IteratorPixelsOfCC(this, this->areaCC);
+        return IteratorPixelsOfCC(this->shared_from_this(), this->areaCC);
     }
-
 
 
 

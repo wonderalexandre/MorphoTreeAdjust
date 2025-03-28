@@ -6,6 +6,9 @@
 #ifndef ADJACENCY_H
 #define ADJACENCY_H
 
+class AdjacencyRelation;  // forward declaration
+using AdjacencyRelationPtr = std::shared_ptr<AdjacencyRelation>;
+
 class AdjacencyRelation {
 private:
     int id;
@@ -17,15 +20,14 @@ private:
     int radius;
     int n;
  
-    int *offsetRow;
-    int *offsetCol;
+    std::vector<int> offsetRow;
+    std::vector<int> offsetCol;
     
       
 
 public:
 
     AdjacencyRelation(int numCols, int numRows, double radius);
-    ~AdjacencyRelation();
     int nextValid();
     int getSize();
     AdjacencyRelation& getAdjPixels(int row, int col);
@@ -65,5 +67,6 @@ public:
     IteratorAdjacency begin();
     IteratorAdjacency end();	 
 };
+
 
 #endif
