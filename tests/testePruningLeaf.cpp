@@ -25,15 +25,15 @@ int main()
     int numRows, numCols;
 
     //int* img = getPassatImage(numRows, numCols);
-    int* img = getLenaCropImage(numRows, numCols);
+    auto img = getLenaCropImage();
     int n = numRows * numCols;
     double radioAdj = 1.5;
 
-    ComponentTreeFZPtr maxtree = std::make_shared<ComponentTreeFZ>(img, numRows, numCols, true, radioAdj);
-    ComponentTreeFZPtr mintree = std::make_shared<ComponentTreeFZ>(img, numRows, numCols, false, radioAdj);
+    ComponentTreeFZPtr maxtree = std::make_shared<ComponentTreeFZ>(img, true, radioAdj);
+    ComponentTreeFZPtr mintree = std::make_shared<ComponentTreeFZ>(img, false, radioAdj);
 
-    testComponentTreeFZ(maxtree, "max-tree", img, numRows, numCols);
-    testComponentTreeFZ(mintree, "min-tree", img, numRows, numCols);
+    testComponentTreeFZ(maxtree, "max-tree", img);
+    testComponentTreeFZ(mintree, "min-tree", img);
 
     //printMappingSC(maxtree);
     //std::cout <<"\n\n" << std::endl;
@@ -55,29 +55,18 @@ int main()
         adjust.updateTree(maxtree, L_leaf);
         mintree->prunning(L_leaf);
 
-        int* imgOutMaxtree = maxtree->reconstructionImage();
-        int* imgOutMintree = mintree->reconstructionImage();
+        auto imgOutMaxtree = maxtree->reconstructionImage();
+        auto imgOutMintree = mintree->reconstructionImage();
         
-        testComponentTreeFZ(maxtree, "max-tree", imgOutMaxtree, numRows, numCols);
-        testComponentTreeFZ(mintree, "min-tree", imgOutMintree, numRows, numCols);
-        if(isEquals(imgOutMaxtree, imgOutMintree, n))                
+        testComponentTreeFZ(maxtree, "max-tree", imgOutMaxtree);
+        testComponentTreeFZ(mintree, "min-tree", imgOutMintree);
+        if(imgOutMaxtree->isEqual(imgOutMintree))
             std::cout <<"✅ Rec(maxtree) = Rec(mintree)" << std::endl;
         else
             std::cout <<"❌ Rec(maxtree) != Rec(mintree)" << std::endl;
 
-        delete[] imgOutMaxtree;
-        delete[] imgOutMintree;
-    
     }
-   // std::cout <<"\n\nApos mudancas\n" << std::endl;
-   // printMappingSC(maxtree);
-   // std::cout <<"\n\n" << std::endl;
-   // printMappingSC(mintree);
-   // delete maxtree;
-   // delete mintree;    
 	std::cout << "\n\nFim do teste...\n\n";
 
-    delete[] img;
-    
     return 0;
 }

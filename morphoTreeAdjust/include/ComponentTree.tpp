@@ -16,8 +16,9 @@
 
 
 template <typename CNPsType>
-int* ComponentTree<CNPsType>::countingSort(int* img){
+int* ComponentTree<CNPsType>::countingSort(ImageUInt8Ptr imgPtr){
 	int n = this->numRows * this->numCols;
+    auto img = imgPtr->rawData();
 	int maxvalue = img[0];
 	for (int i = 1; i < n; i++)
 		if(maxvalue < img[i]) maxvalue = img[i];
@@ -62,10 +63,10 @@ int ComponentTree<CNPsType>::findRoot(int *zPar, int x) {
 }
 
 template <typename CNPsType>
-int* ComponentTree<CNPsType>::createTreeByUnionFind(int* orderedPixels, int* img) {
+int* ComponentTree<CNPsType>::createTreeByUnionFind(int* orderedPixels, ImageUInt8Ptr imgPtr) {
 	int *zPar = new int[numPixels];
 	int *parent = new int[numPixels];
-		
+	auto img = imgPtr->rawData();
 	for (int p = 0; p < numPixels; p++) {
 		zPar[p] =  -1;
 	}
@@ -74,7 +75,7 @@ int* ComponentTree<CNPsType>::createTreeByUnionFind(int* orderedPixels, int* img
 		int p = orderedPixels[i];
 		parent[p] = p;
 		zPar[p] = p;
-		for (int n : this->adj.getAdjPixels(p)) {
+		for (int n : this->adj->getAdjPixels(p)) {
 			if(zPar[n] != -1){
 				int r = this->findRoot(zPar, n);
 				if(p != r){
@@ -101,7 +102,7 @@ int* ComponentTree<CNPsType>::createTreeByUnionFind(int* orderedPixels, int* img
 
 
 template <typename CNPsType>
-void ComponentTree<CNPsType>::reconstruction(NodeCTPtr<CNPsType> node, int* imgOut) {
+void ComponentTree<CNPsType>::reconstruction(NodeCTPtr<CNPsType> node, uint8_t* imgOut) {
     assert(node != nullptr && "Erro: Nó inválido passado para reconstrução!");
     assert(imgOut != nullptr && "Erro: Ponteiro de saída da imagem é nulo!");
 
@@ -115,25 +116,24 @@ void ComponentTree<CNPsType>::reconstruction(NodeCTPtr<CNPsType> node, int* imgO
 }
 
 template <typename CNPsType>
-ComponentTree<CNPsType>::ComponentTree(int numRows, int numCols, bool isMaxtree, double radiusOfAdjacencyRelation):
-    numRows(numRows), numCols(numCols), 
-    maxtreeTreeType(isMaxtree), numPixels(numRows*numCols), 
-    adj(numRows, numCols, radiusOfAdjacencyRelation)
-{   
+ComponentTree<CNPsType>::ComponentTree(int numRows, int numCols, bool isMaxtree, double radiusOfAdjacencyRelation)
+    : numRows(numRows), numCols(numCols),maxtreeTreeType(isMaxtree), numPixels(numRows*numCols){   
+    adj = std::make_shared<AdjacencyRelation>(numRows, numCols, radiusOfAdjacencyRelation);
     pixelToNode.resize(numPixels, nullptr);
 }
 
 template <typename CNPsType>
-ComponentTree<CNPsType>::ComponentTree(int* img, int numRows, int numCols, bool isMaxtree, double radiusOfAdjacencyRelation)
-    : ComponentTree<CNPsType>(numRows, numCols, isMaxtree, radiusOfAdjacencyRelation) {
+ComponentTree<CNPsType>::ComponentTree(ImageUInt8Ptr img, bool isMaxtree, double radiusOfAdjacencyRelation)
+    : ComponentTree<CNPsType>(img->getNumRows(), img->getNumCols(), isMaxtree, radiusOfAdjacencyRelation) {
     build(img);
 }
 
 
 template <typename CNPsType>
-void ComponentTree<CNPsType>::build(int* img){ 
-	int* orderedPixels = countingSort(img);
-	int* parent = createTreeByUnionFind(orderedPixels, img);
+void ComponentTree<CNPsType>::build(ImageUInt8Ptr imgPtr){ 
+	int* orderedPixels = countingSort(imgPtr);
+	int* parent = createTreeByUnionFind(orderedPixels, imgPtr);
+    auto img = imgPtr->rawData();
 	this->numNodes = 0;
 	for (int i = 0; i < numPixels; i++) {
 		int p = orderedPixels[i];
@@ -156,7 +156,7 @@ void ComponentTree<CNPsType>::build(int* img){
 		}
 	}
 	
-    this->assignCNPs(img);
+    this->assignCNPs(imgPtr);
 	computerArea(this->root); //computer area
 
 	delete[] parent;
@@ -164,7 +164,7 @@ void ComponentTree<CNPsType>::build(int* img){
 }
 
 template <>
-inline void ComponentTreeP::assignCNPs(int* img) {
+inline void ComponentTreeP::assignCNPs(ImageUInt8Ptr imgPtr) {
     for (int p = 0; p < numPixels; p++) {
         pixelToNode[p]->addCNPs(p);
     }
@@ -176,8 +176,8 @@ O menor pixel (o primeiro a ser visitado durante a construção da flatzone) é 
 Essa propriedade será mantida no grafo ao realizar operações de fusão de flatzones
 */
 template <>
-inline void ComponentTreeFZ::assignCNPs(int* img) {
-    this->flatzoneGraph = FlatZonesGraph::createInstance(img, this->numRows, this->numCols, this->adj);
+inline void ComponentTreeFZ::assignCNPs(ImageUInt8Ptr imgPtr) {
+    this->flatzoneGraph = FlatZonesGraph::createInstance(imgPtr, this->numRows, this->numCols, this->adj);
     for (FlatZone& flatZone : this->flatzoneGraph->getFlatzones()) {
         this->pixelToNode[flatZone.front()]->addCNPsOfDisjointFlatzone(std::move(flatZone));
     }
@@ -232,7 +232,7 @@ void ComponentTree<CNPsType>::setSC(int p, NodeCTPtr<CNPsType> n){
 }
 
 template <typename CNPsType>
-AdjacencyRelation& ComponentTree<CNPsType>::getAdjacencyRelation(){
+AdjacencyRelationPtr ComponentTree<CNPsType>::getAdjacencyRelation(){
 	return this->adj;
 }
 
@@ -440,11 +440,10 @@ std::vector<NodeCTPtr<CNPsType>> ComponentTree<CNPsType>::getLeaves(){
 }
 
 template <typename CNPsType>
-int* ComponentTree<CNPsType>::reconstructionImage(){
-	int n = this->numRows * this->numCols;
-	int* img = new int[n];
-	this->reconstruction(this->root, img);
-	return img;
+ImageUInt8Ptr ComponentTree<CNPsType>::reconstructionImage(){
+	ImageUInt8Ptr imgPtr = ImageUInt8::create(this->numRows, this->numCols);
+	this->reconstruction(this->root, imgPtr->rawData());
+	return imgPtr;
 }
 
 

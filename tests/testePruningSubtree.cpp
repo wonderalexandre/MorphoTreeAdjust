@@ -21,19 +21,19 @@
 int main()
 {
 
-    int numRows,numCols;
-    //int* img = getPassatImage(numRows, numCols);
-    //int* img = getCharImage(numRows, numCols);
-    int* img = getPeppersImage(numRows, numCols);
-    //int* img = getLenaCropImage(numRows, numCols);
+    
+    //auto img = getPassatImage();
+    //auto img = getCharImage();
+    auto img = getPeppersImage();
+    //auto img = getLenaCropImage();
 
-    int n = numRows * numCols;
+    int n = img->getSize();
     double radioAdj = 1.5;
 
-    ComponentTreeFZPtr maxtree = std::make_shared<ComponentTreeFZ>(img, numRows, numCols, true, radioAdj);
-    ComponentTreeFZPtr mintree = std::make_shared<ComponentTreeFZ>(img, numRows, numCols, false, radioAdj);
-    testComponentTreeFZ(maxtree, "max-tree", img, numRows, numCols);
-    testComponentTreeFZ(mintree, "min-tree", img, numRows, numCols);
+    ComponentTreeFZPtr maxtree = std::make_shared<ComponentTreeFZ>(img, true, radioAdj);
+    ComponentTreeFZPtr mintree = std::make_shared<ComponentTreeFZ>(img, false, radioAdj);
+    testComponentTreeFZ(maxtree, "max-tree", img);
+    testComponentTreeFZ(mintree, "min-tree", img);
     //std::cout <<"\n=========== mapIDs min-tree ===========\n" << std::endl;
     //printMappingSC(mintree);
     //std::cout <<"\n=========== mapIDs max-tree ===========\n" << std::endl;
@@ -48,19 +48,16 @@ int main()
             adjust.updateTree2(maxtree, rootSubtree);
             mintree->prunning(rootSubtree);
 
-            int* imgOutMaxtree = maxtree->reconstructionImage();
-            int* imgOutMintree = mintree->reconstructionImage();
+            auto imgOutMaxtree = maxtree->reconstructionImage();
+            auto imgOutMintree = mintree->reconstructionImage();
             
-            testComponentTreeFZ(maxtree, "max-tree", imgOutMaxtree, numRows, numCols);
-            testComponentTreeFZ(mintree, "min-tree", imgOutMintree, numRows, numCols);
-            if(isEquals(imgOutMaxtree, imgOutMintree, n))                
+            testComponentTreeFZ(maxtree, "max-tree", imgOutMaxtree);
+            testComponentTreeFZ(mintree, "min-tree", imgOutMintree);
+            if(imgOutMaxtree->isEqual(imgOutMintree)) 
               std::cout <<"✅ Rec(maxtree) = Rec(mintree)" << std::endl;
             else
               std::cout <<"❌ Rec(maxtree) != Rec(mintree)" << std::endl;
         
-            delete[] imgOutMaxtree;
-            delete[] imgOutMintree;
-
         }
    
     
@@ -72,18 +69,16 @@ int main()
             adjust.updateTree2(mintree, rootSubtree);
             maxtree->prunning(rootSubtree);
 
-            int* imgOutMaxtree = maxtree->reconstructionImage();
-            int* imgOutMintree = mintree->reconstructionImage();
+            auto imgOutMaxtree = maxtree->reconstructionImage();
+            auto imgOutMintree = mintree->reconstructionImage();
                     
-            testComponentTreeFZ(maxtree, "max-tree", imgOutMaxtree, numRows, numCols);
-            testComponentTreeFZ(mintree, "min-tree", imgOutMintree, numRows, numCols);
-            if(isEquals(imgOutMaxtree, imgOutMintree, n))                
+            testComponentTreeFZ(maxtree, "max-tree", imgOutMaxtree);
+            testComponentTreeFZ(mintree, "min-tree", imgOutMintree);
+            if(imgOutMaxtree->isEqual(imgOutMintree))
                 std::cout <<"✅ Rec(maxtree) = Rec(mintree)" << std::endl;
             else
                 std::cout <<"❌ Rec(maxtree) != Rec(mintree)" << std::endl;
 
-            delete[] imgOutMaxtree;
-            delete[] imgOutMintree;
         }
     }
         
@@ -94,16 +89,16 @@ int main()
     printMappingSC(maxtree);
     
     std::cout <<"\n===========  Rec(max-tree) ===========\n" << std::endl;
-    printImage(imgOutMaxtree, numRows, numCols);
+    printImage(imgOutMaxtree);
     std::cout <<"\n===========  Rec(min-tree) ===========\n" << std::endl;
-    printImage(imgOutMintree, numRows, numCols);
+    printImage(imgOutMintree);
     */
 
     //delete maxtree;
     //delete mintree;    
 	std::cout << "\n\nFim do teste...\n\n";
 
-    delete[] img;
+    
     
     return 0;
 }

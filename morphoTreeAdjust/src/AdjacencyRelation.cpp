@@ -36,9 +36,9 @@ AdjacencyRelation::AdjacencyRelation(int numRows, int numCols, double radius){
 	}
 		
 	double aux;
-	double da[this->n];
-	double dr[this->n];
-
+	std::unique_ptr<double[]> da(new double[n]);
+	std::unique_ptr<double[]> dr(new double[n]);
+	
 	/* Set clockwise */
 	for (i = 0; i < n; i++) {
 		dx = this->offsetCol[i];

@@ -111,8 +111,9 @@ void NodeFZ::addCNPsOfDisjointFlatzone(FlatZone&& flatZone, ComponentTreeFZPtr t
     int id = flatZone.front();
     this->cnps[id] = std::move(flatZone);
     if (tree) {
+        auto ptr = this->shared_from_this();
         for (int p : this->cnps[id]) {
-            tree->setSC(p, this->shared_from_this());
+            tree->setSC(p, ptr);
         }
     }
 }
@@ -122,9 +123,9 @@ template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value
 void NodeFZ::addCNPsOfDisjointFlatzones(FlatZones&& flatZones, ComponentTreeFZPtr tree) {
     for (auto& [id, flatzone] : flatZones) {  
         this->cnps[id] = std::move(flatzone); 
-
+        auto ptr = this->shared_from_this();
         for (int p : this->cnps[id]) {
-            tree->setSC(p, this->shared_from_this());
+            tree->setSC(p, ptr);
         }
     }
 }
@@ -162,12 +163,14 @@ void NodeFZ::addCNPsToConnectedFlatzone(FlatZone&& flatZone, ComponentTreeFZPtr 
    std::list<int>* unifiedFlatzone = &tree->getFlatzoneByID(unifiedFlatzoneID); 
 
     // Atualizar SC para os novos pixels antes de modificar `flatZone`
+    auto ptr = this->shared_from_this();
     for (int p : flatZone) {
-        tree->setSC(p, this->shared_from_this());
+        tree->setSC(p, ptr);
     }
 
     // Iterar diretamente sobre `flatzonesToMergeList` para fundir seus CNPs na `unifiedFlatzone`
-    for (int fzID : *flatzonesToMergeList) {
+    auto fzMergeList = *flatzonesToMergeList;
+    for (int fzID : fzMergeList) {
         auto it = this->cnps.find(fzID);
         unifiedFlatzone->splice(unifiedFlatzone->end(), it->second);  // Fundir na unifiedFlatzone
         this->cnps.erase(it);  // Remove do unordered_map

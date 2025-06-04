@@ -24,18 +24,17 @@ int main()
 {
 
     std::cout << "Iniciando...\n";
-    int numRows, numCols;
+    
 
     //int* img = getPassatImage(numRows, numCols);
-    int* img = getPassatImage(numRows, numCols);
-    int n = numRows * numCols;
+    ImageUInt8Ptr img = getPassatImage();
     double radioAdj = 1.5;
 
-    ComponentTreeFZPtr maxtree = std::make_shared<ComponentTreeFZ>(img, numRows, numCols, true, radioAdj);
-    ComponentTreeFZPtr mintree = std::make_shared<ComponentTreeFZ>(img, numRows, numCols, false, radioAdj);
+    ComponentTreeFZPtr maxtree = std::make_shared<ComponentTreeFZ>(img, true, radioAdj);
+    ComponentTreeFZPtr mintree = std::make_shared<ComponentTreeFZ>(img, false, radioAdj);
     
-    testComponentTreeFZ(maxtree, "max-tree", img, numRows, numCols);
-    testComponentTreeFZ(mintree, "min-tree", img, numRows, numCols);
+    testComponentTreeFZ(maxtree, "max-tree", img);
+    testComponentTreeFZ(mintree, "min-tree", img);
 
     //printMappingSC(maxtree);
     //std::cout <<"\n\n" << std::endl;
@@ -51,7 +50,7 @@ int main()
     }    
 
     ComponentTreeAdjustment adjust(mintree, maxtree);
-    
+     
 
     //for(int i=0; i < numNodes; i++){
     //    NodeCT* L_leaf = mintree->getLeaves().front();
@@ -62,12 +61,12 @@ int main()
         adjust.updateTree3(maxtree, N);
         mintree->mergeWithParent(N);
 
-        int* imgOutMaxtree = maxtree->reconstructionImage();
-        int* imgOutMintree = mintree->reconstructionImage();
+        auto imgOutMaxtree = maxtree->reconstructionImage();
+        auto imgOutMintree = mintree->reconstructionImage();
         
-        testComponentTreeFZ(maxtree, "max-tree", imgOutMaxtree, numRows, numCols);
-        testComponentTreeFZ(mintree, "min-tree", imgOutMintree, numRows, numCols);
-        if(isEquals(imgOutMaxtree, imgOutMintree, n))                
+        testComponentTreeFZ(maxtree, "max-tree", imgOutMaxtree);
+        testComponentTreeFZ(mintree, "min-tree", imgOutMintree);
+        if(imgOutMaxtree->isEqual(imgOutMintree))
             std::cout <<"✅ Rec(maxtree) = Rec(mintree)" << std::endl;
         else
             std::cout <<"❌ Rec(maxtree) != Rec(mintree)" << std::endl;
@@ -75,17 +74,11 @@ int main()
     
     //}
     std::cout <<"\n\nApos mudancas\n" << std::endl;
-    printImage(imgOutMaxtree, numRows, numCols);
+    printImage(imgOutMaxtree);
     std::cout <<"\n\n" << std::endl;
-    printImage(imgOutMintree, numRows, numCols);
-    
-    delete[] imgOutMaxtree;
-    delete[] imgOutMintree;
-
+    printImage(imgOutMintree);
     
 	std::cout << "\n\nFim do teste...\n\n";
-
-    delete[] img;
     
     return 0;
 }

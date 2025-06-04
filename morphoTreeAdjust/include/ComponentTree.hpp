@@ -32,12 +32,12 @@ protected:
     int numRows;
     int numPixels;
     
-    AdjacencyRelation adj; //disk of a given ratio: ratio(1) for 4-connect and ratio(1.5) for 8-connect 
+    AdjacencyRelationPtr adj; //disk of a given ratio: ratio(1) for 4-connect and ratio(1.5) for 8-connect 
     
-    int* countingSort(int* img);
-    int* createTreeByUnionFind(int* orderedPixels, int* img);
+    int* countingSort(ImageUInt8Ptr img);
+    int* createTreeByUnionFind(int* orderedPixels, ImageUInt8Ptr img);
     int findRoot(int* zPar, int x);
-    void reconstruction(NodeCTPtr<CNPsType> node, int* imgOut);
+    void reconstruction(NodeCTPtr<CNPsType> node, uint8_t* data);
 
 
     // Define `flatzoneGraph` apenas para `FlatZones`
@@ -51,12 +51,12 @@ public:
     
     ComponentTree(int numRows, int numCols, bool isMaxtree, double radiusOfAdjacencyRelation);
 
-    ComponentTree(int* img, int numRows, int numCols, bool isMaxtree, double radiusOfAdjacencyRelation);
+    ComponentTree(ImageUInt8Ptr img, bool isMaxtree, double radiusOfAdjacencyRelation);
 
     virtual ~ComponentTree() = default;
 
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-	std::list<int>& getFlatzoneByID(int p);
+	FlatZone& getFlatzoneByID(int p);
 	
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
     ListOfAdjacentFlatzones& getListOfAdjacentFlatzones();
@@ -64,9 +64,9 @@ public:
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
     std::unique_ptr<FlatZonesGraph>& getFlatZonesGraph();
 
-    void assignCNPs(int* img);
+    void assignCNPs(ImageUInt8Ptr img);
 
-    void build(int* img);
+    void build(ImageUInt8Ptr img);
 
     NodeCTPtr<CNPsType> getSC(int p);
 
@@ -86,9 +86,9 @@ public:
 
     void computerArea(NodeCTPtr<CNPsType> node);
 
-    int* reconstructionImage();
+    ImageUInt8Ptr reconstructionImage();
 
-    AdjacencyRelation& getAdjacencyRelation();
+    AdjacencyRelationPtr getAdjacencyRelation();
 
     void setSC(int p, NodeCTPtr<CNPsType> n);
 

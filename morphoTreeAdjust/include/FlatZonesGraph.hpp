@@ -22,11 +22,13 @@ private:
     
     FlatZonesGraph() = default;
 
-    FlatZonesGraph(int* img, int numRows, int numCols, AdjacencyRelation& adj) {
+    FlatZonesGraph(ImageUInt8Ptr imgPtr, int numRows, int numCols, AdjacencyRelationPtr adj) {
         int numPixels = numRows * numCols;
-        int* pixelToFlatzone = new int[numPixels];
-        bool* visited = new bool[numPixels]();
-        bool* isCountor = new bool[numPixels]();
+        auto img = imgPtr->rawData();
+        std::unique_ptr<int[]> pixelToFlatzone(new int[numPixels]);
+        std::unique_ptr<bool[]> visited(new bool[numPixels]());
+        std::unique_ptr<bool[]> isCountor(new bool[numPixels]());
+        
         listOfAdjacentFlatzones.resize(numPixels);
 
         for (int p = 0; p < numPixels; p++) {
@@ -37,13 +39,13 @@ private:
             std::queue<int> queue;
             queue.push(p);
             visited[p] = true;
-            listOfAdjacentFlatzones[p] = std::make_unique<AdjacentFlatzones>();
+            listOfAdjacentFlatzones[p] = std::make_shared<AdjacentFlatzones>();
 
             while (!queue.empty()) {
                 int q = queue.front(); queue.pop();
                 flatZone.push_back(q);
 
-                for (int nq : adj.getAdjPixels(q)) {
+                for (int nq : adj->getAdjPixels(q)) {
                     if (!visited[nq] && img[nq] == grayLevel) {
                         visited[nq] = true;
                         queue.push(nq);
@@ -62,21 +64,18 @@ private:
         for (int p = 0; p < numPixels; p++) {
             if (!isCountor[p]) continue;
             int flatZoneID_P = pixelToFlatzone[p];
-            AdjacentFlatzones& setP = *listOfAdjacentFlatzones[flatZoneID_P];
-            for (int np : adj.getAdjPixels(p)) {
+            auto setP = listOfAdjacentFlatzones[flatZoneID_P];
+            for (int np : adj->getAdjPixels(p)) {
                 if (!isCountor[np]) continue;
                 int flatZoneID_NP = pixelToFlatzone[np];
                 if (flatZoneID_NP != flatZoneID_P) {
-                    AdjacentFlatzones& setNP = *listOfAdjacentFlatzones[flatZoneID_NP];
-                    setP.insert(flatZoneID_NP);
-                    setNP.insert(flatZoneID_P);
+                    auto setNP = listOfAdjacentFlatzones[flatZoneID_NP];
+                    setP->insert(flatZoneID_NP);
+                    setNP->insert(flatZoneID_P);
                 }
             }
         }
 
-        delete[] pixelToFlatzone;
-        delete[] isCountor;
-        delete[] visited;
     }
 
     std::unique_ptr<FlatZonesGraph> clone() const {
@@ -96,7 +95,7 @@ public:
     FlatZonesGraph(const FlatZonesGraph&) = delete;
     FlatZonesGraph& operator=(const FlatZonesGraph&) = delete;
     
-    static std::unique_ptr<FlatZonesGraph> createInstance(int* img, int numRows, int numCols, AdjacencyRelation& adj) {
+    static std::unique_ptr<FlatZonesGraph> createInstance(ImageUInt8Ptr img, int numRows, int numCols, AdjacencyRelationPtr adj) {
         if (!instance) {
             instance = std::unique_ptr<FlatZonesGraph> ( new FlatZonesGraph(img, numRows, numCols, adj) );
             forceRebuild = false;
@@ -120,7 +119,8 @@ public:
     
     void remapFlatzoneIDInGraph(int oldID, int newID){
         //para manter a propriedade do id da flatzone ser o menor pixel
-        for (int neighborID : *listOfAdjacentFlatzones[oldID]) {
+        auto adjFZ = *listOfAdjacentFlatzones[oldID];
+        for (int neighborID : adjFZ) {
             listOfAdjacentFlatzones[neighborID]->erase(oldID);
             listOfAdjacentFlatzones[neighborID]->insert(newID);
         }
@@ -230,7 +230,6 @@ public:
             if(flatZone.empty())
                 continue; //pode acontecer devido ao splice em unifiedFlatzone com unifiedFlatzoneInitial
             
-
             int flatZoneID = flatZone.front();
             std::unordered_set<int> neighborsCopy = *(listOfAdjacentFlatzones[flatZoneID]);    
             for (int neighborID : neighborsCopy) {
@@ -248,11 +247,11 @@ public:
                     }
                 }
             }
-            
+
             this->listOfAdjacentFlatzones[unifiedFlatzoneID]->erase(flatZoneID);
-            //delete this->flatzoneGraph[flatZoneID];
             this->listOfAdjacentFlatzones[flatZoneID] = nullptr;
             unifiedFlatzone.splice(unifiedFlatzone.end(), flatZone); // Adicionar pixels ao cnpsCC
+
         }
         
         assert([&]() {
@@ -304,8 +303,8 @@ public:
         // aloca a lista dinamicamente
         auto flatzonesToMergeList = std::make_unique<std::list<int>>();
         int unifiedFlatzoneID = std::numeric_limits<int>::max();
-    
-        for (int neighborID : *listOfAdjacentFlatzones[flatZoneID]) {
+        auto adjFZ = *listOfAdjacentFlatzones[flatZoneID];
+        for (int neighborID : adjFZ) {
             if (tree->getSC(neighborID) == node) {
                 unifiedFlatzoneID = std::min(unifiedFlatzoneID, neighborID);
             }
@@ -315,15 +314,18 @@ public:
     
         listOfAdjacentFlatzones[flatZoneID]->erase(unifiedFlatzoneID);
         listOfAdjacentFlatzones[unifiedFlatzoneID]->erase(flatZoneID);
-    
-        for (int flatzonMergedID : *listOfAdjacentFlatzones[flatZoneID]) {
+        
+        adjFZ = *listOfAdjacentFlatzones[flatZoneID];
+        for (int flatzonMergedID : adjFZ) {
             if (tree->getSC(flatzonMergedID) == node) {
                 flatzonesToMergeList->push_back(flatzonMergedID); 
             }
         }
-    
-        for (int flatzonMergedID : *flatzonesToMergeList) {
-            for (int neighborID : *listOfAdjacentFlatzones[flatzonMergedID]) {
+        
+        auto fzMergeList = *flatzonesToMergeList;
+        for (int flatzonMergedID : fzMergeList) {
+            adjFZ = *listOfAdjacentFlatzones[flatzonMergedID];
+            for (int neighborID : adjFZ) {
                 if (flatZoneID != neighborID) {
                     listOfAdjacentFlatzones[unifiedFlatzoneID]->insert(neighborID);
                     listOfAdjacentFlatzones[neighborID]->insert(unifiedFlatzoneID); 
@@ -332,8 +334,9 @@ public:
             }
             listOfAdjacentFlatzones[flatzonMergedID] = nullptr;
         }
-    
-        for (int neighborID : *listOfAdjacentFlatzones[flatZoneID]) {
+
+        adjFZ = *listOfAdjacentFlatzones[flatZoneID];
+        for (int neighborID : adjFZ) {
             listOfAdjacentFlatzones[neighborID]->erase(flatZoneID);
             listOfAdjacentFlatzones[unifiedFlatzoneID]->insert(neighborID);
             listOfAdjacentFlatzones[neighborID]->insert(unifiedFlatzoneID);  

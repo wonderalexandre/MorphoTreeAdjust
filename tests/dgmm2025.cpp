@@ -33,36 +33,34 @@ for i in range(20):
 
 */
 
-int* computerCASF_naive(int* img, int numRows, int numCols, double radioAdj, std::vector<int> thresholds){
+ImageUInt8Ptr computerCASF_naive(ImageUInt8Ptr img, double radioAdj, std::vector<int> thresholds){
     std::chrono::high_resolution_clock::time_point start, start_all, end, end_all;
-    int* imgOut = new int[numRows*numCols];
-    for(int i=0; i < numRows*numCols; i++)
-        imgOut[i] = img[i];
-
+    start_all = std::chrono::high_resolution_clock::now();
+    
+    ImageUInt8Ptr imgOut = img->clone();
     for(int i=0; i < thresholds.size(); i++) {
         int threshold = thresholds[i];
         if(PRINT_LOG){
             std::cout << "Opening/Closing: " << (i+1) << " \t\tthreshold:" << threshold << std::endl;
-            start_all = std::chrono::high_resolution_clock::now();
+            
             start = std::chrono::high_resolution_clock::now();
         }
-        ComponentTreePPtr maxtree = std::make_shared<ComponentTreeP>(imgOut, numRows, numCols, true, radioAdj);
+        ComponentTreePPtr maxtree = std::make_shared<ComponentTreeP>(imgOut, true, radioAdj);
 	    for(NodePPtr node: maxtree->getNodesThreshold(threshold)) {
 	        maxtree->prunning(node);    
 	    }
-        delete[] imgOut;
+        
 	    imgOut = maxtree->reconstructionImage();
         if(PRINT_LOG){
             end = std::chrono::high_resolution_clock::now();
             std::cout << "\t- Time (build/prunning/rec maxtree) naive: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
             start = std::chrono::high_resolution_clock::now();
         }
-	    ComponentTreePPtr mintree = std::make_shared<ComponentTreeP>(imgOut, numRows, numCols, false, radioAdj);
+	    ComponentTreePPtr mintree = std::make_shared<ComponentTreeP>(imgOut, false, radioAdj);
 	    for(NodePPtr node: mintree->getNodesThreshold(threshold)) {
 	        mintree->prunning(node);    
 	    }
 
-        delete[] imgOut;
 	    imgOut = mintree->reconstructionImage();  
         if(PRINT_LOG){
             end = std::chrono::high_resolution_clock::now();
@@ -79,14 +77,14 @@ int* computerCASF_naive(int* img, int numRows, int numCols, double radioAdj, std
 }
 
 
-int* computerCASF(int* img, int numRows, int numCols, double radioAdj, std::vector<int> thresholds){
+ImageUInt8Ptr computerCASF(ImageUInt8Ptr img, double radioAdj, std::vector<int> thresholds){
     std::chrono::high_resolution_clock::time_point start, start_all, end, end_all;
     if(PRINT_LOG){
         start = std::chrono::high_resolution_clock::now();
     }
 
-    ComponentTreeFZPtr maxtree = std::make_shared<ComponentTreeFZ>(img, numRows, numCols, true, radioAdj);
-    ComponentTreeFZPtr mintree = std::make_shared<ComponentTreeFZ>(img, numRows, numCols, false, radioAdj);
+    ComponentTreeFZPtr maxtree = std::make_shared<ComponentTreeFZ>(img, true, radioAdj);
+    ComponentTreeFZPtr mintree = std::make_shared<ComponentTreeFZ>(img, false, radioAdj);
     
     ComponentTreeAdjustment adjust(mintree, maxtree);
     
@@ -118,21 +116,21 @@ int* computerCASF(int* img, int numRows, int numCols, double radioAdj, std::vect
         }
 
 	}
-    int* imgOut = mintree->reconstructionImage();
+    auto imgOut = mintree->reconstructionImage();
     //delete maxtree;
     //delete mintree;
     return imgOut;
 }
 
 
-int* computerCASF_subtree(int* img, int numRows, int numCols, double radioAdj, std::vector<int> thresholds){
+ImageUInt8Ptr computerCASF_subtree(ImageUInt8Ptr img, double radioAdj, std::vector<int> thresholds){
     std::chrono::high_resolution_clock::time_point start, start_all, end, end_all;
     if(PRINT_LOG){
         start = std::chrono::high_resolution_clock::now();
     }
 
-    ComponentTreeFZPtr maxtree = std::make_shared<ComponentTreeFZ>(img, numRows, numCols, true, radioAdj);
-    ComponentTreeFZPtr mintree = std::make_shared<ComponentTreeFZ>(img, numRows, numCols, false, radioAdj);
+    ComponentTreeFZPtr maxtree = std::make_shared<ComponentTreeFZ>(img, true, radioAdj);
+    ComponentTreeFZPtr mintree = std::make_shared<ComponentTreeFZ>(img, false, radioAdj);
     
     ComponentTreeAdjustment adjust(mintree, maxtree);
     
@@ -164,7 +162,7 @@ int* computerCASF_subtree(int* img, int numRows, int numCols, double radioAdj, s
         }
 
 	}
-    int* imgOut = mintree->reconstructionImage();
+    auto imgOut = mintree->reconstructionImage();
     //delete maxtree;
     //delete mintree;
     return imgOut;
@@ -232,42 +230,36 @@ int main(int argc, char* argv[]) {
         std::cout << "Image: " << filename << std::endl;
 
         int numCols, numRows, nchannels;
-        unsigned char* data = stbi_load(filename.c_str(), &numCols, &numRows, &nchannels, 1);
+        uint8_t* data = stbi_load(filename.c_str(), &numCols, &numRows, &nchannels, 1);
         
         if (!data) {
             std::cerr << "Erro: Não foi possível carregar a imagem " << filename << std::endl;
             return 1;
         }
         std::cout << "Resolution: " << numCols << "x" << numRows << std::endl;
-
-        int* img = new int[numCols * numRows];
-        for (int i = 0; i < numCols * numRows; i++) {
-            img[i] = static_cast<int>(data[i]);  // Converte de `unsigned char` para `int`
-        }
-        stbi_image_free(data); // Liberar a memória da imagem carregada
-
-        int n = numRows * numCols;
+        ImageUInt8Ptr img = ImageUInt8::fromRaw(data, numRows, numCols);
+        
         double radioAdj = 1.5;
         
         auto start = std::chrono::high_resolution_clock::now();
-        int* imgOut1 = computerCASF_naive(img, numRows, numCols, radioAdj, thresholds);
+        auto imgOut1 = computerCASF_naive(img, radioAdj, thresholds);
         auto end = std::chrono::high_resolution_clock::now();
         std::cout << "Times" << std::endl;
         std::cout << "\tnaive approach: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
         
         start = std::chrono::high_resolution_clock::now();
-        int* imgOut2 = computerCASF(img, numRows, numCols, radioAdj, thresholds);
+        auto imgOut2 = computerCASF(img, radioAdj, thresholds);
         end = std::chrono::high_resolution_clock::now();
         std::cout << "\tour approach:   " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
 
         start = std::chrono::high_resolution_clock::now();
-        int* imgOut3 = computerCASF_subtree(img, numRows, numCols, radioAdj, thresholds);
+        auto imgOut3 = computerCASF_subtree(img,radioAdj, thresholds);
         end = std::chrono::high_resolution_clock::now();
         std::cout << "\tour approach 2: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
 
         
-        std::cout << "The images (naive/our) are equals: " << (isEquals(imgOut1, imgOut2, n)? "True":"False") << "\n";
-        std::cout << "The images (our/our2) are equals: " << (isEquals(imgOut1, imgOut3, n)? "True":"False") << "\n\n";
+        std::cout << "The images (naive/our) are equals: " << (imgOut1->isEqual(imgOut2)? "True":"False") << "\n";
+        std::cout << "The images (our/our2) are equals: " << (imgOut1->isEqual(imgOut3)? "True":"False") << "\n\n";
         
         /*
         data = new unsigned char[n];
@@ -277,13 +269,6 @@ int main(int argc, char* argv[]) {
         stbi_write_png(("/Users/wonderalexandre/GitHub/MorphoTreeAdjust/tests/build/out_our_" + entry.path().filename().string()).c_str(), numCols, numRows, 1, data, 0);
         delete[] data;
         */
-
-        delete[] imgOut1;
-        delete[] imgOut2;
-        delete[] imgOut3;
-        delete[] img;
-
-        
         
     }
     return 0;
