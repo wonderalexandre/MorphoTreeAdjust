@@ -30,8 +30,12 @@ int main()
     ImageUInt8Ptr img = getPassatImage();
     double radioAdj = 1.5;
 
-    ComponentTreeFZPtr maxtree = std::make_shared<ComponentTreeFZ>(img, true, radioAdj);
-    ComponentTreeFZPtr mintree = std::make_shared<ComponentTreeFZ>(img, false, radioAdj);
+    AdjacencyRelationPtr adj =std::make_shared<AdjacencyRelation>(img->getNumRows(), img->getNumCols(), radioAdj);
+    std::unique_ptr<FlatZonesGraph> maxTreeFZGraph = std::make_unique<FlatZonesGraph>(img, adj);
+    std::unique_ptr<FlatZonesGraph> minTreeFZGraph = std::make_unique<FlatZonesGraph>(*maxTreeFZGraph);
+
+    ComponentTreeFZPtr maxtree = std::make_shared<ComponentTreeFZ>(img, true, adj, std::move(maxTreeFZGraph));
+    ComponentTreeFZPtr mintree = std::make_shared<ComponentTreeFZ>(img, false, adj, std::move(minTreeFZGraph));
     
     testComponentTreeFZ(maxtree, "max-tree", img);
     testComponentTreeFZ(mintree, "min-tree", img);

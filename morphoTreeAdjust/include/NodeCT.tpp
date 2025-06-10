@@ -169,8 +169,7 @@ void NodeFZ::addCNPsToConnectedFlatzone(FlatZone&& flatZone, ComponentTreeFZPtr 
     }
 
     // Iterar diretamente sobre `flatzonesToMergeList` para fundir seus CNPs na `unifiedFlatzone`
-    auto fzMergeList = *flatzonesToMergeList;
-    for (int fzID : fzMergeList) {
+    for (const int fzID : *flatzonesToMergeList){
         auto it = this->cnps.find(fzID);
         unifiedFlatzone->splice(unifiedFlatzone->end(), it->second);  // Fundir na unifiedFlatzone
         this->cnps.erase(it);  // Remove do unordered_map
@@ -189,7 +188,6 @@ void NodeFZ::addCNPsToConnectedFlatzone(FlatZone&& flatZone, ComponentTreeFZPtr 
         //para os teste no assert
         unifiedFlatzoneID = flatZoneID;
         unifiedFlatzone = &tree->getFlatzoneByID(unifiedFlatzoneID);
-
     }
 
 

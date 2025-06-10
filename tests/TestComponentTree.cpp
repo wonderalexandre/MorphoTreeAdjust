@@ -8,8 +8,13 @@ int main() {
     double radioAdj = 1.5;
 
     // Criação das Component Trees
-    ComponentTreeFZPtr maxtree = std::make_shared<ComponentTreeFZ>(img, true, radioAdj);
-    ComponentTreeFZPtr mintree = std::make_shared<ComponentTreeFZ>(img, false, radioAdj);
+    AdjacencyRelationPtr adj =std::make_shared<AdjacencyRelation>(img->getNumRows(), img->getNumCols(), radioAdj);
+    std::unique_ptr<FlatZonesGraph> graph = std::make_unique<FlatZonesGraph>(img, adj);
+    std::unique_ptr<FlatZonesGraph> maxTreeFZGraph = std::make_unique<FlatZonesGraph>(*graph);
+    std::unique_ptr<FlatZonesGraph> minTreeFZGraph = std::make_unique<FlatZonesGraph>(*graph);
+
+    ComponentTreeFZPtr maxtree = std::make_shared<ComponentTreeFZ>(img, true, adj, std::move(maxTreeFZGraph));
+    ComponentTreeFZPtr mintree = std::make_shared<ComponentTreeFZ>(img, false, adj, std::move(minTreeFZGraph));
 
     // Executar testes
     testComponentTreeFZ(mintree, "Min-Tree", mintree->reconstructionImage());
@@ -27,9 +32,11 @@ int main() {
     auto imgMaxtree = maxtree->reconstructionImage();
     testComponentTreeFZ(maxtree, "Max-Tree after pruning", imgMaxtree);
 
-    
-    maxtree = std::make_shared<ComponentTreeFZ>(img, true, radioAdj);
-    mintree = std::make_shared<ComponentTreeFZ>(img, false, radioAdj);
+    maxTreeFZGraph = std::make_unique<FlatZonesGraph>(*graph);
+    minTreeFZGraph = std::make_unique<FlatZonesGraph>(*graph);
+
+    maxtree = std::make_shared<ComponentTreeFZ>(img, true, adj, std::move(maxTreeFZGraph));
+    mintree = std::make_shared<ComponentTreeFZ>(img, false, adj, std::move(minTreeFZGraph));
     ComponentTreeAdjustment adjust(mintree, maxtree);
 
     NodeFZPtr Lmin_leaf1 = mintree->getLeaves().front();

@@ -36,16 +36,17 @@ for i in range(20):
 ImageUInt8Ptr computerCASF_naive(ImageUInt8Ptr img, double radioAdj, std::vector<int> thresholds){
     std::chrono::high_resolution_clock::time_point start, start_all, end, end_all;
     start_all = std::chrono::high_resolution_clock::now();
-    
+    AdjacencyRelationPtr adj =std::make_shared<AdjacencyRelation>(img->getNumRows(), img->getNumCols(), radioAdj);
     ImageUInt8Ptr imgOut = img->clone();
-    for(int i=0; i < thresholds.size(); i++) {
+    for(size_t i=0; i < thresholds.size(); i++) {
         int threshold = thresholds[i];
         if(PRINT_LOG){
             std::cout << "Opening/Closing: " << (i+1) << " \t\tthreshold:" << threshold << std::endl;
             
             start = std::chrono::high_resolution_clock::now();
         }
-        ComponentTreePPtr maxtree = std::make_shared<ComponentTreeP>(imgOut, true, radioAdj);
+        
+        ComponentTreePPtr maxtree = std::make_shared<ComponentTreeP>(imgOut, true, adj);
 	    for(NodePPtr node: maxtree->getNodesThreshold(threshold)) {
 	        maxtree->prunning(node);    
 	    }
@@ -56,7 +57,7 @@ ImageUInt8Ptr computerCASF_naive(ImageUInt8Ptr img, double radioAdj, std::vector
             std::cout << "\t- Time (build/prunning/rec maxtree) naive: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
             start = std::chrono::high_resolution_clock::now();
         }
-	    ComponentTreePPtr mintree = std::make_shared<ComponentTreeP>(imgOut, false, radioAdj);
+	    ComponentTreePPtr mintree = std::make_shared<ComponentTreeP>(imgOut, false, adj);
 	    for(NodePPtr node: mintree->getNodesThreshold(threshold)) {
 	        mintree->prunning(node);    
 	    }
@@ -66,7 +67,7 @@ ImageUInt8Ptr computerCASF_naive(ImageUInt8Ptr img, double radioAdj, std::vector
             end = std::chrono::high_resolution_clock::now();
             std::cout << "\t- Time (build/prunning/rec mintree) naive: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
 
-            auto end_all = std::chrono::high_resolution_clock::now();
+            end_all = std::chrono::high_resolution_clock::now();
             std::cout << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end_all - start_all).count() << " ms\n\n";
         }
         //delete maxtree;
@@ -83,8 +84,12 @@ ImageUInt8Ptr computerCASF(ImageUInt8Ptr img, double radioAdj, std::vector<int> 
         start = std::chrono::high_resolution_clock::now();
     }
 
-    ComponentTreeFZPtr maxtree = std::make_shared<ComponentTreeFZ>(img, true, radioAdj);
-    ComponentTreeFZPtr mintree = std::make_shared<ComponentTreeFZ>(img, false, radioAdj);
+    AdjacencyRelationPtr adj =std::make_shared<AdjacencyRelation>(img->getNumRows(), img->getNumCols(), radioAdj);
+    std::unique_ptr<FlatZonesGraph> maxTreeFZGraph = std::make_unique<FlatZonesGraph>(img, adj);
+    std::unique_ptr<FlatZonesGraph> minTreeFZGraph = std::make_unique<FlatZonesGraph>(*maxTreeFZGraph);
+
+    ComponentTreeFZPtr maxtree = std::make_shared<ComponentTreeFZ>(img, true, adj, std::move(maxTreeFZGraph));
+    ComponentTreeFZPtr mintree = std::make_shared<ComponentTreeFZ>(img, false, adj, std::move(minTreeFZGraph));
     
     ComponentTreeAdjustment adjust(mintree, maxtree);
     
@@ -93,7 +98,7 @@ ImageUInt8Ptr computerCASF(ImageUInt8Ptr img, double radioAdj, std::vector<int> 
         std::cout << "\n\tTime (build trees): " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
     }
     
-    for(int i=0; i < thresholds.size(); i++) {
+    for(size_t i=0; i < thresholds.size(); i++) {
         int threshold = thresholds[i];
         if(PRINT_LOG){
             std::cout << "Opening/Closing: " << (i+1) << " \t\tthreshold:" << threshold << std::endl;
@@ -128,9 +133,12 @@ ImageUInt8Ptr computerCASF_subtree(ImageUInt8Ptr img, double radioAdj, std::vect
     if(PRINT_LOG){
         start = std::chrono::high_resolution_clock::now();
     }
+    AdjacencyRelationPtr adj =std::make_shared<AdjacencyRelation>(img->getNumRows(), img->getNumCols(), radioAdj);
+    std::unique_ptr<FlatZonesGraph> maxTreeFZGraph = std::make_unique<FlatZonesGraph>(img, adj);
+    std::unique_ptr<FlatZonesGraph> minTreeFZGraph = std::make_unique<FlatZonesGraph>(*maxTreeFZGraph);
 
-    ComponentTreeFZPtr maxtree = std::make_shared<ComponentTreeFZ>(img, true, radioAdj);
-    ComponentTreeFZPtr mintree = std::make_shared<ComponentTreeFZ>(img, false, radioAdj);
+    ComponentTreeFZPtr maxtree = std::make_shared<ComponentTreeFZ>(img, true, adj, std::move(maxTreeFZGraph));
+    ComponentTreeFZPtr mintree = std::make_shared<ComponentTreeFZ>(img, false, adj, std::move(minTreeFZGraph));
     
     ComponentTreeAdjustment adjust(mintree, maxtree);
     
@@ -139,7 +147,7 @@ ImageUInt8Ptr computerCASF_subtree(ImageUInt8Ptr img, double radioAdj, std::vect
         std::cout << "\n\tTime (build trees): " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
     }
     
-    for(int i=0; i < thresholds.size(); i++) {
+    for(size_t i=0; i < thresholds.size(); i++) {
         int threshold = thresholds[i];
         if(PRINT_LOG){
             std::cout << "Opening/Closing: " << (i+1) << " \t\tthreshold:" << threshold << std::endl;
@@ -170,12 +178,12 @@ ImageUInt8Ptr computerCASF_subtree(ImageUInt8Ptr img, double radioAdj, std::vect
 
 
 int main(int argc, char* argv[]) {
-    if (argc != 2) {
+   /* if (argc != 2) {
         std::cerr << "Uso: " << argv[0] << " <diretorio_imagens>\n";
         return 1;
-    }
+    }*/
 
-    std::string directoryPath = argv[1];
+    std::string directoryPath = "/Users/wonderalexandre/GitHub/MorphoTreeAdjust/tests/dat/misc256";//argv[1];
 
     if (!fs::is_directory(directoryPath)) {
         std::cerr << "Caminho inválido ou não é um diretório.\n";
@@ -218,7 +226,7 @@ int main(int argc, char* argv[]) {
 
 
     std::cout << "Thresholds: {";
-    for(int i=0; i < thresholds.size(); i++)
+    for(size_t i=0; i < thresholds.size(); i++)
         std::cout << thresholds[i] << (i+1 < thresholds.size()? ", ": "}");
     std::cout << "\n\n";
 

@@ -32,7 +32,8 @@ for i in range(20):
 ImageUInt8Ptr computerCASF_naive(ImageUInt8Ptr img, double radioAdj, std::vector<int> thresholds){
     std::chrono::high_resolution_clock::time_point start, start_all, end, end_all;
     ImageUInt8Ptr imgOut = img->clone();
-    
+    AdjacencyRelationPtr adj =std::make_shared<AdjacencyRelation>(img->getNumRows(), img->getNumCols(), radioAdj);
+
     for(int i=0; i < thresholds.size(); i++) {
         int threshold = thresholds[i];
         if(PRINT_LOG){
@@ -40,7 +41,7 @@ ImageUInt8Ptr computerCASF_naive(ImageUInt8Ptr img, double radioAdj, std::vector
             start_all = std::chrono::high_resolution_clock::now();
             start = std::chrono::high_resolution_clock::now();
         }
-        ComponentTreePPtr maxtree = std::make_shared<ComponentTreeP>(imgOut, true, radioAdj);
+        ComponentTreePPtr maxtree = std::make_shared<ComponentTreeP>(imgOut, true, adj);
         
 	    for(NodePPtr node: maxtree->getNodesThreshold(threshold)) {
 	        maxtree->prunning(node);    
@@ -52,7 +53,7 @@ ImageUInt8Ptr computerCASF_naive(ImageUInt8Ptr img, double radioAdj, std::vector
             std::cout << "\t- Time (build/prunning/rec maxtree) naive: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
             start = std::chrono::high_resolution_clock::now();
         }
-	    ComponentTreePPtr mintree = std::make_shared<ComponentTreeP>(imgOut, false, radioAdj);
+	    ComponentTreePPtr mintree = std::make_shared<ComponentTreeP>(imgOut, false, adj);
         
 	    for(NodePPtr node: mintree->getNodesThreshold(threshold)) {
 	        mintree->prunning(node);    
@@ -80,8 +81,12 @@ ImageUInt8Ptr computerCASF(ImageUInt8Ptr img, double radioAdj, std::vector<int> 
         start = std::chrono::high_resolution_clock::now();
     }
 
-    ComponentTreeFZPtr maxtree = std::make_shared<ComponentTreeFZ>(img, true, radioAdj);
-    ComponentTreeFZPtr mintree = std::make_shared<ComponentTreeFZ>(img, false, radioAdj);
+    AdjacencyRelationPtr adj =std::make_shared<AdjacencyRelation>(img->getNumRows(), img->getNumCols(), radioAdj);
+    std::unique_ptr<FlatZonesGraph> maxTreeFZGraph = std::make_unique<FlatZonesGraph>(img, adj);
+    std::unique_ptr<FlatZonesGraph> minTreeFZGraph = std::make_unique<FlatZonesGraph>(*maxTreeFZGraph);
+
+    ComponentTreeFZPtr maxtree = std::make_shared<ComponentTreeFZ>(img, true, adj, std::move(maxTreeFZGraph));
+    ComponentTreeFZPtr mintree = std::make_shared<ComponentTreeFZ>(img, false, adj, std::move(minTreeFZGraph));
     ComponentTreeAdjustment adjust(mintree, maxtree);
     
     if(PRINT_LOG){

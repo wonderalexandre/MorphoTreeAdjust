@@ -218,8 +218,8 @@ protected:
     ComponentTreeFZPtr maxtree; 
     int maxIndex; 
     int pixelUpperBound=-1;    
-    UnionNodes unionNodeTauSubtree;
     MergedNodesCollection F;
+    UnionNodes unionNodeTauSubtree;
     std::unordered_set<NodeFZPtr> Fb;
     std::ostringstream outputLog;
 

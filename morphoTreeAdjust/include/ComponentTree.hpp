@@ -26,12 +26,12 @@ protected:
     
     int numNodes;
     int maxIndex;
-    bool maxtreeTreeType; //maxtree is true; mintree is false
-
-    int numCols;
-    int numRows;
-    int numPixels;
     
+    int numRows;
+    int numCols;
+    bool maxtreeTreeType; //maxtree is true; mintree is false
+   // int numPixels;
+
     AdjacencyRelationPtr adj; //disk of a given ratio: ratio(1) for 4-connect and ratio(1.5) for 8-connect 
     
     int* countingSort(ImageUInt8Ptr img);
@@ -49,10 +49,12 @@ protected:
 public:
 
     
-    ComponentTree(int numRows, int numCols, bool isMaxtree, double radiusOfAdjacencyRelation);
+    //ComponentTree(int numRows, int numCols, bool isMaxtree, double radiusOfAdjacencyRelation);
 
-    ComponentTree(ImageUInt8Ptr img, bool isMaxtree, double radiusOfAdjacencyRelation);
+    ComponentTree(ImageUInt8Ptr img, bool isMaxtree, AdjacencyRelationPtr adj);
 
+    ComponentTree(ImageUInt8Ptr img, bool isMaxtree, AdjacencyRelationPtr adj, std::unique_ptr<FlatZonesGraph> graph);
+    
     virtual ~ComponentTree() = default;
 
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
@@ -64,7 +66,7 @@ public:
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
     std::unique_ptr<FlatZonesGraph>& getFlatZonesGraph();
 
-    void assignCNPs(ImageUInt8Ptr img);
+    void assignCNPs();
 
     void build(ImageUInt8Ptr img);
 

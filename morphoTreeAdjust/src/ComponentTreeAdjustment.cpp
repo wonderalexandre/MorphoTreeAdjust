@@ -8,10 +8,7 @@
 
 
 ComponentTreeAdjustment::ComponentTreeAdjustment(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree) 
-    : maxtree(maxtree), mintree(mintree), 
-      maxIndex(std::max(maxtree->getNumNodes(), mintree->getNumNodes())),
-      F(maxIndex),
-      unionNodeTauSubtree(maxtree->isMaxtree()) 
+    : mintree(mintree), maxtree(maxtree), maxIndex(std::max(maxtree->getNumNodes(), mintree->getNumNodes())), F(maxIndex), unionNodeTauSubtree(maxtree->isMaxtree()) 
 {    }
 
 ComponentTreeAdjustment::~ComponentTreeAdjustment() { }

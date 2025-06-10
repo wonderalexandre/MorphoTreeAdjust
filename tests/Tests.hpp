@@ -84,7 +84,7 @@ template <typename CNPsType>
 inline  void printConnectedComponent(NodeCTPtr<CNPsType> node, ComponentTreePtr<CNPsType> tree, std::string nomeArquivo = "") {
     int numRows = tree->getNumRowsOfImage();
     int numCols = tree->getNumColsOfImage();
-    int n = numRows*numCols;
+    //int n = numRows*numCols;
     std::ostream* streamSaida;
     std::ofstream arquivoSaida;
 
@@ -124,7 +124,7 @@ inline  void printImage(ImagePtr<PixelType> imgPtr, std::string nomeArquivo = ""
     auto img = imgPtr->rawData();
     int numRows = imgPtr->getNumRows();
     int numCols = imgPtr->getNumCols();
-    int n = numRows*numCols;
+    //int n = numRows*numCols;
     std::ostream* streamSaida;
     std::ofstream arquivoSaida;
     
@@ -223,7 +223,8 @@ inline  void printMappingFZ(ComponentTreeFZPtr tree, std::string nomeArquivo = "
     int num_cnps = tree->getRoot()->getNumCNPs();
     int count_cnps= 0;
     for(int p : tree->getRoot()->getCNPs()){
-        count_cnps++;
+        if(p >= 0)
+            count_cnps++;
     }
     if (num_cnps == count_cnps) {
         std::cout << "✅ Iterator getCNPs da" << treeType << " está correto." << std::endl;
@@ -351,39 +352,7 @@ inline void testComponentTreeFZ(ComponentTreeFZPtr tree, const std::string& tree
     if (allFlatzonesCorrect) {
         std::cout << "✅ Todas as flatzones estão corretamente definidas na " << treeType << "." << std::endl;
     }
-    /*
-    bool isEqualsGraph = true;
-    ComponentTreeFZPtr recTree = new ComponentTreeFZ(img, numRows, numCols, tree->isMaxtree(), tree->getAdjacencyRelation()->getRadius());
-    for (int p = 0; p < numRows * numCols; p++) {
-        std::unordered_set<int>* recNeighbors = recTree->flatzoneGraph[p];
-        std::unordered_set<int>* treeNeighbors = tree->flatzoneGraph[p];
-        if (recNeighbors == nullptr){
-            if(treeNeighbors != nullptr){
-                isEqualsGraph = false;
-                std::cerr << "ERRO: flatzoneGraph[" << p << "] deveria ser nullptr " << std::endl;
-                break;
-            }else
-                continue;
-
-        }
-        NodeFZPtr node = tree->getSC(p);
-        NodeFZPtr recNode = recTree->getSC(p);
-        if(recNode->getRepresentativeCNPs() != node->getRepresentativeCNPs()){
-            isEqualsGraph = false;
-            std::cerr << "ERRO: O pixel representative de SC(" << p << ") é "<< node->getRepresentativeCNPs() <<" mas deveria ser o pixel " << recNode->getRepresentativeCNPs() << std::endl;
-        }
-
-        if(recNode->getFlatZone(p).front() != recNode->getFlatZone(p).front()){
-            isEqualsGraph = false;
-            std::cerr << "ERRO: O pixel " << p << " deveria ser o ID da flatzone mas o ID é o pixel " << tree->getSC(p)->getFlatZone(p).front() << std::endl;
-        }
-    }
-    if (isEqualsGraph) {
-        std::cout << "✅ O grafo de flatzones está correto!" << std::endl;
-    } else {
-        std::cerr << "❌ O grafo de flatzones NÃO representa a imagem corretamente!" << std::endl;
-    }
-    */
+    
     
 
     // Teste: Verifica se o atributo area permanece correto
