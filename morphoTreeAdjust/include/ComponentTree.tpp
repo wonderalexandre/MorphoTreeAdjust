@@ -463,11 +463,12 @@ FlatZone& ComponentTreeFZ::getFlatzoneByID(int idFlatZone) {
     return pixelToNode[idFlatZone]->getFlatZone(idFlatZone);
 }
 
+/*
 template <>
 template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
 ListOfAdjacentFlatzones& ComponentTreeFZ::getListOfAdjacentFlatzones(){
     return this->flatzoneGraph->getGraph();
-}
+}*/
 
 template <>
 template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>

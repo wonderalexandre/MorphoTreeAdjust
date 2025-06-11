@@ -41,14 +41,13 @@ public:
 
     void computerAdjacentNodes(ComponentTreeFZPtr tree, std::vector<FlatZoneRef>& flatZones) {
         bool isMaxtree = tree->isMaxtree();
-        ListOfAdjacentFlatzones& flatzoneGraph = tree->getListOfAdjacentFlatzones();
+        FlatZonesGraphPtr& graph = tree->getFlatZonesGraph();
         for (FlatZoneRef flatZonePRef : flatZones) {   
             FlatZone& flatZoneP = flatZonePRef.get();
             int flatZoneID_P = flatZoneP.front();
             int grayFlatZoneP = tree->getSC(flatZoneID_P)->getLevel(); //is same that: f(p)
     
-            auto fzVertex = *flatzoneGraph[flatZoneID_P];
-            for (int flatZoneID_Q : fzVertex) {
+            for (int flatZoneID_Q : *graph->getAdjacentFlatzones(flatZoneID_P)) {
                 NodeFZPtr node = tree->getSC(flatZoneID_Q);
                 if ( (isMaxtree && node->getLevel() > grayFlatZoneP) || (!isMaxtree && node->getLevel() < grayFlatZoneP) ) {
                     if(!visitedAdj[node->getIndex()]){

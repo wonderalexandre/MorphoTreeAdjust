@@ -51,7 +51,7 @@ using ComponentTreePPtr = std::shared_ptr<ComponentTreeP>; //representa um compo
 
 
 using AdjacentFlatzones = std::unordered_set<int>;
-using ListOfAdjacentFlatzones = std::vector<std::shared_ptr<AdjacentFlatzones>>;
+using ListOfAdjacentFlatzones = std::vector<std::unique_ptr<AdjacentFlatzones>>;
 
 
 struct FlatZoneNode {

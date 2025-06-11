@@ -41,15 +41,16 @@ int NodeCT<CNPsType>::getNumFlatzone() {
 
 
 template <typename CNPsType>
-int NodeCT<CNPsType>::getNumCNPs() const {
+int NodeCT<CNPsType>::getNumCNPs() {
     if constexpr (std::is_same<CNPsType, Pixels>::value) {
         return this->cnps.size();  // Retorna diretamente o número de pixels
     } else {
-        int count = 0;
+        if(this->numCNPs != -1) return this->numCNPs;
+        this->numCNPs = 0; //recomputando o cache contendo o numero de cnps
         for (const auto& [id, flatzone] : this->cnps) {
-            count += flatzone.size();  // Soma os pixels de todas as flatzones
+            this->numCNPs += flatzone.size();  // Soma os pixels de todas as flatzones
         }
-        return count;
+        return this->numCNPs;
     }
 }
 
@@ -148,6 +149,7 @@ void NodeFZ::removeFlatzone(int idFlatZone) {
 
     if (it != cnps.end()) {
         cnps.erase(it);  
+        this->numCNPs = -1; //o cache contendo o numero de cnps será recomputado
     } 
 }
 
@@ -155,7 +157,7 @@ template <>
 template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
 void NodeFZ::addCNPsToConnectedFlatzone(FlatZone&& flatZone, ComponentTreeFZPtr tree) {
    assert(!flatZone.empty() && "Erro: flatZone passada está vazia!");
-   
+   this->numCNPs = -1; //o cache contendo o numero de cnps será recomputado
    int flatZoneID = flatZone.front();    
 
    std::unique_ptr<FlatZonesGraph>& graph = tree->getFlatZonesGraph();
@@ -304,18 +306,6 @@ int NodeCT<CNPsType>::getNumSiblings() const {
     return (this->parent != nullptr) ? this->parent->getChildren().size() : 0;
 }
 
-template <typename CNPsType>
-int NodeCT<CNPsType>::getRepresentativeCNPs() const{
-    if constexpr (std::is_same<CNPsType, Pixels>::value) {
-        return this->cnps.front();
-    }else{
-        int minPixel = std::numeric_limits<int>::max();
-        for (const auto& [idFlatZone, flatZone] : this->cnps) {
-            minPixel = std::min(minPixel, idFlatZone);
-        }
-        return minPixel;
-    }
-}
 
 template <typename CNPsType>
 int NodeCT<CNPsType>::computerNumDescendants() {

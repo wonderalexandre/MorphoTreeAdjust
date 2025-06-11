@@ -60,8 +60,8 @@ public:
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
 	FlatZone& getFlatzoneByID(int p);
 	
-    template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    ListOfAdjacentFlatzones& getListOfAdjacentFlatzones();
+    //template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
+    //ListOfAdjacentFlatzones& getListOfAdjacentFlatzones();
 
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
     std::unique_ptr<FlatZonesGraph>& getFlatZonesGraph();

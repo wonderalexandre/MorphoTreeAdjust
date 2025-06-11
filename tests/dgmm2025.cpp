@@ -183,7 +183,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }*/
 
-    std::string directoryPath = "/Users/wonderalexandre/GitHub/MorphoTreeAdjust/tests/dat/misc256";//argv[1];
+    std::string directoryPath = "/Users/wonderalexandre/GitHub/MorphoTreeAdjust/tests/dat/misc";//argv[1];
 
     if (!fs::is_directory(directoryPath)) {
         std::cerr << "Caminho inválido ou não é um diretório.\n";

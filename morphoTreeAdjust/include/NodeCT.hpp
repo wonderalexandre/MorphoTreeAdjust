@@ -23,6 +23,7 @@ class NodeCT : public std::enable_shared_from_this<NodeCT<CNPsType>> {
     int threshold2; //for maxtree: maximal threshold, same that "level"
 	int threshold1;  //for maxtree: minimal threshold
 	long int areaCC;
+    long int numCNPs = -1;
 	
 	NodeCTPtr<CNPsType> parent;
 	CNPsType cnps; //pixels of the proper part 
@@ -64,9 +65,6 @@ public:
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
     void removeFlatzone(int idFlatZone);
 
-    //template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    //int getFlatZoneID(int pixel);
-
     ///Métodos disponíveis SOMENTE para `Pixels`
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, Pixels>::value, int> = 0>
     void addCNPs(int p);
@@ -77,7 +75,7 @@ public:
     int getIndex() const;
 	int getThreshold1() const;
 	int getThreshold2() const;
-    int getNumCNPs() const;
+    int getNumCNPs() ;
 	int getLevel() const;
 	void setLevel(int level);
 	bool isChild(NodeCTPtr<CNPsType> node) const;
@@ -86,7 +84,6 @@ public:
 	void setParent(NodeCTPtr<CNPsType> parent);
 	std::list<NodeCTPtr<CNPsType>>& getChildren();
 	int getNumSiblings() const;
-    int getRepresentativeCNPs() const;
     int computerNumDescendants();
 
 

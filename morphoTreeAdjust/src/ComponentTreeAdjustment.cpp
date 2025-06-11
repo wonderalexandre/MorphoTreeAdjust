@@ -509,7 +509,7 @@ void ComponentTreeAdjustment::updateTree(ComponentTreeFZPtr tree, NodeFZPtr leaf
     bool isMaxtree = tree->isMaxtree();
     int newGrayLevel = leaf->getParent()->getLevel();  // b = g(p)
     int oldGrayLevel = leaf->getLevel();  // a = f(p)
-    int idLeaf = leaf->getRepresentativeCNPs(); //pixel (id) of flatzone 
+    int idLeaf = leaf->getCNPs().front(); //pixel (id) of flatzone 
     
     NodeFZPtr nodeTauL = tree->getSC(idLeaf); //node of correspondence flatzone in other treee
     this->pixelUpperBound = idLeaf; 
