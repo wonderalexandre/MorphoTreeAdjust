@@ -355,7 +355,7 @@ class InternalIteratorBranchPostOrderTraversal {
 //============= Iterator para iterar os pixels compactos (CNPs) ==============//
     class InternalIteratorCNPs {
     private:
-        using FlatzoneIterator = std::unordered_map<int, std::list<int>>::iterator;
+        using FlatzoneIterator = FlatZones::iterator;
         using CNPsIterator = std::list<int>::iterator;
         
         FlatzoneIterator flatzoneIt, flatzoneEnd;
@@ -377,8 +377,7 @@ class InternalIteratorBranchPostOrderTraversal {
         using pointer = int*;
         using reference = int&;
         
-        InternalIteratorCNPs(FlatzoneIterator flatzoneBegin, FlatzoneIterator flatzoneEnd)
-            : flatzoneIt(flatzoneBegin), flatzoneEnd(flatzoneEnd) {
+        InternalIteratorCNPs(FlatzoneIterator flatzoneBegin, FlatzoneIterator flatzoneEnd) : flatzoneIt(flatzoneBegin), flatzoneEnd(flatzoneEnd) {
             if (flatzoneIt != flatzoneEnd) {
                 cnpsIt = flatzoneIt->second.begin();
                 advance();
@@ -406,11 +405,11 @@ class InternalIteratorBranchPostOrderTraversal {
 
     class IteratorCNPs {
     private:
-        std::unordered_map<int, std::list<int>>* cnpsByFlatzone;
+        FlatZones* cnpsByFlatzone;
 
     public:
         explicit IteratorCNPs(NodeCTPtr<CNPsType> node) : cnpsByFlatzone(&node->cnps) {}
-        explicit IteratorCNPs(std::unordered_map<int, std::list<int>>* cnpsByFlatzone) 
+        explicit IteratorCNPs(FlatZones* cnpsByFlatzone) 
             : cnpsByFlatzone(cnpsByFlatzone) {}
 
         InternalIteratorCNPs begin() { 

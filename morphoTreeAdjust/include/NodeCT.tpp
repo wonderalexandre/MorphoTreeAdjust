@@ -162,7 +162,7 @@ void NodeFZ::addCNPsToConnectedFlatzone(FlatZone&& flatZone, ComponentTreeFZPtr 
 
    std::unique_ptr<FlatZonesGraph>& graph = tree->getFlatZonesGraph();
    auto [unifiedFlatzoneID, flatzonesToMergeList] = graph->mergeConnectedFlatzone(flatZoneID, this->shared_from_this(), tree) ;
-   std::list<int>* unifiedFlatzone = &tree->getFlatzoneByID(unifiedFlatzoneID); 
+   std::list<int>* unifiedFlatzone = &this->getFlatZone(unifiedFlatzoneID); 
 
     // Atualizar SC para os novos pixels antes de modificar `flatZone`
     auto ptr = this->shared_from_this();
@@ -187,9 +187,11 @@ void NodeFZ::addCNPsToConnectedFlatzone(FlatZone&& flatZone, ComponentTreeFZPtr 
         this->cnps[flatZoneID] = std::move(flatZone);
         this->cnps.erase(unifiedFlatzoneID);
 
-        //para os teste no assert
-        unifiedFlatzoneID = flatZoneID;
-        unifiedFlatzone = &tree->getFlatzoneByID(unifiedFlatzoneID);
+        #ifndef NDEBUG
+            //para os teste no assert
+            unifiedFlatzoneID = flatZoneID;
+            unifiedFlatzone = &tree->getFlatzoneByID(unifiedFlatzoneID);
+        #endif
     }
 
 
