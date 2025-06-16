@@ -12,12 +12,12 @@
 #include <fstream>
 #include <iostream>
 
-inline void printFlatzoneGraph(ListOfAdjacentFlatzones flatzoneGraph, int size) {
+inline void printFlatzoneGraph(ListOfAdjacentFlatZones flatzoneGraph, int size) {
     std::cout << "Grafo de FlatZones:\n";
 
     for (int i = 0; i < size; ++i) {
         std::cout << "FlatZone " << i << " → { ";   
-        for (int neighbor : *flatzoneGraph[i]) {
+        for (int neighbor : flatzoneGraph[i]) {
             std::cout << neighbor << " ";
         }
         std::cout << "}\n";

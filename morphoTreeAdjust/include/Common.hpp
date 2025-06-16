@@ -51,8 +51,8 @@ using ComponentTreeFZPtr = std::shared_ptr<ComponentTreeFZ>; //representa um com
 using ComponentTreePPtr = std::shared_ptr<ComponentTreeP>; //representa um component tree sem tratamento de flatzones
 
 
-using AdjacentFlatzones = std::unordered_set<int>;
-using ListOfAdjacentFlatzones = std::vector<std::unique_ptr<AdjacentFlatzones>>;
+using AdjacentFlatZones = std::unordered_set<int>;
+using ListOfAdjacentFlatZones = std::vector<AdjacentFlatZones>;
 
 
 struct FlatZoneNode {

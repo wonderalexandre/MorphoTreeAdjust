@@ -108,7 +108,10 @@ FlatZone& NodeFZ::getFlatZone(int idFlatZone) {
 
 template <>
 template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
-void NodeFZ::addCNPsOfDisjointFlatzone(FlatZone&& flatZone, ComponentTreeFZPtr tree) {
+void NodeFZ::addCNPsOfDisjointFlatzone(FlatZone&& flatZone, ComponentTreeFZPtr tree, int capacity) {
+    if(capacity != -1){
+        this->cnps.reserve(capacity);
+    }
     int id = flatZone.front();
     this->cnps[id] = std::move(flatZone);
     if (tree) {
@@ -162,7 +165,7 @@ void NodeFZ::addCNPsToConnectedFlatzone(FlatZone&& flatZone, ComponentTreeFZPtr 
 
    std::unique_ptr<FlatZonesGraph>& graph = tree->getFlatZonesGraph();
    auto [unifiedFlatzoneID, flatzonesToMergeList] = graph->mergeConnectedFlatzone(flatZoneID, this->shared_from_this(), tree) ;
-   std::list<int>* unifiedFlatzone = &this->getFlatZone(unifiedFlatzoneID); 
+   std::list<int>& unifiedFlatzone = this->getFlatZone(unifiedFlatzoneID); 
 
     // Atualizar SC para os novos pixels antes de modificar `flatZone`
     auto ptr = this->shared_from_this();
@@ -171,68 +174,35 @@ void NodeFZ::addCNPsToConnectedFlatzone(FlatZone&& flatZone, ComponentTreeFZPtr 
     }
 
     // Iterar diretamente sobre `flatzonesToMergeList` para fundir seus CNPs na `unifiedFlatzone`
-    for (const int fzID : *flatzonesToMergeList){
+    for (const int fzID : flatzonesToMergeList){
         auto it = this->cnps.find(fzID);
-        unifiedFlatzone->splice(unifiedFlatzone->end(), it->second);  // Fundir na unifiedFlatzone
+        unifiedFlatzone.splice(unifiedFlatzone.end(), it->second);  // Fundir na unifiedFlatzone
         this->cnps.erase(it);  // Remove do unordered_map
     }
 
     // Fundir `flatZone` na `unifiedFlatzone`
     if(unifiedFlatzoneID < flatZoneID){
-        unifiedFlatzone->splice(unifiedFlatzone->end(), flatZone);
+        unifiedFlatzone.splice(unifiedFlatzone.end(), flatZone);
     }else{        
         graph->remapFlatzoneIDInGraph(unifiedFlatzoneID, flatZoneID);
 
-        flatZone.splice(flatZone.end(), *unifiedFlatzone);
+        flatZone.splice(flatZone.end(), unifiedFlatzone);
         this->cnps[flatZoneID] = std::move(flatZone);
         this->cnps.erase(unifiedFlatzoneID);
 
         #ifndef NDEBUG
             //para os teste no assert
             unifiedFlatzoneID = flatZoneID;
-            unifiedFlatzone = &tree->getFlatzoneByID(unifiedFlatzoneID);
+            unifiedFlatzone = tree->getFlatzoneByID(unifiedFlatzoneID);
         #endif
     }
 
 
     assert([&]() {
-        int minPixel = *std::min_element(unifiedFlatzone->begin(), unifiedFlatzone->end());
-        return minPixel == unifiedFlatzoneID && unifiedFlatzoneID == unifiedFlatzone->front();
+        int minPixel = *std::min_element(unifiedFlatzone.begin(), unifiedFlatzone.end());
+        return minPixel == unifiedFlatzoneID && unifiedFlatzoneID == unifiedFlatzone.front();
     }() && "ERRO: O menor pixel da flatzone unificada não é o seu ID!");
     
-    assert([&]() {
-        
-        
-        if (unifiedFlatzone->empty()) {
-            std::cerr << "ERRO: unifiedFlatzone está vazia após a fusão!" << std::endl;
-            return false;
-        }
-        
-        if (flatzoneGraph[unifiedFlatzoneID] == nullptr) {
-            std::cerr << "ERRO: unifiedFlatzone não está registrada no grafo!" << std::endl;
-            return false;
-        }
-
-        for (int neighborID : *flatzoneGraph[unifiedFlatzoneID]) {
-
-            if (flatzoneGraph[neighborID] == nullptr) {
-                std::cerr << "ERRO: Conexão assimétrica entre unifiedFlatzone e seu vizinho!" << std::endl;
-                return false;
-            }
-            
-            const FlatZone& neighborFlatzone = tree->getFlatzoneByID(neighborID);
-
-            if (neighborFlatzone.empty()) {
-                std::cerr << "neighborID: " << neighborID << std::endl;
-                std::cerr << "ERRO: Flatzone vizinha de unifiedFlatzone está vazia APOS fusão!" << std::endl;
-                return false;
-            }
-
-
-        }
-
-        return true;
-    }() && "Erro: Grafo de flatzones inconsistente após a fusão!");
 
 }
 

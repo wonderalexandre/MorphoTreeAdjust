@@ -182,17 +182,25 @@ inline void ComponentTreeP::assignCNPs() {
 }
 
 /*
-Esse método faz atribuição dos pixels as suas respectivas flatzones e depois constroí-se um grafo de flatzones.
+Esse método faz atribuição dos pixels as suas respectivas flatzones.
 O menor pixel (o primeiro a ser visitado durante a construção da flatzone) é considerado o id da flatzone.
 Essa propriedade será mantida no grafo ao realizar operações de fusão de flatzones
 */
 template <>
 inline void ComponentTreeFZ::assignCNPs() {
-    //this->flatzoneGraph = FlatZonesGraph::createInstance(imgPtr, this->numRows, this->numCols, this->adj);
+    
+    u_short *numFlatzones = new u_short[this->numNodes]();
     for (FlatZone& flatZone : this->flatzoneGraph->getFlatzones()) {
-        this->pixelToNode[flatZone.front()]->addCNPsOfDisjointFlatzone(std::move(flatZone));
+        numFlatzones[this->pixelToNode[flatZone.front()]->getIndex()] += 1;        
     }
-
+    for (FlatZone& flatZone : this->flatzoneGraph->getFlatzones()) {
+        this->pixelToNode[flatZone.front()]->addCNPsOfDisjointFlatzone(std::move(flatZone), nullptr, numFlatzones[this->pixelToNode[flatZone.front()]->getIndex()]);
+    }
+    delete[] numFlatzones;
+    /*
+    for (FlatZone& flatZone : this->flatzoneGraph->getFlatzones()) {
+        this->pixelToNode[flatZone.front()]->addCNPsOfDisjointFlatzone(std::move(flatZone) );
+    }*/
 
     assert([&]() {
         for(NodeFZPtr node: this->root->getIteratorBreadthFirstTraversal()){
@@ -466,7 +474,7 @@ FlatZone& ComponentTreeFZ::getFlatzoneByID(int idFlatZone) {
 /*
 template <>
 template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
-ListOfAdjacentFlatzones& ComponentTreeFZ::getListOfAdjacentFlatzones(){
+ListOfAdjacentFlatZones& ComponentTreeFZ::getListOfAdjacentFlatzones(){
     return this->flatzoneGraph->getGraph();
 }*/
 

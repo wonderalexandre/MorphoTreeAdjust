@@ -53,7 +53,7 @@ public:
     int getNumFlatzone();
 
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    void addCNPsOfDisjointFlatzone(FlatZone&& flatZone, ComponentTreeFZPtr tree = nullptr);
+    void addCNPsOfDisjointFlatzone(FlatZone&& flatZone, ComponentTreeFZPtr tree = nullptr, int capacity = -1);
     
 
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
@@ -85,6 +85,7 @@ public:
 	std::list<NodeCTPtr<CNPsType>>& getChildren();
 	int getNumSiblings() const;
     int computerNumDescendants();
+    
 
 
 //============= Iterator para iterar os nodes do caminho até o root==============//
