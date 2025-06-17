@@ -15,11 +15,11 @@ ComponentTreeAdjustment::~ComponentTreeAdjustment() { }
 
 
 
-void ComponentTreeAdjustment::buildMergedAndNestedCollections(ComponentTreeFZPtr tree, std::vector<FlatZoneRef>& flatZone, int newGrayLevel, bool isMaxtree){
+void ComponentTreeAdjustment::buildMergedAndNestedCollections(ComponentTreeFZPtr tree, const std::vector<FlatZonePtr>& flatZone, int newGrayLevel, bool isMaxtree){
 	Fb.clear();
 	F.resetCollection(isMaxtree);
     if(this->pixelUpperBound == -1){
-        this->pixelUpperBound = flatZone.front().get().front();
+        this->pixelUpperBound = flatZone.front()->front();
     }
     F.computerAdjacentNodes(tree, flatZone);
     NodeFZPtr nodeTauL = tree->getSC(this->pixelUpperBound); //pixel de tauStar ou tauL, para termos o node (limite) mais proximo de root
@@ -92,7 +92,7 @@ void ComponentTreeAdjustment::updateTree3(ComponentTreeFZPtr tree, NodeFZPtr nod
 
 
     //bool nodeTauCNPsIsEqualL = (nodeTauStar->getNumFlatzone() ==  1);
-    std::vector<FlatZoneRef>  flatzonesTauSubtree = unionNodeTauSubtree.getFlatzones();
+    std::vector<FlatZonePtr>  flatzonesTauSubtree = unionNodeTauSubtree.getFlatzones();
     this->buildMergedAndNestedCollections(tree,  flatzonesTauSubtree, newGrayLevel, isMaxtree);
 
     if(PRINT_LOG){
@@ -320,7 +320,7 @@ void ComponentTreeAdjustment::updateTree2(ComponentTreeFZPtr tree, NodeFZPtr roo
 
 
     //bool nodeTauCNPsIsEqualL = (nodeTauStar->getNumFlatzone() ==  1);
-    std::vector<FlatZoneRef>  flatzonesTauSubtree = unionNodeTauSubtree.getFlatzones();
+    std::vector<FlatZonePtr> flatzonesTauSubtree = unionNodeTauSubtree.getFlatzones();
     this->buildMergedAndNestedCollections(tree,  flatzonesTauSubtree, newGrayLevel, isMaxtree);
 
     if(PRINT_LOG){
@@ -515,8 +515,8 @@ void ComponentTreeAdjustment::updateTree(ComponentTreeFZPtr tree, NodeFZPtr leaf
     this->pixelUpperBound = idLeaf; 
 
     bool nodeTauCNPsIsEqualL = nodeTauL->getNumFlatzone() == 1;
-    FlatZone& flatzoneTauL = tree->getFlatzoneByID(idLeaf); 
-    std::vector<FlatZoneRef> flatZonesTauL = {flatzoneTauL};
+    FlatZonePtr flatzoneTauL = &tree->getFlatzoneByID(idLeaf); 
+    std::vector<FlatZonePtr> flatZonesTauL = {flatzoneTauL};
     
     assert(leaf->getNumCNPs() == flatzoneTauL.size() && "O número de CNPs de L_leaf é diferente do número de pixels da flatzone de tauL");
 
@@ -542,8 +542,8 @@ void ComponentTreeAdjustment::updateTree(ComponentTreeFZPtr tree, NodeFZPtr leaf
             }
         }
         if (lambda == newGrayLevel) {
-            int idFlatzoneTauL = flatzoneTauL.front();
-            nodeUnion->addCNPsToConnectedFlatzone(std::move(flatzoneTauL), tree); // Os mapeamentos são atualizados
+            int idFlatzoneTauL = flatzoneTauL->front();
+            nodeUnion->addCNPsToConnectedFlatzone(std::move(*flatzoneTauL), tree); // Os mapeamentos são atualizados
             nodeTauL->removeFlatzone(idFlatzoneTauL);
             for (NodeFZPtr n : Fb) {
                 disconnect(n);
@@ -616,7 +616,7 @@ void ComponentTreeAdjustment::updateTree(ComponentTreeFZPtr tree, NodeFZPtr leaf
 }
 
 
-void ComponentTreeAdjustment::adjustMinTree(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree, std::vector<NodeFZPtr> nodesToPruning) {
+void ComponentTreeAdjustment::adjustMinTree(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree, const std::vector<NodeFZPtr>& nodesToPruning) {
     for (NodeFZPtr node : nodesToPruning) {
         for (NodeFZPtr Lmax : node->getIteratorPostOrderTraversal()) { 
             assert(Lmax != maxtree->getRoot() && "Lmax is root");
@@ -628,7 +628,7 @@ void ComponentTreeAdjustment::adjustMinTree(ComponentTreeFZPtr mintree, Componen
     }
 }
 
-void ComponentTreeAdjustment::adjustMaxTree(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree, std::vector<NodeFZPtr> nodesToPruning) {
+void ComponentTreeAdjustment::adjustMaxTree(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree, const std::vector<NodeFZPtr>& nodesToPruning) {
     for (NodeFZPtr node : nodesToPruning) {  	
         for (NodeFZPtr Lmin : node->getIteratorPostOrderTraversal()) {
             assert(Lmin != mintree->getRoot() && "Lmin is root");
@@ -640,7 +640,7 @@ void ComponentTreeAdjustment::adjustMaxTree(ComponentTreeFZPtr maxtree, Componen
     }
 }
 
-void ComponentTreeAdjustment::adjustMinTree2(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree, std::vector<NodeFZPtr> nodesToPruning) {
+void ComponentTreeAdjustment::adjustMinTree2(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree, const std::vector<NodeFZPtr>& nodesToPruning) {
     for (NodeFZPtr rSubtree : nodesToPruning) {  	
         assert(rSubtree != maxtree->getRoot() && "rSubtree is root");
         updateTree2(mintree, rSubtree); 
@@ -648,7 +648,7 @@ void ComponentTreeAdjustment::adjustMinTree2(ComponentTreeFZPtr mintree, Compone
     }
 }
 
-void ComponentTreeAdjustment::adjustMaxTree2(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree, std::vector<NodeFZPtr> nodesToPruning) {
+void ComponentTreeAdjustment::adjustMaxTree2(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree, const std::vector<NodeFZPtr>& nodesToPruning) {
     for (NodeFZPtr rSubtree : nodesToPruning) {  
         assert(rSubtree != mintree->getRoot() && "rSubtree is root");
 

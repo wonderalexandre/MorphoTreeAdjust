@@ -33,7 +33,7 @@ for i in range(20):
 
 */
 
-ImageUInt8Ptr computerCASF_naive(ImageUInt8Ptr img, double radioAdj, std::vector<int> thresholds){
+ImageUInt8Ptr computerCASF_naive(ImageUInt8Ptr img, double radioAdj, const std::vector<int>& thresholds){
     std::chrono::high_resolution_clock::time_point start, start_all, end, end_all;
     start_all = std::chrono::high_resolution_clock::now();
     AdjacencyRelationPtr adj =std::make_shared<AdjacencyRelation>(img->getNumRows(), img->getNumCols(), radioAdj);
@@ -78,7 +78,7 @@ ImageUInt8Ptr computerCASF_naive(ImageUInt8Ptr img, double radioAdj, std::vector
 }
 
 
-ImageUInt8Ptr computerCASF_hibrid(ImageUInt8Ptr img, double radioAdj, std::vector<int> thresholds){
+ImageUInt8Ptr computerCASF_hibrid(ImageUInt8Ptr img, double radioAdj, const std::vector<int>& thresholds){
     std::chrono::high_resolution_clock::time_point start, start_all, end, end_all;
     if(PRINT_LOG){
         start = std::chrono::high_resolution_clock::now();
@@ -114,9 +114,7 @@ ImageUInt8Ptr computerCASF_hibrid(ImageUInt8Ptr img, double radioAdj, std::vecto
         if(PRINT_LOG){
             end = std::chrono::high_resolution_clock::now();
             std::cout << "\t- Time (build/prunning/rec mintree) hibrid: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
-
-            end_all = std::chrono::high_resolution_clock::now();
-            std::cout << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end_all - start_all).count() << " ms\n\n";
+            start = std::chrono::high_resolution_clock::now();
         }
 
     }
@@ -165,7 +163,7 @@ ImageUInt8Ptr computerCASF_hibrid(ImageUInt8Ptr img, double radioAdj, std::vecto
 }
 
 
-ImageUInt8Ptr computerCASF(ImageUInt8Ptr img, double radioAdj, std::vector<int> thresholds){
+ImageUInt8Ptr computerCASF(ImageUInt8Ptr img, double radioAdj, const std::vector<int>& thresholds){
     std::chrono::high_resolution_clock::time_point start, start_all, end, end_all;
     if(PRINT_LOG){
         start = std::chrono::high_resolution_clock::now();
@@ -216,7 +214,7 @@ ImageUInt8Ptr computerCASF(ImageUInt8Ptr img, double radioAdj, std::vector<int> 
 
 
 
-ImageUInt8Ptr computerCASF_subtree(ImageUInt8Ptr img, double radioAdj, std::vector<int> thresholds){
+ImageUInt8Ptr computerCASF_subtree(ImageUInt8Ptr img, double radioAdj, const std::vector<int>& thresholds){
     std::chrono::high_resolution_clock::time_point start, start_all, end, end_all;
     if(PRINT_LOG){
         start = std::chrono::high_resolution_clock::now();
@@ -349,9 +347,9 @@ int main(int argc, char* argv[]) {
         std::cout << "\tour approach:   " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
 
         start = std::chrono::high_resolution_clock::now();
-        auto imgOut3 = computerCASF_hibrid(img,radioAdj, thresholds);
+        auto imgOut3 = computerCASF_subtree(img,radioAdj, thresholds);
         end = std::chrono::high_resolution_clock::now();
-        std::cout << "\tour approach (hibrid): " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
+        std::cout << "\tour approach (subtree): " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
 
         
         std::cout << "The images (naive/our) are equals: " << (imgOut1->isEqual(imgOut2)? "True":"False") << "\n";

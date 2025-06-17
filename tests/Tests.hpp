@@ -121,6 +121,7 @@ inline  void printConnectedComponent(NodeCTPtr<CNPsType> node, ComponentTreePtr<
 }
 template <typename PixelType>
 inline  void printImage(ImagePtr<PixelType> imgPtr, std::string nomeArquivo = "") {
+
     auto img = imgPtr->rawData();
     int numRows = imgPtr->getNumRows();
     int numCols = imgPtr->getNumCols();
@@ -142,7 +143,7 @@ inline  void printImage(ImagePtr<PixelType> imgPtr, std::string nomeArquivo = ""
     // Impressão bidimensional
    for (int i = 0; i < numRows; ++i) {
         for (int j = 0; j < numCols; ++j) {
-            *streamSaida << std::setw(2) <<  img[i * numCols + j] << " ";
+            *streamSaida << std::setw(2) <<  static_cast<int>(img[i * numCols + j]) << " ";
         }
         *streamSaida << "\n";
     }

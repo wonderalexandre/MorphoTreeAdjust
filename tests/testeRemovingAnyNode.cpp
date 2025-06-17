@@ -52,6 +52,7 @@ int main()
             break;
         }
     }    
+    printConnectedComponent(N, mintree);
 
     ComponentTreeAdjustment adjust(mintree, maxtree);
      
@@ -63,6 +64,7 @@ int main()
         
         std::cout <<"\nN:" << N->getIndex() << ", level:" << N->getLevel() << ", |cnps|:" << N->getNumCNPs() <<  std::endl;
         adjust.updateTree3(maxtree, N);
+        std::cout << adjust.getOutputLog() << std::endl;   
         mintree->mergeWithParent(N);
 
         auto imgOutMaxtree = maxtree->reconstructionImage();
@@ -71,9 +73,9 @@ int main()
         testComponentTreeFZ(maxtree, "max-tree", imgOutMaxtree);
         testComponentTreeFZ(mintree, "min-tree", imgOutMintree);
         if(imgOutMaxtree->isEqual(imgOutMintree))
-            std::cout <<"✅ Rec(maxtree) = Rec(mintree)" << std::endl;
+            std::cout <<"\n✅ Rec(maxtree) = Rec(mintree)" << std::endl;
         else
-            std::cout <<"❌ Rec(maxtree) != Rec(mintree)" << std::endl;
+            std::cout <<"\n❌ Rec(maxtree) != Rec(mintree)" << std::endl;
 
     
     //}
