@@ -264,18 +264,14 @@ ImageUInt8Ptr computerCASF_subtree(ImageUInt8Ptr img, double radioAdj, const std
 
 
 int main(int argc, char* argv[]) {
-   /* if (argc != 2) {
-        std::cerr << "Uso: " << argv[0] << " <diretorio_imagens>\n";
-        return 1;
-    }*/
-
-    std::string directoryPath = "/Users/wonderalexandre/GitHub/MorphoTreeAdjust/tests/dat/dataset-icdar2024_occluded";//argv[1];
-
-    if (!fs::is_directory(directoryPath)) {
-        std::cerr << "Caminho inválido ou não é um diretório.\n";
+    if (argc != 2) {
+        std::cerr << "Use: " << argv[0] << " <image>\n";
         return 1;
     }
 
+    std::string filename = argv[1];
+
+    
     //std::vector<int> thresholds{50, 176, 303, 430, 557, 684, 811, 938, 1065, 1192, 1319, 1446, 1573, 1700, 1826, 1953, 2080, 2207, 2334, 2461, 2588, 2715, 2842, 2969, 3096, 3223, 3350, 3476, 3603, 3730, 3857, 3984, 4111, 4238, 4365, 4492, 4619, 4746, 4873, 5000, 5400, 5911, 6422, 6933, 7444, 7955, 8466, 8977, 9488, 10000};
     std::vector<int> thresholds = {10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200, 210, 220, 230, 240, 250, 260, 270, 280, 290, 300, 310, 320, 330, 340, 350, 360, 370, 380, 390, 400, 410, 420, 430, 440, 450, 460, 470, 480, 490, 500};
     
@@ -311,59 +307,50 @@ int main(int argc, char* argv[]) {
         8580,  8926,  9278,  9636, 10000};
 */
 
-    std::cout << "Thresholds: {";
-    for(size_t i=0; i < thresholds.size(); i++)
-        std::cout << thresholds[i] << (i+1 < thresholds.size()? ", ": "}");
-    std::cout << "\n\n";
+    
 
-    for (const auto& entry : fs::directory_iterator(directoryPath)) {
-        if (entry.path().extension() != ".png") continue;
-        
+    std::cout << "Image: " << filename << std::endl;
 
-        std::string filename = entry.path().string();
-        std::cout << "Image: " << filename << std::endl;
-
-        int numCols, numRows, nchannels;
-        uint8_t* data = stbi_load(filename.c_str(), &numCols, &numRows, &nchannels, 1);
-        
-        if (!data) {
-            std::cerr << "Erro: Não foi possível carregar a imagem " << filename << std::endl;
-            return 1;
-        }
-        std::cout << "Resolution: " << numCols << "x" << numRows << std::endl;
-        ImageUInt8Ptr img = ImageUInt8::fromRaw(data, numRows, numCols);
-        
-        double radioAdj = 1.5;
-        
-        auto start = std::chrono::high_resolution_clock::now();
-        auto imgOut1 = computerCASF_naive(img, radioAdj, thresholds);
-        auto end = std::chrono::high_resolution_clock::now();
-        std::cout << "Times" << std::endl;
-        std::cout << "\tnaive approach: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
-        
-        start = std::chrono::high_resolution_clock::now();
-        auto imgOut2 = computerCASF(img, radioAdj, thresholds);
-        end = std::chrono::high_resolution_clock::now();
-        std::cout << "\tour approach:   " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
-
-        start = std::chrono::high_resolution_clock::now();
-        auto imgOut3 = computerCASF_subtree(img,radioAdj, thresholds);
-        end = std::chrono::high_resolution_clock::now();
-        std::cout << "\tour approach (subtree): " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
-
-        
-        std::cout << "The images (naive/our) are equals: " << (imgOut1->isEqual(imgOut2)? "True":"False") << "\n";
-        std::cout << "The images (our/our2) are equals: " << (imgOut1->isEqual(imgOut3)? "True":"False") << "\n\n";
-        
-        /*
-        data = new unsigned char[n];
-        for (int i = 0; i < numCols * numRows; i++) {
-            data[i] = static_cast<int>(imgOut3[i]);  // Converte de `unsigned char` para `int`
-        }
-        stbi_write_png(("/Users/wonderalexandre/GitHub/MorphoTreeAdjust/tests/build/out_our_" + entry.path().filename().string()).c_str(), numCols, numRows, 1, data, 0);
-        delete[] data;
-        */
-        break;
+    int numCols, numRows, nchannels;
+    uint8_t* data = stbi_load(filename.c_str(), &numCols, &numRows, &nchannels, 1);
+    
+    if (!data) {
+        std::cerr << "Erro: Não foi possível carregar a imagem " << filename << std::endl;
+        return 1;
     }
+    std::cout << "Resolution: " << numCols << "x" << numRows << std::endl;
+    ImageUInt8Ptr img = ImageUInt8::fromRaw(data, numRows, numCols);
+    
+    double radioAdj = 1.5;
+    
+    auto start = std::chrono::high_resolution_clock::now();
+    auto imgOut1 = computerCASF_naive(img, radioAdj, thresholds);
+    auto end = std::chrono::high_resolution_clock::now();
+    std::cout << "Times" << std::endl;
+    std::cout << "\tnaive approach: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
+    
+    start = std::chrono::high_resolution_clock::now();
+    auto imgOut2 = computerCASF(img, radioAdj, thresholds);
+    end = std::chrono::high_resolution_clock::now();
+    std::cout << "\tour approach:   " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
+/*
+    start = std::chrono::high_resolution_clock::now();
+    auto imgOut3 = computerCASF_subtree(img,radioAdj, thresholds);
+    end = std::chrono::high_resolution_clock::now();
+    std::cout << "\tour approach (subtree): " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
+*/
+    
+    std::cout << "The images (naive/our) are equals: " << (imgOut1->isEqual(imgOut2)? "True":"False") << "\n";
+    //std::cout << "The images (our/our2) are equals: " << (imgOut1->isEqual(imgOut3)? "True":"False") << "\n\n";
+    
+    /*
+    data = new unsigned char[n];
+    for (int i = 0; i < numCols * numRows; i++) {
+        data[i] = static_cast<int>(imgOut3[i]);  // Converte de `unsigned char` para `int`
+    }
+    stbi_write_png(("/Users/wonderalexandre/GitHub/MorphoTreeAdjust/tests/build/out_our_" + entry.path().filename().string()).c_str(), numCols, numRows, 1, data, 0);
+    delete[] data;
+    */
+
     return 0;
 }

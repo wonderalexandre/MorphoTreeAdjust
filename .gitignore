@@ -8,3 +8,4 @@ Pipfile
 *.d
 *.o
 /.eggs
+/tests/dat/icdar_val
