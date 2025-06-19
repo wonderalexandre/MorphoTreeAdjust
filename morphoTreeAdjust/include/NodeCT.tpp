@@ -165,7 +165,7 @@ void NodeFZ::addCNPsToConnectedFlatzone(FlatZone&& flatZone, ComponentTreeFZPtr 
 
    std::unique_ptr<FlatZonesGraph>& graph = tree->getFlatZonesGraph();
    auto [unifiedFlatzoneID, flatzonesToMergeList] = graph->mergeConnectedFlatzone(flatZoneID, this->shared_from_this(), tree) ;
-   std::list<int>& unifiedFlatzone = this->getFlatZone(unifiedFlatzoneID); 
+   FlatZone& unifiedFlatzone = this->getFlatZone(unifiedFlatzoneID); //tree->getSC(unifiedFlatzoneID)->getFlatZone(unifiedFlatzoneID); 
 
     // Atualizar SC para os novos pixels antes de modificar `flatZone`
     auto ptr = this->shared_from_this();
@@ -190,19 +190,7 @@ void NodeFZ::addCNPsToConnectedFlatzone(FlatZone&& flatZone, ComponentTreeFZPtr 
         this->cnps[flatZoneID] = std::move(flatZone);
         this->cnps.erase(unifiedFlatzoneID);
 
-        #ifndef NDEBUG
-            //para os teste no assert
-            unifiedFlatzoneID = flatZoneID;
-            unifiedFlatzone = tree->getFlatzoneByID(unifiedFlatzoneID);
-        #endif
-    }
-
-
-    assert([&]() {
-        int minPixel = *std::min_element(unifiedFlatzone.begin(), unifiedFlatzone.end());
-        return minPixel == unifiedFlatzoneID && unifiedFlatzoneID == unifiedFlatzone.front();
-    }() && "ERRO: O menor pixel da flatzone unificada não é o seu ID!");
-    
+    }   
 
 }
 

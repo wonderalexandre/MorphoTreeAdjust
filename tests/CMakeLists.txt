@@ -49,6 +49,7 @@ target_compile_options(dgmm2025 PRIVATE -Wno-deprecated-declarations)
 add_executable(testePruningLeaf testePruningLeaf.cpp
     ../morphoTreeAdjust/src/AdjacencyRelation.cpp
     ../morphoTreeAdjust/src/ComponentTreeAdjustment.cpp
+    ./external/stb/stb_image.cpp
 )
 
 add_executable(TestComponentTree TestComponentTree.cpp

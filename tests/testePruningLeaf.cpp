@@ -16,14 +16,27 @@
 #include "../morphoTreeAdjust/include/ComponentTreeAdjustment.hpp"
 
 #include "../tests/Tests.hpp"
-
+#include "./external/stb/stb_image.h"
+#include "./external/stb/stb_image_write.h"
 
 int main()
 {
 
     std::cout << "Iniciando...\n";
+    std::string filename = "/Users/wonderalexandre/GitHub/MorphoTreeAdjust/tests/dat/dataset-icdar2024_occluded/val_054.png";
     
-    auto img = getLenaCropImage();
+    
+    int numCols, numRows, nchannels;
+    uint8_t* data = stbi_load(filename.c_str(), &numCols, &numRows, &nchannels, 1);
+    
+    if (!data) {
+        std::cerr << "Erro: Não foi possível carregar a imagem " << filename << std::endl;
+        return 1;
+    }
+    std::cout << "Resolution: " << numCols << "x" << numRows << std::endl;
+    ImageUInt8Ptr img = ImageUInt8::fromRaw(data, numRows, numCols);
+    img = getCharImage();
+
     double radioAdj = 1.5;
     
     AdjacencyRelationPtr adj =std::make_shared<AdjacencyRelation>(img->getNumRows(), img->getNumCols(), radioAdj);

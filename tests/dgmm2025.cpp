@@ -184,6 +184,10 @@ ImageUInt8Ptr computerCASF(ImageUInt8Ptr img, double radioAdj, const std::vector
     }
     
     for(size_t i=0; i < thresholds.size(); i++) {
+        if(PRINT_DEBUG){
+            
+            
+        }
         int threshold = thresholds[i];
         if(PRINT_LOG){
             std::cout << "Opening/Closing: " << (i+1) << " \t\tthreshold:" << threshold << std::endl;
@@ -191,6 +195,7 @@ ImageUInt8Ptr computerCASF(ImageUInt8Ptr img, double radioAdj, const std::vector
             start = std::chrono::high_resolution_clock::now();
         }
         adjust.adjustMinTree(mintree, maxtree, maxtree->getNodesThreshold(threshold));
+        
         end = std::chrono::high_resolution_clock::now();
         
         if(PRINT_LOG){
@@ -205,6 +210,7 @@ ImageUInt8Ptr computerCASF(ImageUInt8Ptr img, double radioAdj, const std::vector
             std::cout << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end_all - start_all).count() << " ms\n\n";
         }
 
+       
 	}
     auto imgOut = mintree->reconstructionImage();
     //delete maxtree;
@@ -234,6 +240,7 @@ ImageUInt8Ptr computerCASF_subtree(ImageUInt8Ptr img, double radioAdj, const std
     }
     
     for(size_t i=0; i < thresholds.size(); i++) {
+        
         int threshold = thresholds[i];
         if(PRINT_LOG){
             std::cout << "Opening/Closing: " << (i+1) << " \t\tthreshold:" << threshold << std::endl;
