@@ -17,22 +17,6 @@
 namespace fs = std::filesystem;
 
 
-/*
-import numpy as np
-def imprime(n):
-	X = np.linspace(0, 200, n+1)
-	s = "teste.push_back( std::vector<int>{"
-	for x in X:
-		if x != 0:
-			s += str(int(x))
-		if x != 0 and x != 200:
-			s += ", "
-	return s+"});"
-
-for i in range(20):
-	print(imprime(i))
-
-*/
 
 ImageUInt8Ptr computerCASF_naive(ImageUInt8Ptr img, double radioAdj, const std::vector<int>& thresholds){
     std::chrono::high_resolution_clock::time_point start, start_all, end, end_all;
@@ -71,8 +55,7 @@ ImageUInt8Ptr computerCASF_naive(ImageUInt8Ptr img, double radioAdj, const std::
             end_all = std::chrono::high_resolution_clock::now();
             std::cout << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end_all - start_all).count() << " ms\n\n";
         }
-        //delete maxtree;
-        //delete mintree;      	    
+  	    
 	}
     
     return imgOut;
@@ -164,8 +147,6 @@ ImageUInt8Ptr computerCASF_hibrid(ImageUInt8Ptr img, double radioAdj, const std:
 
 	}
     imgOut = mintree->reconstructionImage();
-    //delete maxtree;
-    //delete mintree;
     return imgOut;
 }
 
@@ -219,8 +200,6 @@ ImageUInt8Ptr computerCASF(ImageUInt8Ptr img, double radioAdj, const std::vector
        
 	}
     auto imgOut = mintree->reconstructionImage();
-    //delete maxtree;
-    //delete mintree;
     return imgOut;
 }
 
@@ -273,8 +252,6 @@ ImageUInt8Ptr computerCASF_subtree(ImageUInt8Ptr img, double radioAdj, const std
 
 	}
     auto imgOut = mintree->reconstructionImage();
-    //delete maxtree;
-    //delete mintree;
     return imgOut;
 }
 
@@ -286,46 +263,10 @@ int main(int argc, char* argv[]) {
     }
 
     std::string filename = argv[1];
-
+    std::cout << "Image: " << filename << std::endl;
     
-    //std::vector<int> thresholds{50, 176, 303, 430, 557, 684, 811, 938, 1065, 1192, 1319, 1446, 1573, 1700, 1826, 1953, 2080, 2207, 2334, 2461, 2588, 2715, 2842, 2969, 3096, 3223, 3350, 3476, 3603, 3730, 3857, 3984, 4111, 4238, 4365, 4492, 4619, 4746, 4873, 5000, 5400, 5911, 6422, 6933, 7444, 7955, 8466, 8977, 9488, 10000};
     std::vector<int> thresholds = {10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200, 210, 220, 230, 240, 250, 260, 270, 280, 290, 300, 310, 320, 330, 340, 350, 360, 370, 380, 390, 400, 410, 420, 430, 440, 450, 460, 470, 480, 490, 500};
     
-   /*
-    std::vector<int> thresholds = {10,   30,   50,   70,   90,  110,  130,  150,  170,  190,  210, //linear
-        230,  250,  270,  290,  310,  330,  350,  370,  390,  410,  430,
-        450,  470,  490,  510,  530,  550,  570,  590,  610,  630,  650,
-        670,  690,  710,  730,  750,  770,  790,  810,  830,  850,  870,
-        890,  910,  930,  950,  970, 1000};
-
-
-
-    std::vector<int> thresholds = {10,   19,   31,   44,   58,   73,   89,  105,  122,  139,  157, //power=1.2
-        174,  192,  211,  230,  249,  268,  287,  307,  327,  347,  368,
-        388,  409,  430,  451,  472,  494,  515,  537,  559,  581,  603,
-        626,  648,  671,  693,  716,  739,  762,  786,  809,  832,  856,
-        880,  903,  927,  951,  975, 1000};
-   
-      
-
-    std::vector<int> thresholds = {10,   14,   21,   29,   39,   50,   62,   74,   88,  102,  116, //power=1.4
-        132,  148,  164,  181,  198,  216,  234,  253,  272,  292,  312,
-        332,  353,  374,  395,  417,  439,  462,  485,  508,  531,  555,
-        579,  603,  628,  652,  678,  703,  729,  755,  781,  807,  834,
-        861,  888,  916,  943,  971, 1000};
-
-
-        std::vector<int> thresholds = {10,    19,    41,    75,   119,   174,   237,   310,   392,
-         482,   581,   688,   803,   926,  1057,  1196,  1342,  1496,
-        1657,  1825,  2000,  2183,  2373,  2570,  2774,  2985,  3202,
-        3427,  3658,  3896,  4140,  4391,  4649,  4913,  5184,  5461,
-        5745,  6035,  6331,  6634,  6942,  7258,  7579,  7906,  8240,
-        8580,  8926,  9278,  9636, 10000};
-*/
-
-    
-
-    std::cout << "Image: " << filename << std::endl;
 
     int numCols, numRows, nchannels;
     uint8_t* data = stbi_load(filename.c_str(), &numCols, &numRows, &nchannels, 1);

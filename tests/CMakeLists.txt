@@ -31,11 +31,6 @@ include_directories(
   "${CMAKE_CURRENT_SOURCE_DIR}/tests"
   )
 
-# Exemplos com a morphotree
-add_executable(testeRemovingAnyNode testeRemovingAnyNode.cpp
-    ../morphoTreeAdjust/src/AdjacencyRelation.cpp
-    ../morphoTreeAdjust/src/ComponentTreeAdjustmentByFlatzone.cpp
-)
 
 add_executable(dgmm2025 dgmm2025.cpp
     ../morphoTreeAdjust/src/AdjacencyRelation.cpp
@@ -64,9 +59,4 @@ add_executable(testePruningSubtree testePruningSubtree.cpp
     ../morphoTreeAdjust/src/AdjacencyRelation.cpp
     ../morphoTreeAdjust/src/ComponentTreeAdjustmentBySubtree.cpp
 )
-
-#add_executable(testeComponentTreeGeneralAdjustment testeComponentTreeGeneralAdjustment.cpp
-#    ../morphoTreeAdjust/src/AdjacencyRelation.cpp
-#    ../morphoTreeAdjust/src/ComponentTreeAdjustment.cpp
-#)
 
