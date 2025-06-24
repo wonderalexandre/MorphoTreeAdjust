@@ -271,6 +271,7 @@ public:
      * Esse método fundirá a flatzoneID com uma outra flatzone adjacentes presente na lista de flatzones do node 
      */
     std::tuple<int, std::list<int>> mergeConnectedFlatzone(int flatZoneID, NodeFZPtr node, std::shared_ptr<ComponentTreeFZ> tree) {
+        assert(flatZoneToIndex.count(flatZoneID) && "flatZoneID inválido");
         auto& neighborsFlatZoneID = listOfAdjacentFlatZones[flatZoneToIndex[flatZoneID]];
         assert(!neighborsFlatZoneID.empty() && "Erro: flatZone não tem vizinhos registrados no grafo!");
         
@@ -302,7 +303,7 @@ public:
                 }
                 listOfAdjacentFlatZones[flatZoneToIndex[neighborID]].erase(flatzonMergedID);
             }
-            listOfAdjacentFlatZones[flatZoneToIndex[flatzonMergedID]].clear();
+            adjFZ.clear(); //listOfAdjacentFlatZones[flatZoneToIndex[flatzonMergedID]].clear();
         }
 
         

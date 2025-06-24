@@ -1,4 +1,5 @@
-cmake_minimum_required(VERSION 3.12)
+
+cmake_minimum_required(VERSION 3.10)  
 
 project(MorphoTreeAdjust LANGUAGES CXX)
 
@@ -33,12 +34,13 @@ include_directories(
 # Exemplos com a morphotree
 add_executable(testeRemovingAnyNode testeRemovingAnyNode.cpp
     ../morphoTreeAdjust/src/AdjacencyRelation.cpp
-    ../morphoTreeAdjust/src/ComponentTreeAdjustment.cpp
+    ../morphoTreeAdjust/src/ComponentTreeAdjustmentByFlatzone.cpp
 )
 
 add_executable(dgmm2025 dgmm2025.cpp
     ../morphoTreeAdjust/src/AdjacencyRelation.cpp
-    ../morphoTreeAdjust/src/ComponentTreeAdjustment.cpp
+    ../morphoTreeAdjust/src/ComponentTreeAdjustmentByLeaf.cpp
+    ../morphoTreeAdjust/src/ComponentTreeAdjustmentBySubtree.cpp
     ./external/stb/stb_image.cpp
 )
 target_compile_options(dgmm2025 PRIVATE -Wno-deprecated-declarations)
@@ -48,23 +50,23 @@ target_compile_options(dgmm2025 PRIVATE -Wno-deprecated-declarations)
 # Exemplos com a morphotree
 add_executable(testePruningLeaf testePruningLeaf.cpp
     ../morphoTreeAdjust/src/AdjacencyRelation.cpp
-    ../morphoTreeAdjust/src/ComponentTreeAdjustment.cpp
+    ../morphoTreeAdjust/src/ComponentTreeAdjustmentByLeaf.cpp
     ./external/stb/stb_image.cpp
 )
 
 add_executable(TestComponentTree TestComponentTree.cpp
     ../morphoTreeAdjust/src/AdjacencyRelation.cpp
-    ../morphoTreeAdjust/src/ComponentTreeAdjustment.cpp
+    ../morphoTreeAdjust/src/ComponentTreeAdjustmentByLeaf.cpp
 )
 
 # Exemplos com a morphotree
 add_executable(testePruningSubtree testePruningSubtree.cpp
     ../morphoTreeAdjust/src/AdjacencyRelation.cpp
-    ../morphoTreeAdjust/src/ComponentTreeAdjustment.cpp
+    ../morphoTreeAdjust/src/ComponentTreeAdjustmentBySubtree.cpp
 )
 
-add_executable(testeComponentTreeGeneralAdjustment testeComponentTreeGeneralAdjustment.cpp
-    ../morphoTreeAdjust/src/AdjacencyRelation.cpp
-    ../morphoTreeAdjust/src/ComponentTreeAdjustment.cpp
-)
+#add_executable(testeComponentTreeGeneralAdjustment testeComponentTreeGeneralAdjustment.cpp
+#    ../morphoTreeAdjust/src/AdjacencyRelation.cpp
+#    ../morphoTreeAdjust/src/ComponentTreeAdjustment.cpp
+#)
 

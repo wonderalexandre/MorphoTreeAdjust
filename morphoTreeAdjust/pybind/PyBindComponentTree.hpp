@@ -6,6 +6,7 @@
 #include "../include/NodeCT.hpp"
 #include "../include/ComponentTree.hpp"
 #include "../include/AdjacencyRelation.hpp"
+#include "../include/Common.hpp"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -25,17 +26,17 @@ class PyBindComponentTree: public ComponentTree<CNPsType> {
 
 public:
 
-	PyBindComponentTree(py::array_t<int> &input, int numRows, int numCols, bool isMaxtree);
-    PyBindComponentTree(py::array_t<int> &input, int numRows, int numCols, bool isMaxtree, double radiusOfAdjacencyRelation);
+	
+    PyBindComponentTree(py::array_t<uint8_t> &input, int numRows, int numCols, bool isMaxtree);
+    PyBindComponentTree(ImageUInt8Ptr img, int numRows, int numCols, bool isMaxtree, double radiusAdj);
 
+	py::array_t<uint8_t> reconstructionImage();
 
-	py::array_t<int> reconstructionImage();
-
-    py::array_t<int> reconstructionNode(NodeCTPtr<CNPsType> node);
+    py::array_t<uint8_t> reconstructionNode(NodeCTPtr<CNPsType> node);
 
     std::map<int, NodeCTPtr<CNPsType>> getNodes();
 
-    static py::array_t<int> recNode(NodeCTPtr<CNPsType> _node);
+    static py::array_t<uint8_t> recNode(NodeCTPtr<CNPsType> _node);
     
 	
 };

@@ -2,8 +2,7 @@
 # cmake -DPYTHON_LIBRARY_DIR=$(python -c "import sysconfig; print(sysconfig.get_config_var('LIBDIR'))") -DPYTHON_EXECUTABLE=$(python -c "import sys; print(sys.executable)") ../
 # make
 # make install
-cmake_minimum_required(VERSION 3.12)
-
+cmake_minimum_required(VERSION 3.10)
 project(MorphoTreeAdjust LANGUAGES CXX)
 
 # C++20 sem extensões específicas de compilador

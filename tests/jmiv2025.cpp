@@ -91,7 +91,7 @@ ImageUInt8Ptr computerCASF(ImageUInt8Ptr img, double radioAdj, std::vector<int> 
     ComponentTreeFZPtr maxtree = std::make_shared<ComponentTreeFZ>(img, true, adj, std::move(maxTreeFZGraph));
     ComponentTreeFZPtr mintree = std::make_shared<ComponentTreeFZ>(img, false, adj, std::move(minTreeFZGraph));
     
-    ComponentTreeAdjustment adjust(mintree, maxtree);
+    ComponentTreeAdjustmentLeaf adjust(mintree, maxtree);
     
     if(PRINT_LOG){
         end = std::chrono::high_resolution_clock::now();
@@ -141,7 +141,7 @@ ImageUInt8Ptr computerCASF_subtree(ImageUInt8Ptr img, double radioAdj, std::vect
     ComponentTreeFZPtr maxtree = std::make_shared<ComponentTreeFZ>(img, true, adj, std::move(maxTreeFZGraph));
     ComponentTreeFZPtr mintree = std::make_shared<ComponentTreeFZ>(img, false, adj, std::move(minTreeFZGraph));
     
-    ComponentTreeAdjustment adjust(mintree, maxtree);
+    ComponentTreeAdjustmentLeaf adjust(mintree, maxtree);
     
     if(PRINT_LOG){
         end = std::chrono::high_resolution_clock::now();

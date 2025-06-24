@@ -1,6 +1,6 @@
 #include "../tests/Tests.hpp"
 #include "../morphoTreeAdjust/include/AdjacencyRelation.hpp"
-#include "../morphoTreeAdjust/include/ComponentTreeAdjustment.hpp"
+#include "../morphoTreeAdjust/include/ComponentTreeAdjustmentByLeaf.hpp"
 
 int main() {
     // Definição da imagem e parâmetros
@@ -37,7 +37,7 @@ int main() {
 
     maxtree = std::make_shared<ComponentTreeFZ>(img, true, adj, std::move(maxTreeFZGraph));
     mintree = std::make_shared<ComponentTreeFZ>(img, false, adj, std::move(minTreeFZGraph));
-    ComponentTreeAdjustment adjust(mintree, maxtree);
+    ComponentTreeAdjustmentByLeaf adjust(mintree, maxtree);
 
     NodeFZPtr Lmin_leaf1 = mintree->getLeaves().front();
     std::cout << "Pruning id: " << Lmin_leaf1->getIndex() << std::endl;

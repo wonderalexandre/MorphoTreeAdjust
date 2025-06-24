@@ -45,12 +45,12 @@ int NodeCT<CNPsType>::getNumCNPs() {
     if constexpr (std::is_same<CNPsType, Pixels>::value) {
         return this->cnps.size();  // Retorna diretamente o número de pixels
     } else {
-        if(this->numCNPs != -1) return this->numCNPs;
-        this->numCNPs = 0; //recomputando o cache contendo o numero de cnps
+       // if(this->numCNPs != -1) return this->numCNPs;
+        int numCNPs = 0; //recomputando o cache contendo o numero de cnps
         for (const auto& [id, flatzone] : this->cnps) {
-            this->numCNPs += flatzone.size();  // Soma os pixels de todas as flatzones
+            numCNPs += flatzone.size();  // Soma os pixels de todas as flatzones
         }
-        return this->numCNPs;
+        return numCNPs;
     }
 }
 
@@ -152,7 +152,7 @@ void NodeFZ::removeFlatzone(int idFlatZone) {
 
     if (it != cnps.end()) {
         cnps.erase(it);  
-        this->numCNPs = -1; //o cache contendo o numero de cnps será recomputado
+       // this->numCNPs = -1; //o cache contendo o numero de cnps será recomputado
     } 
 }
 
@@ -160,7 +160,7 @@ template <>
 template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
 void NodeFZ::addCNPsToConnectedFlatzone(FlatZone&& flatZone, ComponentTreeFZPtr tree) {
    assert(!flatZone.empty() && "Erro: flatZone passada está vazia!");
-   this->numCNPs = -1; //o cache contendo o numero de cnps será recomputado
+   //this->numCNPs = -1; //o cache contendo o numero de cnps será recomputado
    int flatZoneID = flatZone.front();    
 
    std::unique_ptr<FlatZonesGraph>& graph = tree->getFlatZonesGraph();

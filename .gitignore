@@ -10,3 +10,4 @@ Pipfile
 /.eggs
 /tests/dat/icdar_val
 /tests/dat/icdar_resized
+/tests/dat/icdar

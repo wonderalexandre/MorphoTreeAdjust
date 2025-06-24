@@ -23,12 +23,11 @@ class NodeCT : public std::enable_shared_from_this<NodeCT<CNPsType>> {
     int threshold2; //for maxtree: maximal threshold, same that "level"
 	int threshold1;  //for maxtree: minimal threshold
 	long int areaCC;
-    long int numCNPs = -1;
+    //long int numCNPs = -1;
 	
 	NodeCTPtr<CNPsType> parent;
-	CNPsType cnps; //pixels of the proper part 
-    std::list<NodeCTPtr<CNPsType>> children;
-
+	std::list<NodeCTPtr<CNPsType>> children;
+    CNPsType cnps; //pixels of the proper part 
 
 public:
 	

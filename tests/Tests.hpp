@@ -357,10 +357,17 @@ inline void testComponentTreeFZ(ComponentTreeFZPtr tree, const std::string& tree
     
 
     // Teste: Verifica se o atributo area permanece correto
-    if (computerArea(tree->getRoot())) {
-        std::cout << "✅ O atributo area permanece correto para todos os nós da " << treeType << "." << std::endl;
-    }else{
-        std::cerr << "❌ Erro: O atributo area está errado." << std::endl;
+    bool allAreaCorrect = true;
+    for (NodeFZPtr node : tree->getRoot()->getIteratorBreadthFirstTraversal()) {
+        if (!computerArea(node)) {
+            allAreaCorrect = false;
+            break;
+        }
+    }
+    if( allAreaCorrect) {
+        std::cout << "✅ Atributo area está correto para todos os nós na " << treeType << "." << std::endl;
+    } else {
+        std::cerr << "❌ Erro: Atributo area incorreto em pelo menos um nó na " << treeType << "!" << std::endl;
     }
     
  }

@@ -13,7 +13,7 @@
 #include "../morphoTreeAdjust/include/NodeCT.hpp"
 #include "../morphoTreeAdjust/include/ComponentTree.hpp"
 #include "../morphoTreeAdjust/include/AdjacencyRelation.hpp"
-#include "../morphoTreeAdjust/include/ComponentTreeAdjustment.hpp"
+#include "../morphoTreeAdjust/include/ComponentTreeAdjustmentBySubtree.hpp"
 
 
 #include "../tests/Tests.hpp"
@@ -41,14 +41,14 @@ int main()
     //printMappingSC(mintree);
     //std::cout <<"\n=========== mapIDs max-tree ===========\n" << std::endl;
     //printMappingSC(maxtree);
-    ComponentTreeAdjustment adjust(mintree, maxtree);
+    ComponentTreeAdjustmentBySubtree adjust(mintree, maxtree);
     for(int threshold = 10; threshold <= 1000; threshold += 10){
         int cont = 1;
         for(NodeFZPtr rootSubtree: mintree->getNodesThreshold(threshold)){
             
             std::cout<< "\n" << cont++ << " - Processing the subtree rooted (mintree) at node id: " << rootSubtree->getIndex()<< ", numDescendants: "<< rootSubtree->computerNumDescendants()  << ", area: "<< rootSubtree->getArea() << std::endl;
             
-            adjust.updateTree2(maxtree, rootSubtree);
+            adjust.updateTree(maxtree, rootSubtree);
             mintree->prunning(rootSubtree);
 
             auto imgOutMaxtree = maxtree->reconstructionImage();
@@ -69,7 +69,7 @@ int main()
         for(NodeFZPtr rootSubtree: maxtree->getNodesThreshold(threshold)){
             std::cout << "\n" << cont++ << " - Processing the subtree rooted (maxtree) at node id: " << rootSubtree->getIndex()<< ", numDescendants: "<< rootSubtree->computerNumDescendants()  << ", area: "<< rootSubtree->getArea() << std::endl;
    
-            adjust.updateTree2(mintree, rootSubtree);
+            adjust.updateTree(mintree, rootSubtree);
             maxtree->prunning(rootSubtree);
 
             auto imgOutMaxtree = maxtree->reconstructionImage();

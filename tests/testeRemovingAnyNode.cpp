@@ -15,7 +15,7 @@
 #include "../morphoTreeAdjust/include/NodeCT.hpp"
 #include "../morphoTreeAdjust/include/ComponentTree.hpp"
 #include "../morphoTreeAdjust/include/AdjacencyRelation.hpp"
-#include "../morphoTreeAdjust/include/ComponentTreeAdjustment.hpp"
+#include "../morphoTreeAdjust/include/ComponentTreeAdjustmentByFlatzone.hpp"
 
 #include "../tests/Tests.hpp"
 
@@ -54,7 +54,7 @@ int main()
     }    
     printConnectedComponent(N, mintree);
 
-    ComponentTreeAdjustment adjust(mintree, maxtree);
+    ComponentTreeAdjustmentByFlatzone adjust(mintree, maxtree);
      
 
     //for(int i=0; i < numNodes; i++){
@@ -63,7 +63,7 @@ int main()
     //for(NodeFZPtr L_leaf : mintree->getRoot()->getIteratorPostOrderTraversal()){
         
         std::cout <<"\nN:" << N->getIndex() << ", level:" << N->getLevel() << ", |cnps|:" << N->getNumCNPs() <<  std::endl;
-        adjust.updateTree3(maxtree, N);
+        adjust.updateTree(maxtree, N);
         std::cout << adjust.getOutputLog() << std::endl;   
         mintree->mergeWithParent(N);
 

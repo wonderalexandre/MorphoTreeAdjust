@@ -13,7 +13,7 @@
 #include "../morphoTreeAdjust/include/NodeCT.hpp"
 #include "../morphoTreeAdjust/include/ComponentTree.hpp"
 #include "../morphoTreeAdjust/include/AdjacencyRelation.hpp"
-#include "../morphoTreeAdjust/include/ComponentTreeAdjustment.hpp"
+#include "../morphoTreeAdjust/include/ComponentTreeAdjustmentByLeaf.hpp"
 
 #include "../tests/Tests.hpp"
 #include "./external/stb/stb_image.h"
@@ -23,7 +23,7 @@ int main()
 {
 
     std::cout << "Iniciando...\n";
-    std::string filename = "/Users/wonderalexandre/GitHub/MorphoTreeAdjust/tests/dat/dataset-icdar2024_occluded/val_054.png";
+    std::string filename = "/Users/wonderalexandre/GitHub/MorphoTreeAdjust/tests/dat/icdar_resized/val_091.png";
     
     
     int numCols, numRows, nchannels;
@@ -35,7 +35,7 @@ int main()
     }
     std::cout << "Resolution: " << numCols << "x" << numRows << std::endl;
     ImageUInt8Ptr img = ImageUInt8::fromRaw(data, numRows, numCols);
-    img = getCharImage();
+    //img = getCharImage();
 
     double radioAdj = 1.5;
     
@@ -53,30 +53,29 @@ int main()
     //std::cout <<"\n\n" << std::endl;
     //printMappingSC(mintree);
     
-
-    ComponentTreeAdjustment adjust(mintree, maxtree);
+    ComponentTreeAdjustmentByLeaf adjust(mintree, maxtree);
 
 
     //for(int i=0; i < numNodes; i++){
     //    NodeCT* L_leaf = mintree->getLeaves().front();
        // if(L_leaf->getIndex() != 293) continue;
-    for(NodeFZPtr L_leaf : mintree->getRoot()->getIteratorPostOrderTraversal()){
-        if(L_leaf == mintree->getRoot()) break;
-        
-        int id = L_leaf->getIndex();
-        std::cout <<"\nPruning L_leaf:" << id << ", level:" << L_leaf->getLevel() << ", |cnps|:" << L_leaf->getNumCNPs() <<  std::endl;
-        adjust.updateTree(maxtree, L_leaf);
-        mintree->prunning(L_leaf);
+    auto nodesToPruning = maxtree->getNodesThreshold(60);
+    adjust.adjustMinTree(mintree, maxtree, nodesToPruning);
 
-        auto imgOutMaxtree = maxtree->reconstructionImage();
-        auto imgOutMintree = mintree->reconstructionImage();
-        
-        testComponentTreeFZ(maxtree, "max-tree", imgOutMaxtree);
-        testComponentTreeFZ(mintree, "min-tree", imgOutMintree);
-        if(imgOutMaxtree->isEqual(imgOutMintree))
-            std::cout <<"✅ Rec(maxtree) = Rec(mintree)" << std::endl;
-        else
-            std::cout <<"❌ Rec(maxtree) != Rec(mintree)" << std::endl;
+    for(NodeFZPtr node : mintree->getNodesThreshold(60)){
+        std::cout << "\n\n---Pruning node:" << node->getIndex() << ", level:" << node->getLevel() << ", |cnps|:" << node->getNumCNPs() << std::endl;
+        testComponentTreeFZ(maxtree, "max-tree", maxtree->reconstructionImage());
+        testComponentTreeFZ(mintree, "min-tree", mintree->reconstructionImage());
+        for (NodeFZPtr L_leaf : node->getIteratorPostOrderTraversal()) { 
+            if(L_leaf == mintree->getRoot()) break;
+            
+            adjust.updateTree(maxtree, L_leaf);
+            mintree->prunning(L_leaf);            
+        }
+
+        std::cout << "\n\n+++Pruning node:" << node->getIndex() << ", level:" << node->getLevel() << ", |cnps|:" << node->getNumCNPs() << std::endl;
+        testComponentTreeFZ(maxtree, "max-tree", maxtree->reconstructionImage());
+        testComponentTreeFZ(mintree, "min-tree", mintree->reconstructionImage());
 
     }
 	std::cout << "\n\nFim do teste...\n\n";

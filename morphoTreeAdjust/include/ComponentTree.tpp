@@ -8,6 +8,7 @@
 #include <iostream>
 #include <iomanip>
 #include <utility>
+#include <algorithm> 
 
 #include "../include/NodeCT.hpp"
 #include "../include/ComponentTree.hpp"
@@ -189,7 +190,7 @@ Essa propriedade será mantida no grafo ao realizar operações de fusão de fla
 template <>
 inline void ComponentTreeFZ::assignCNPs() {
     
-    u_short *numFlatzones = new u_short[this->numNodes]();
+    int *numFlatzones = new int[this->numNodes]();
     for (FlatZone& flatZone : this->flatzoneGraph->getFlatzones()) {
         numFlatzones[this->pixelToNode[flatZone.front()]->getIndex()] += 1;        
     }
@@ -407,7 +408,7 @@ std::vector<NodeCTPtr<CNPsType>> ComponentTree<CNPsType>::getNodesThreshold(int 
     
     int sumArea = 0; //somente para uso estatistico
     int numFlatZones=0; //somente para uso estatistico
-
+    int numDescendents = 0; //somente para uso estatistico
 	while(!queue.empty()) {
 	    NodeCTPtr<CNPsType> node = queue.front(); queue.pop();
 	    if(node->getArea() > areaThreshold) {
@@ -419,6 +420,7 @@ std::vector<NodeCTPtr<CNPsType>> ComponentTree<CNPsType>::getNodesThreshold(int 
             if(PRINT_LOG){ //somente para uso estatistico
                 sumArea += node->getArea(); 
                 numFlatZones += node->getNumFlatzone(); 
+                numDescendents += node->computerNumDescendants();
             }
 			lista.push_back(node);
 	    }
@@ -426,7 +428,7 @@ std::vector<NodeCTPtr<CNPsType>> ComponentTree<CNPsType>::getNodesThreshold(int 
     if(PRINT_LOG){
         int areaImage = this->getNumColsOfImage() * this->getNumRowsOfImage();
         std::cout << "\tArea threshold: " << areaThreshold 
-          << ", #Nodes: " << lista.size() 
+          << ", #Nodes: " << (numDescendents+1)
           << ", #FlatZones: " << numFlatZones
           << ", #InputTreeNodes: " << this->getNumNodes()
           << ", |Pruning Area|: " << sumArea 
@@ -434,6 +436,10 @@ std::vector<NodeCTPtr<CNPsType>> ComponentTree<CNPsType>::getNodesThreshold(int 
           << (static_cast<double>(sumArea) / areaImage) * 100.0 << "% of the image area)" 
           << std::endl;
     }
+    /*std::sort(lista.begin(), lista.end(),
+          [](const NodeCTPtr<CNPsType>& a, const NodeCTPtr<CNPsType>& b) {
+              return a->getArea() < b->getArea(); // ordem decrescente
+          });*/
 	return lista;
 }
 
@@ -463,20 +469,11 @@ ImageUInt8Ptr ComponentTree<CNPsType>::reconstructionImage(){
 	return imgPtr;
 }
 
-
-
 template <>
 template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
 FlatZone& ComponentTreeFZ::getFlatzoneByID(int idFlatZone) {
     return pixelToNode[idFlatZone]->getFlatZone(idFlatZone);
 }
-
-/*
-template <>
-template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
-ListOfAdjacentFlatZones& ComponentTreeFZ::getListOfAdjacentFlatzones(){
-    return this->flatzoneGraph->getGraph();
-}*/
 
 template <>
 template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
