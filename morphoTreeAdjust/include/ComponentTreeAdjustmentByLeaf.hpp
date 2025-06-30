@@ -20,13 +20,17 @@ public:
 
     ComponentTreeAdjustmentByLeaf(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree) : ComponentTreeAdjustment(maxtree, mintree) { }
 
-    void buildMergedAndNestedCollections(ComponentTreeFZPtr tree, std::vector<FlatZonePtr>& flatZone, int pixelUpperBound, int newGrayLevel, bool isMaxtree);
-    
-    void updateTree(ComponentTreeFZPtr tree, NodeFZPtr L_leaf);
+    void buildMergedAndNestedCollections(ComponentTreeFZPtr, std::vector<int>&, int, int, bool) override {
+        throw std::runtime_error("Método com vetor de FlatZones não suportado nesta subclasse.");
+    }
 
-    void adjustMinTree(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree, std::vector<NodeFZPtr>& nodesToPruning);
+    void buildMergedAndNestedCollections(ComponentTreeFZPtr tree, int flatZoneID, int pixelUpperBound, int newGrayLevel, bool isMaxtree) override;
     
-    void adjustMaxTree(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree, std::vector<NodeFZPtr>& nodesToPruning);
+    void updateTree(ComponentTreeFZPtr tree, NodeFZPtr L_leaf) override;
+
+    void adjustMinTree(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree, std::vector<NodeFZPtr>& nodesToPruning) override;
+    
+    void adjustMaxTree(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree, std::vector<NodeFZPtr>& nodesToPruning) override;
   
 };
 

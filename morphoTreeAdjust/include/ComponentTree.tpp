@@ -133,7 +133,7 @@ ComponentTree<CNPsType>::ComponentTree(ImageUInt8Ptr img, bool isMaxtree, Adjace
 }
 
 template <typename CNPsType>
-ComponentTree<CNPsType>::ComponentTree(ImageUInt8Ptr img, bool isMaxtree, AdjacencyRelationPtr adj, std::unique_ptr<FlatZonesGraph> graph) : numRows(img->getNumRows()), numCols(img->getNumCols()), maxtreeTreeType(isMaxtree), adj(adj), flatzoneGraph(std::move(graph)){   
+ComponentTree<CNPsType>::ComponentTree(ImageUInt8Ptr img, bool isMaxtree, AdjacencyRelationPtr adj, std::shared_ptr<FlatZonesGraph> graph) : numRows(img->getNumRows()), numCols(img->getNumCols()), maxtreeTreeType(isMaxtree), adj(adj), flatzoneGraph(graph){   
     pixelToNode.resize(numRows*numCols, nullptr);
     build(img);
 }
@@ -190,19 +190,15 @@ Essa propriedade será mantida no grafo ao realizar operações de fusão de fla
 template <>
 inline void ComponentTreeFZ::assignCNPs() {
     
-    int *numFlatzones = new int[this->numNodes]();
+    u_int32_t *numFlatzones = new u_int32_t[this->numNodes]();
     for (FlatZone& flatZone : this->flatzoneGraph->getFlatzones()) {
         numFlatzones[this->pixelToNode[flatZone.front()]->getIndex()] += 1;        
     }
-    for (FlatZone& flatZone : this->flatzoneGraph->getFlatzones()) {
+    for (FlatZone flatZone : this->flatzoneGraph->getFlatzones()) {
         this->pixelToNode[flatZone.front()]->addCNPsOfDisjointFlatzone(std::move(flatZone), nullptr, numFlatzones[this->pixelToNode[flatZone.front()]->getIndex()]);
     }
     delete[] numFlatzones;
-    /*
-    for (FlatZone& flatZone : this->flatzoneGraph->getFlatzones()) {
-        this->pixelToNode[flatZone.front()]->addCNPsOfDisjointFlatzone(std::move(flatZone) );
-    }*/
-
+    
     assert([&]() {
         for(NodeFZPtr node: this->root->getIteratorBreadthFirstTraversal()){
             for (auto& [id, flatZone] : node->getCNPsByFlatZone()) {
@@ -312,7 +308,8 @@ inline void ComponentTreeFZ::prunning(NodeFZPtr rootSubtree) {
     
     assert(rootSubtree != nullptr && "Erro: node is nullptr");
     assert(rootSubtree->getParent() != nullptr && "Erro: node é a raiz");
-    std::list<FlatZone> flatZoneList;
+    FlatZone flatzonesPruned;
+
     if (rootSubtree != this->root) {
         NodeFZPtr parent = rootSubtree->getParent();
         parent->getChildren().remove(rootSubtree);
@@ -320,7 +317,7 @@ inline void ComponentTreeFZ::prunning(NodeFZPtr rootSubtree) {
 
         std::queue<NodeFZPtr> queue;
         queue.push(rootSubtree);
-
+        int idMinimum = rootSubtree->getCNPsByFlatZone().begin()->first; // pega um idFlatzone qualquer
         // Coletar todas as flatzones que serão fundidas
         while (!queue.empty()) {
             NodeFZPtr node = queue.front(); queue.pop();
@@ -332,19 +329,49 @@ inline void ComponentTreeFZ::prunning(NodeFZPtr rootSubtree) {
             
             auto& cnps = node->getCNPsByFlatZone();
             for (auto it = cnps.begin(); it != cnps.end(); ) {
-                flatZoneList.push_back(std::move(it->second)); // move sem copiar
+                for (const int& p : it->second) {
+                    this->setSC(p, parent);
+                }
+                if(it->first < idMinimum) {
+                    idMinimum = it->first; 
+                    flatzonesPruned.splice(flatzonesPruned.begin(), it->second); 
+                }else{
+                    flatzonesPruned.splice(flatzonesPruned.end(), it->second); 
+                }
                 it = cnps.erase(it); // remove e avança
             }
             
         }
-        if(flatZoneList.size() > 1){
-            //unifica todas as flatzones em uma unica flatzone na raiz da subtree e atualiza o grafo
-            FlatZone unifiedFlatzone;
-            flatzoneGraph->updateGraphAfterPruning(std::move(flatZoneList), unifiedFlatzone, rootSubtree, this->shared_from_this());
-            parent->addCNPsToConnectedFlatzone(std::move(unifiedFlatzone), this->shared_from_this());
-        }else{
-            parent->addCNPsToConnectedFlatzone(std::move(flatZoneList.front()), this->shared_from_this());
+
+    
+        int idFlatzonePruned = flatzonesPruned.front();
+        int idFlatzonePrunedRep = flatzoneGraph->findRepresentative(idFlatzonePruned);// pega o id da flatzone
+        auto& cnps = parent->getCNPsByFlatZone();
+        for (auto it = cnps.begin(); it != cnps.end(); ) {
+            int idFlatzone = it->first;
+            int idFlatzoneRep = flatzoneGraph->findRepresentative(idFlatzone);
+            //std::cout << "==> idFlatzonePruned:" <<idFlatzonePruned << ", Rep(idFlatzonePruned):" << idFlatzonePrunedRep << ", idFlatzone:" << idFlatzone <<  ", Rep(idFlatzone): " << idFlatzoneRep ;
+            if (idFlatzoneRep == idFlatzonePrunedRep) {
+                if (idMinimum > idFlatzone) {
+                    flatzonesPruned.splice(flatzonesPruned.begin(), it->second); // flatzone contem o id da flatzone
+                    idMinimum = idFlatzone; 
+                    //std::cout << " - MERGED BEGIN" << std::endl;
+                } else {
+                    flatzonesPruned.splice(flatzonesPruned.end(), it->second); // flatzonePruned contem o id da flatzone
+                    //std::cout << " - MERGED END" << std::endl;
+                }
+                
+                it = cnps.erase(it); // remove e avança
+            } else {
+                //std::cout << " - NOT MERGED" << std::endl;
+                ++it; // apenas avança se não remover
+            }
         }
+
+        //std::cout << " - New flatzone id: " << flatzonePruned.front() << std::endl;
+        // Adiciona a flatzone pruned ao parent
+        cnps[flatzonesPruned.front()] = std::move(flatzonesPruned);
+
     }
 }
 
@@ -477,7 +504,7 @@ FlatZone& ComponentTreeFZ::getFlatzoneByID(int idFlatZone) {
 
 template <>
 template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
-std::unique_ptr<FlatZonesGraph>& ComponentTreeFZ::getFlatZonesGraph(){
+std::shared_ptr<FlatZonesGraph>& ComponentTreeFZ::getFlatZonesGraph(){
     return this->flatzoneGraph;
 }
 

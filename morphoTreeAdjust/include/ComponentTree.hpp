@@ -42,7 +42,7 @@ protected:
 
     // Define `flatzoneGraph` apenas para `FlatZones`
     using FlatzoneGraphType = std::conditional_t<std::is_same_v<CNPsType, FlatZones>,
-        std::unique_ptr<FlatZonesGraph>, 
+        std::shared_ptr<FlatZonesGraph>, 
         std::monostate>;
     FlatzoneGraphType flatzoneGraph;
 
@@ -53,7 +53,7 @@ public:
 
     ComponentTree(ImageUInt8Ptr img, bool isMaxtree, AdjacencyRelationPtr adj);
 
-    ComponentTree(ImageUInt8Ptr img, bool isMaxtree, AdjacencyRelationPtr adj, std::unique_ptr<FlatZonesGraph> graph);
+    ComponentTree(ImageUInt8Ptr img, bool isMaxtree, AdjacencyRelationPtr adj, std::shared_ptr<FlatZonesGraph> graph);
     
     virtual ~ComponentTree() = default;
 
@@ -64,7 +64,7 @@ public:
     //ListOfAdjacentFlatZones& getListOfAdjacentFlatzones();
 
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    std::unique_ptr<FlatZonesGraph>& getFlatZonesGraph();
+    std::shared_ptr<FlatZonesGraph>& getFlatZonesGraph();
 
     void assignCNPs();
 

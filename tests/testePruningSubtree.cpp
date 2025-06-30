@@ -30,11 +30,10 @@ int main()
     double radioAdj = 1.5;
 
     AdjacencyRelationPtr adj =std::make_shared<AdjacencyRelation>(img->getNumRows(), img->getNumCols(), radioAdj);
-    std::unique_ptr<FlatZonesGraph> maxTreeFZGraph = std::make_unique<FlatZonesGraph>(img, adj);
-    std::unique_ptr<FlatZonesGraph> minTreeFZGraph = std::make_unique<FlatZonesGraph>(*maxTreeFZGraph);
+    std::shared_ptr<FlatZonesGraph> graph = std::make_shared<FlatZonesGraph>(img, adj);
 
-    ComponentTreeFZPtr maxtree = std::make_shared<ComponentTreeFZ>(img, true, adj, std::move(maxTreeFZGraph));
-    ComponentTreeFZPtr mintree = std::make_shared<ComponentTreeFZ>(img, false, adj, std::move(minTreeFZGraph));
+    ComponentTreeFZPtr maxtree = std::make_shared<ComponentTreeFZ>(img, true, adj, graph);
+    ComponentTreeFZPtr mintree = std::make_shared<ComponentTreeFZ>(img, false, adj, graph);
     testComponentTreeFZ(maxtree, "max-tree", img);
     testComponentTreeFZ(mintree, "min-tree", img);
     //std::cout <<"\n=========== mapIDs min-tree ===========\n" << std::endl;
@@ -49,6 +48,7 @@ int main()
             std::cout<< "\n" << cont++ << " - Processing the subtree rooted (mintree) at node id: " << rootSubtree->getIndex()<< ", numDescendants: "<< rootSubtree->computerNumDescendants()  << ", area: "<< rootSubtree->getArea() << std::endl;
             
             adjust.updateTree(maxtree, rootSubtree);
+            //std::cout << adjust.getOutputLog() << std::endl;
             mintree->prunning(rootSubtree);
 
             auto imgOutMaxtree = maxtree->reconstructionImage();

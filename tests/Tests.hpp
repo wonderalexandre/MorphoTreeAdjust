@@ -24,28 +24,28 @@ inline void printFlatzoneGraph(ListOfAdjacentFlatZones flatzoneGraph, int size) 
     }
 }
 
-template <typename CNPsType>
-inline void printTree(NodeCTPtr<CNPsType> root, int indent = 0) {
-    
-    // Imprime o nó atual com indentação
-    for (int i = 0; i < indent; ++i) {
-        std::cout << "|-";
-    }
-    std::cout << "Node: " << root->getIndex() <<  ", Level: " << root->getLevel()<< std::endl;
+ template <typename CNPsType>
+inline void printTree(NodeCTPtr<CNPsType> root, std::string prefix = "", bool isLast = true) {
+    std::cout << prefix;
+    std::cout << (isLast ? "└──" : "├──");
+    std::cout << "ID: " << root->getIndex() <<  ", Level: " <<  root->getLevel()<< ", |cnps|: " << root->getNumCNPs() << std::endl;
 
-    // Chama recursivamente a função para cada filho
-    for (NodeCTPtr<CNPsType> child : root->getChildren()) {
-        printTree(child, indent + 1);
+    prefix += (isLast ? "   " : "│  ");
+
+    uint32_t cont = 0;
+    for (auto child: root->getChildren()) {
+        printTree(child, prefix, cont == root->getChildren().size() - 1);
+        cont++;
     }
 }
 
 template <typename CNPsType>
-inline void printMappingSC(ComponentTreePtr<CNPsType> tree, std::string nomeArquivo = "") {
+inline void printMappingSC(ComponentTreePtr<CNPsType> tree, int setw=4, std::string nomeArquivo = "") {
 
     int numRows = tree->getNumRowsOfImage();
     int numCols = tree->getNumColsOfImage();
     int n = numRows*numCols;
-    std::unique_ptr<int[]> map(new int[n]);
+    std::unique_ptr<int[]> map = std::unique_ptr<int[]>(new int[n]);
     for (int p=0; p < n; p++){
         map[p] = tree->getSC(p)->getIndex();
     }
@@ -63,14 +63,23 @@ inline void printMappingSC(ComponentTreePtr<CNPsType> tree, std::string nomeArqu
         streamSaida = &arquivoSaida;
     }
     if(tree->isMaxtree()){
-        *streamSaida << "---- max-tree ----" << "\n";
+        *streamSaida << "---- Mapping from pixel to small component of max-tree ----" << "\n";
     }else{
-        *streamSaida << "---- min-tree ----" << "\n";
+        *streamSaida << "---- Mapping from pixel to small component of min-tree ----" << "\n";
     }
-    // Impressão bidimensional
-   for (int i = 0; i < tree->getNumRowsOfImage(); ++i) {
-        for (int j = 0; j < tree->getNumColsOfImage(); ++j) {
-            *streamSaida << std::setw(2) <<  map[i * tree->getNumColsOfImage() + j] << " ";
+
+    // Imprime o cabeçalho de colunas
+    *streamSaida << std::setw(setw) << " "; // espaço para a primeira coluna (índice da linha)
+    for (int col = 0; col < numCols; col++) {
+        *streamSaida << std::setw(setw) << col;
+    }
+    *streamSaida << "\n";
+
+    // Impressão bidimensional com índice de linha
+    for (int row = 0; row < numRows; row++) {
+        *streamSaida << std::setw(setw) << row; // índice da linha
+        for (int col = 0; col < numCols; col++) {
+            *streamSaida << std::setw(setw) << map[ImageUtils::to1D(row, col, numCols)]; // ou ImageUtils::to1D(row, col, numCols)
         }
         *streamSaida << "\n";
     }
@@ -81,10 +90,9 @@ inline void printMappingSC(ComponentTreePtr<CNPsType> tree, std::string nomeArqu
 }
 
 template <typename CNPsType>
-inline  void printConnectedComponent(NodeCTPtr<CNPsType> node, ComponentTreePtr<CNPsType> tree, std::string nomeArquivo = "") {
+inline void printConnectedComponents(ComponentTreePtr<CNPsType> tree, int setw=3, std::string nomeArquivo = ""){
     int numRows = tree->getNumRowsOfImage();
     int numCols = tree->getNumColsOfImage();
-    //int n = numRows*numCols;
     std::ostream* streamSaida;
     std::ofstream arquivoSaida;
 
@@ -98,18 +106,81 @@ inline  void printConnectedComponent(NodeCTPtr<CNPsType> node, ComponentTreePtr<
         }
         streamSaida = &arquivoSaida;
     }
-    if(tree->isMaxtree()){
-        *streamSaida << "---- max-tree ----" << "\n";
-    }else{
-        *streamSaida << "---- min-tree ----" << "\n";
+    auto printTreeType = [](int tipo) {
+        if (tipo == 0)
+            return "max-tree";
+        else if (tipo == 1)
+            return "min-tree";
+        else
+            return "tree of shapes";
+    };
+    *streamSaida << "----------- Connected components of "<< printTreeType(tree->getTreeType()) <<"  -----------\n" << std::endl;
+    for(auto node: tree->getRoot()->getIteratorBreadthFirstTraversal()){
+        *streamSaida << "---- ID: " << node->getIndex() 
+                    << ", level:" << node->getLevel() 
+                    << ", |cnps|:" << node->getCNPs().size()
+                    << ", Area:" << node->getAreaCC()  << " ---\n";
+        
+        // Imprime o cabeçalho de colunas
+        *streamSaida << std::setw(setw) << " "; // espaço para a primeira coluna (índice da linha)
+        for (int col = 0; col < numCols; col++) {
+            *streamSaida << std::setw(setw) << col;
+        }
+        *streamSaida << "\n";
+        // Impressão bidimensional
+        for (int row = 0; row < numRows; ++row) {
+            *streamSaida << std::setw(setw) << row; // índice da linha
+            for (int col = 0; col < numCols; ++col) {
+                if(tree->isDescendant(tree->getSC(ImageUtils::to1D(row, col, numCols)), node)){
+                    *streamSaida << std::setw(setw) << 1;
+                }else{
+                    *streamSaida << std::setw(setw) << 0;
+                }
+            }
+            *streamSaida << "\n";
+        }
     }
+    if (streamSaida != &std::cout){
+        dynamic_cast<std::ofstream*>(streamSaida)->close(); // std::cout não precisa ser fechado explicitamente
+    }
+}
+
+template <typename CNPsType>
+inline  void printConnectedComponent(NodeCTPtr<CNPsType> node, ComponentTreePtr<CNPsType> tree, int setw=3, std::string nomeArquivo = "") {
+    int numRows = tree->getNumRowsOfImage();
+    int numCols = tree->getNumColsOfImage();
+    std::ostream* streamSaida;
+    std::ofstream arquivoSaida;
+
+    if (nomeArquivo.empty()) {
+        streamSaida = &std::cout;
+    } else {
+        arquivoSaida.open(nomeArquivo); 
+        if (!arquivoSaida.is_open()) {
+            std::cerr << "Erro ao abrir o arquivo para escrita." << std::endl;
+            return;
+        }
+        streamSaida = &arquivoSaida;
+    }
+    *streamSaida << "---- ID: " << node->getIndex() 
+                 << ", level:" << node->getLevel() 
+                 << ", |cnps|:" << node->getCNPs().size()
+                 << ", Area:" << node->getAreaCC()  << " ---\n";
+    
+    // Imprime o cabeçalho de colunas
+    *streamSaida << std::setw(setw) << " "; // espaço para a primeira coluna (índice da linha)
+    for (int col = 0; col < numCols; col++) {
+        *streamSaida << std::setw(setw) << col;
+    }
+    *streamSaida << "\n";                 
     // Impressão bidimensional
-   for (int i = 0; i < numRows; ++i) {
-        for (int j = 0; j < numCols; ++j) {
-            if(tree->getSC(i * numCols + j) == node){
-                *streamSaida <<  1 << " ";
+    for (int row = 0; row < numRows; ++row) {
+        *streamSaida << std::setw(setw) << row; // índice da linha
+        for (int col = 0; col < numCols; ++col) {
+            if(tree->isDescendant(tree->getSC(ImageUtils::to1D(row, col, numCols)), node)){
+                *streamSaida << std::setw(setw) << 1;
             }else{
-                *streamSaida <<  0 << " ";
+                *streamSaida << std::setw(setw) << 0;
             }
         }
         *streamSaida << "\n";
@@ -119,13 +190,9 @@ inline  void printConnectedComponent(NodeCTPtr<CNPsType> node, ComponentTreePtr<
     }
 
 }
-template <typename PixelType>
-inline  void printImage(ImagePtr<PixelType> imgPtr, std::string nomeArquivo = "") {
 
+inline void printImage(ImageUInt8Ptr imgPtr, int setw=4, std::string nomeArquivo = "") {
     auto img = imgPtr->rawData();
-    int numRows = imgPtr->getNumRows();
-    int numCols = imgPtr->getNumCols();
-    //int n = numRows*numCols;
     std::ostream* streamSaida;
     std::ofstream arquivoSaida;
     
@@ -139,59 +206,27 @@ inline  void printImage(ImagePtr<PixelType> imgPtr, std::string nomeArquivo = ""
         }
         streamSaida = &arquivoSaida;
     }
+    *streamSaida << "Image size: " << imgPtr->getNumCols() << "x" << imgPtr->getNumRows() << "\n";
+    // Imprime o cabeçalho de colunas
+    *streamSaida << std::setw(setw) << " "; // espaço para a primeira coluna (índice da linha)
+    for (int col = 0; col < imgPtr->getNumCols(); col++) {
+        *streamSaida << std::setw(setw) << col;
+    }
+    *streamSaida << "\n";
 
-    // Impressão bidimensional
-   for (int i = 0; i < numRows; ++i) {
-        for (int j = 0; j < numCols; ++j) {
-            *streamSaida << std::setw(2) <<  static_cast<int>(img[i * numCols + j]) << " ";
+    // Impressão bidimensional com índice de linha
+    for (int row = 0; row < imgPtr->getNumRows(); row++) {
+        *streamSaida << std::setw(setw) << row; // índice da linha
+        for (int col = 0; col < imgPtr->getNumCols(); col++) {
+            *streamSaida << std::setw(setw) << static_cast<int>(img[ImageUtils::to1D(row, col, imgPtr->getNumCols())]); // ou ImageUtils::to1D(row, col, numCols)
         }
         *streamSaida << "\n";
     }
-    if (streamSaida != &std::cout){
-        dynamic_cast<std::ofstream*>(streamSaida)->close(); // std::cout não precisa ser fechado explicitamente
-    }
 
+    if (streamSaida != &std::cout) {
+        dynamic_cast<std::ofstream*>(streamSaida)->close();
+    }
 }
-
-/*
-inline  void printMappingFZ(ComponentTreeFZPtr tree, std::string nomeArquivo = "") {
-    int numRows = tree->getNumRowsOfImage();
-    int numCols = tree->getNumColsOfImage();
-    int n = numRows*numCols;
-    int map[n];
-    for (int p=0; p < n; p++){
-        map[p] = tree->getFlatzoneRef(p).size() > 99 ? 99 : tree->getFlatzoneRef(p).size();
-    }
-
-    std::ostream* streamSaida;
-    std::ofstream arquivoSaida;
-    if (nomeArquivo.empty()) {
-        streamSaida = &std::cout;
-    } else {
-        arquivoSaida.open(nomeArquivo);
-        if (!arquivoSaida.is_open()) {
-            std::cerr << "Erro ao abrir o arquivo para escrita." << std::endl;
-            return;
-        }
-        streamSaida = &arquivoSaida;
-    }
-    if(tree->isMaxtree()){
-        *streamSaida << "---- max-tree ----" << "\n";
-    }else{
-        *streamSaida << "---- min-tree ----" << "\n";
-    }
-    // Impressão bidimensional
-   for (int i = 0; i < tree->getNumRowsOfImage(); ++i) {
-        for (int j = 0; j < tree->getNumColsOfImage(); ++j) {
-            *streamSaida << std::setw(2) <<  map[i * tree->getNumColsOfImage() + j] << " ";
-        }
-        *streamSaida << "\n";
-    }
-    if (streamSaida != &std::cout){
-        dynamic_cast<std::ofstream*>(streamSaida)->close(); // std::cout não precisa ser fechado explicitamente
-    }
-
-}*/
 
 
  template <typename CNPsType, typename ImageType>
@@ -381,6 +416,37 @@ inline NodeCTPtr<CNPsType> getNodeByIndex(ComponentTreePtr<CNPsType> tree, int i
 	}
 	return nullptr;
 }
+
+inline ImageUInt8Ptr getWonderImage(){
+    auto img = new uint8_t[625]{
+        203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,
+        203,203,203, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78,203,203,203,203,203,203,203,203,
+        203,203, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78,203,203,203,203,203,203,203,
+        203,203, 78, 78,126,126,126,126,126,126,126, 78, 78, 78, 78, 78, 78, 78,203,203,203, 54, 54,203,203,
+        203,203, 78, 78,126, 38, 38, 38,126,126,126, 78, 78, 78, 78, 78, 78, 78,203,203, 54, 54, 54, 54,203,
+        203,203, 78, 78,126, 38, 38, 38,126,126,126, 78, 78, 78, 78, 78, 78, 78,203, 54, 54, 54, 80, 54,203,
+        203,203, 78, 78,126, 38, 38, 38,126, 78, 78, 78, 78, 78, 78, 78, 78, 78,203, 54, 80, 54, 54, 54,203,
+        203, 78, 78, 78,126, 38, 38,126,126, 78, 78, 78,203,203,203,203,203,203,203, 54, 54, 54, 54,203,203,
+        203, 78, 78, 78,126,126,126,126, 78, 78,203,203,203,203,203,203,203,203, 54, 54, 54, 54, 54,203,203,
+        203, 78, 78, 78,126,126,126, 78, 78, 78,203,203,253,253,253,203,203,203, 54, 80, 54, 54, 54,203,203,
+        203, 78, 78, 78,126,126,126, 78, 78, 78,203,203,253,253,253,203,203, 54, 54, 54, 54, 54,203,203,203,
+        203, 78, 78, 78,126,126,126, 78, 78, 78,203,203,253,253,253,203,203,203, 54, 54, 54,203,203,203,203,
+        203, 78, 78, 78,126,126,126, 78, 78, 78, 78,203,203,203,203,203,203,203,203,203,203,203,203,203,203,
+        203, 78, 78, 78,126,126,126, 78, 78, 78, 78,203,203,203,126,126,126,126,203,203,203,203,203,203,203,
+        203, 78, 78, 78,126,126,126, 78, 78, 78, 78,203,203,126,126,126,126,126,126,126,126,126,203,203,203,
+        203, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78,203,203,126,126,126,126,126,126, 72,126,126,203,203,203,
+        203, 78, 78, 78, 78, 78, 78,161,161,161, 78, 78,203,126,126,126,126,126,126, 72, 72,126,126,126,203,
+        203, 78, 78, 78, 78, 78,161,161,161,161,161, 78,203,126,126,126,126,126, 72, 72, 72,126,126,126,203,
+        203, 78, 78, 78, 78, 78,161, 30, 30, 30,161, 78,203,203,126,126,126, 72, 72, 72, 72, 72,126,126,203,
+        203, 78, 78, 78, 78, 78,161, 30, 90, 30,161, 78, 78,203,126,126, 72, 72, 72, 72, 72, 72, 72,126,203,
+        203, 78, 78, 78, 78, 78,161, 30, 30, 30,161, 78, 78,203,203,126,126,126,126,126,126,126,126,126,203,
+        203, 78, 78, 78, 78, 78,161,161,161,161,161, 78, 78, 78,203,203,126,126,126,126,126,126,126,203,203,
+        203, 78, 78, 78, 78, 78,161,161,161,161,161, 78, 78, 78,203,203,203,203,126,126,126,126,203,203,203,
+        203,203, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78,203,203,203,203,203,203,203,203,203,203,
+        203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203};
+    return ImageUInt8::fromRaw(img, 25, 25);
+}
+
 
 
 inline ImageUInt8Ptr getPassatImage(){
