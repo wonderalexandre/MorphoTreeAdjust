@@ -62,7 +62,7 @@ ImageUInt8Ptr computerCASF_naive(ImageUInt8Ptr img, double radioAdj, const std::
 }
 
 
-ImageUInt8Ptr computerCASF_hybrid(ImageUInt8Ptr img, double radioAdj, const std::vector<int>& thresholds){
+ImageUInt8Ptr computerCASF_hybrid(ImageUInt8Ptr img, double radioAdj, const std::vector<int>& thresholds, size_t cutoffPointHybrid){
     std::chrono::high_resolution_clock::time_point start, start_all, end, end_all;
     if(PRINT_LOG){
         start = std::chrono::high_resolution_clock::now();
@@ -70,8 +70,7 @@ ImageUInt8Ptr computerCASF_hybrid(ImageUInt8Ptr img, double radioAdj, const std:
 
     AdjacencyRelationPtr adj =std::make_shared<AdjacencyRelation>(img->getNumRows(), img->getNumCols(), radioAdj);
     ImageUInt8Ptr imgOut = img->clone();
-    size_t cutPoint_Hibrid = 3;
-    for(size_t i=0; i < cutPoint_Hibrid; i++) {
+    for(size_t i=0; i < cutoffPointHybrid; i++) {
         int threshold = thresholds[i];
         if(PRINT_LOG){
             std::cout << "Opening/Closing: " << (i+1) << " \t\tthreshold:" << threshold << std::endl;
@@ -88,7 +87,7 @@ ImageUInt8Ptr computerCASF_hybrid(ImageUInt8Ptr img, double radioAdj, const std:
         if(PRINT_LOG){
             end = std::chrono::high_resolution_clock::now();
             //std::cout << "\t- Time (build/prunning/rec maxtree): " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
-            std::cout << "\t- Time (update mintree and pruning maxtree) hibrid: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
+            std::cout << "\t- Time (update mintree and pruning maxtree) hybrid: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
             start = std::chrono::high_resolution_clock::now();
         }
 	    ComponentTreePPtr mintree = std::make_shared<ComponentTreeP>(imgOut, false, adj);
@@ -99,7 +98,7 @@ ImageUInt8Ptr computerCASF_hybrid(ImageUInt8Ptr img, double radioAdj, const std:
 	    imgOut = mintree->reconstructionImage();  
         if(PRINT_LOG){
             end = std::chrono::high_resolution_clock::now();
-            std::cout << "\t- Time (update maxtree and pruning mintree) hibrid: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
+            std::cout << "\t- Time (update maxtree and pruning mintree) hybrid: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
             end_all = std::chrono::high_resolution_clock::now();
             std::cout << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end_all - start_all).count() << " ms\n\n";
         }
@@ -118,7 +117,7 @@ ImageUInt8Ptr computerCASF_hybrid(ImageUInt8Ptr img, double radioAdj, const std:
         //std::cout << "\tTime (build trees): " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
     }
     
-    for(size_t i=cutPoint_Hibrid; i < thresholds.size(); i++) {
+    for(size_t i=cutoffPointHybrid; i < thresholds.size(); i++) {
         int threshold = thresholds[i];
         if(PRINT_LOG){
             std::cout << "Opening/Closing: " << (i+1) << " \t\tthreshold:" << threshold << std::endl;
@@ -130,7 +129,7 @@ ImageUInt8Ptr computerCASF_hybrid(ImageUInt8Ptr img, double radioAdj, const std:
         
         if(PRINT_LOG){
             end = std::chrono::high_resolution_clock::now();
-            std::cout << "\t- Time (update mintree and pruning maxtree) hibrid: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
+            std::cout << "\t- Time (update mintree and pruning maxtree) hybrid: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
             start = std::chrono::high_resolution_clock::now();
         }
         nodesToPruning = mintree->getNodesThreshold(threshold);
@@ -139,7 +138,7 @@ ImageUInt8Ptr computerCASF_hybrid(ImageUInt8Ptr img, double radioAdj, const std:
         if(PRINT_LOG){
             end = std::chrono::high_resolution_clock::now();
             end_all = std::chrono::high_resolution_clock::now();
-            std::cout << "\t- Time (update maxtree and pruning mintree) hibrid: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
+            std::cout << "\t- Time (update maxtree and pruning mintree) hybrid: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
             std::cout << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end_all - start_all).count() << " ms\n\n";
         }
 
@@ -202,7 +201,7 @@ ImageUInt8Ptr computerCASF(ImageUInt8Ptr img, double radioAdj, const std::vector
 }
 
 
-ImageUInt8Ptr computerCASF_hybridSubtree(ImageUInt8Ptr img, double radioAdj, const std::vector<int>& thresholds){
+ImageUInt8Ptr computerCASF_hybridSubtree(ImageUInt8Ptr img, double radioAdj, const std::vector<int>& thresholds, size_t cutoffPointHybrid){
     std::chrono::high_resolution_clock::time_point start, start_all, end, end_all;
     if(PRINT_LOG){
         start = std::chrono::high_resolution_clock::now();
@@ -210,8 +209,7 @@ ImageUInt8Ptr computerCASF_hybridSubtree(ImageUInt8Ptr img, double radioAdj, con
 
     AdjacencyRelationPtr adj =std::make_shared<AdjacencyRelation>(img->getNumRows(), img->getNumCols(), radioAdj);
     ImageUInt8Ptr imgOut = img->clone();
-    size_t cutPoint_Hibrid = 2;
-    for(size_t i=0; i < cutPoint_Hibrid; i++) {
+    for(size_t i=0; i < cutoffPointHybrid; i++) {
         int threshold = thresholds[i];
         if(PRINT_LOG){
             std::cout << "Opening/Closing: " << (i+1) << " \t\tthreshold:" << threshold << std::endl;
@@ -228,7 +226,7 @@ ImageUInt8Ptr computerCASF_hybridSubtree(ImageUInt8Ptr img, double radioAdj, con
         if(PRINT_LOG){
             end = std::chrono::high_resolution_clock::now();
             //std::cout << "\t- Time (build/prunning/rec maxtree): " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
-            std::cout << "\t- Time (update mintree and pruning maxtree) hibrid: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
+            std::cout << "\t- Time (update mintree and pruning maxtree) hybrid: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
             start = std::chrono::high_resolution_clock::now();
         }
 	    ComponentTreePPtr mintree = std::make_shared<ComponentTreeP>(imgOut, false, adj);
@@ -239,7 +237,7 @@ ImageUInt8Ptr computerCASF_hybridSubtree(ImageUInt8Ptr img, double radioAdj, con
 	    imgOut = mintree->reconstructionImage();  
         if(PRINT_LOG){
             end = std::chrono::high_resolution_clock::now();
-            std::cout << "\t- Time (update maxtree and pruning mintree) hibrid: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
+            std::cout << "\t- Time (update maxtree and pruning mintree) hybrid: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
             end_all = std::chrono::high_resolution_clock::now();
             std::cout << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end_all - start_all).count() << " ms\n\n";
         }
@@ -258,7 +256,7 @@ ImageUInt8Ptr computerCASF_hybridSubtree(ImageUInt8Ptr img, double radioAdj, con
         //std::cout << "\tTime (build trees): " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
     }
     
-    for(size_t i=cutPoint_Hibrid; i < thresholds.size(); i++) {
+    for(size_t i=cutoffPointHybrid; i < thresholds.size(); i++) {
         int threshold = thresholds[i];
         if(PRINT_LOG){
             std::cout << "Opening/Closing: " << (i+1) << " \t\tthreshold:" << threshold << std::endl;
@@ -270,7 +268,7 @@ ImageUInt8Ptr computerCASF_hybridSubtree(ImageUInt8Ptr img, double radioAdj, con
         
         if(PRINT_LOG){
             end = std::chrono::high_resolution_clock::now();
-            std::cout << "\t- Time (update mintree and pruning maxtree) hibrid: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
+            std::cout << "\t- Time (update mintree and pruning maxtree) hybrid: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
             start = std::chrono::high_resolution_clock::now();
         }
         nodesToPruning = mintree->getNodesThreshold(threshold);
@@ -279,7 +277,7 @@ ImageUInt8Ptr computerCASF_hybridSubtree(ImageUInt8Ptr img, double radioAdj, con
         if(PRINT_LOG){
             end = std::chrono::high_resolution_clock::now();
             end_all = std::chrono::high_resolution_clock::now();
-            std::cout << "\t- Time (update maxtree and pruning mintree) hibrid: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
+            std::cout << "\t- Time (update maxtree and pruning mintree) hybrid: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
             std::cout << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end_all - start_all).count() << " ms\n\n";
         }
 
@@ -376,9 +374,9 @@ int main(int argc, char* argv[]) {
     std::cout << "Time our approach:   " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
 
     start = std::chrono::high_resolution_clock::now();
-    auto imgOut3 = computerCASF_hybrid(img, radioAdj, thresholds);
+    auto imgOut3 = computerCASF_hybrid(img, radioAdj, thresholds, 4);
     end = std::chrono::high_resolution_clock::now();
-    std::cout << "Time our approach_hibrid: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
+    std::cout << "Time our approach_hybrid: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
     
     start = std::chrono::high_resolution_clock::now();
     auto imgOut4 = computerCASF_subtree(img,radioAdj, thresholds);
@@ -386,9 +384,9 @@ int main(int argc, char* argv[]) {
     std::cout << "Time our approach (subtree): " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
     
     start = std::chrono::high_resolution_clock::now();
-    auto imgOut5 = computerCASF_subtree(img,radioAdj, thresholds);
+    auto imgOut5 = computerCASF_hybridSubtree(img,radioAdj, thresholds, 2);
     end = std::chrono::high_resolution_clock::now();
-    std::cout << "Time our approach_hibrid (subtree): " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
+    std::cout << "Time our approach_hybrid (subtree): " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
     
 
     std::cout << "The images (naive/our) are equals: " << (imgOut1->isEqual(imgOut2)? "True":"False") << "\n";

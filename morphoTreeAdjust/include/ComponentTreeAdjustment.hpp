@@ -180,7 +180,7 @@ public:
 
     ComponentTreeAdjustment(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree): mintree(mintree), maxtree(maxtree), maxIndex(std::max(maxtree->getNumNodes(), mintree->getNumNodes())), F(maxIndex)  { }
 
-    ComponentTreeAdjustment() = delete; // Default constructor is deleted to ensure that the derived classes must implement it
+    ComponentTreeAdjustment() = delete; 
 
     virtual ~ComponentTreeAdjustment() = default;
  

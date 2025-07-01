@@ -6,14 +6,16 @@ void PyBindComponentTreeAdjustmentByLeaf::updateTree(PyBindComponentTreeFZPtr tr
    ComponentTreeAdjustmentByLeaf::updateTree(tree, L_leaf);
 }
 
-py::tuple PyBindComponentTreeAdjustmentByLeaf::buildCollections(PyBindComponentTreeFZPtr tree, std::vector<int> vflatZone, int newGrayLevel, bool isMaxtree) { 
-    std::shared_ptr<FlatZone> flatzone = std::make_shared<FlatZone>(vflatZone.begin(), vflatZone.end());
-    std::vector<FlatZonePtr> flatZonesList;
-    flatZonesList.push_back(flatzone.get());
+py::tuple PyBindComponentTreeAdjustmentByLeaf::buildCollections(PyBindComponentTreeFZPtr tree, NodeFZPtr leaf, int newGrayLevel) { 
 
-    ComponentTreeAdjustmentByLeaf::buildMergedAndNestedCollections(tree, flatZonesList, vflatZone.front(), newGrayLevel, isMaxtree);
+    int idLeaf = leaf->getCNPsByFlatZone().begin()->second.front(); //pixel (id) of flatzone 
+    int pixelUpperBound = idLeaf; 
+    NodeFZPtr nodeTauL = tree->getSC(idLeaf); //node of correspondence flatzone in other treee
+    FlatZonePtr flatzoneTauL = &tree->getFlatzoneByID(idLeaf); 
+    
+    ComponentTreeAdjustmentByLeaf::buildMergedAndNestedCollections(tree, flatzoneTauL->front(), pixelUpperBound, newGrayLevel, tree->isMaxtree());
+
     std::array<std::vector<NodeFZPtr>, 256>& collectionF = this->F.getCollectionF();
-
     std::map<int, std::vector<NodeFZPtr>> mapCollectionF;
     for (int i = 0; i < 256; ++i) {
         if (!collectionF[i].empty()) {
