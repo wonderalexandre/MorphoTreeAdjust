@@ -23,11 +23,11 @@ class NodeCT : public std::enable_shared_from_this<NodeCT<CNPsType>> {
     int threshold2; //for maxtree: maximal threshold, same that "level"
 	int threshold1;  //for maxtree: minimal threshold
 	long int areaCC;
+    //long int numCNPs = -1;
 	
 	NodeCTPtr<CNPsType> parent;
-	CNPsType cnps; //pixels of the proper part 
-    std::list<NodeCTPtr<CNPsType>> children;
-
+	std::list<NodeCTPtr<CNPsType>> children;
+    CNPsType cnps; //pixels of the proper part 
 
 public:
 	
@@ -52,7 +52,8 @@ public:
     int getNumFlatzone();
 
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    void addCNPsOfDisjointFlatzone(FlatZone&& flatZone);
+    void addCNPsOfDisjointFlatzone(FlatZone&& flatZone, ComponentTreeFZPtr tree = nullptr, int capacity = -1);
+    
 
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
     void addCNPsOfDisjointFlatzones(CNPsType&& flatZones, ComponentTreeFZPtr tree);
@@ -62,9 +63,6 @@ public:
 
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
     void removeFlatzone(int idFlatZone);
-
-    //template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    //int getFlatZoneID(int pixel);
 
     ///Métodos disponíveis SOMENTE para `Pixels`
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, Pixels>::value, int> = 0>
@@ -76,7 +74,7 @@ public:
     int getIndex() const;
 	int getThreshold1() const;
 	int getThreshold2() const;
-    int getNumCNPs() const;
+    int getNumCNPs() ;
 	int getLevel() const;
 	void setLevel(int level);
 	bool isChild(NodeCTPtr<CNPsType> node) const;
@@ -85,8 +83,8 @@ public:
 	void setParent(NodeCTPtr<CNPsType> parent);
 	std::list<NodeCTPtr<CNPsType>>& getChildren();
 	int getNumSiblings() const;
-    int getRepresentativeCNPs() const;
     int computerNumDescendants();
+    
 
 
 //============= Iterator para iterar os nodes do caminho até o root==============//
@@ -357,7 +355,7 @@ class InternalIteratorBranchPostOrderTraversal {
 //============= Iterator para iterar os pixels compactos (CNPs) ==============//
     class InternalIteratorCNPs {
     private:
-        using FlatzoneIterator = std::unordered_map<int, std::list<int>>::iterator;
+        using FlatzoneIterator = FlatZones::iterator;
         using CNPsIterator = std::list<int>::iterator;
         
         FlatzoneIterator flatzoneIt, flatzoneEnd;
@@ -379,8 +377,7 @@ class InternalIteratorBranchPostOrderTraversal {
         using pointer = int*;
         using reference = int&;
         
-        InternalIteratorCNPs(FlatzoneIterator flatzoneBegin, FlatzoneIterator flatzoneEnd)
-            : flatzoneIt(flatzoneBegin), flatzoneEnd(flatzoneEnd) {
+        InternalIteratorCNPs(FlatzoneIterator flatzoneBegin, FlatzoneIterator flatzoneEnd) : flatzoneIt(flatzoneBegin), flatzoneEnd(flatzoneEnd) {
             if (flatzoneIt != flatzoneEnd) {
                 cnpsIt = flatzoneIt->second.begin();
                 advance();
@@ -408,11 +405,11 @@ class InternalIteratorBranchPostOrderTraversal {
 
     class IteratorCNPs {
     private:
-        std::unordered_map<int, std::list<int>>* cnpsByFlatzone;
+        FlatZones* cnpsByFlatzone;
 
     public:
         explicit IteratorCNPs(NodeCTPtr<CNPsType> node) : cnpsByFlatzone(&node->cnps) {}
-        explicit IteratorCNPs(std::unordered_map<int, std::list<int>>* cnpsByFlatzone) 
+        explicit IteratorCNPs(FlatZones* cnpsByFlatzone) 
             : cnpsByFlatzone(cnpsByFlatzone) {}
 
         InternalIteratorCNPs begin() { 

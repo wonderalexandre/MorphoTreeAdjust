@@ -15,6 +15,7 @@
 #include <array>
 #include <vector>
 #include <unordered_set>
+
 class MergedNodesCollection {
 protected:
     std::array<std::vector<NodeFZPtr>, 256> collectionF;
@@ -39,21 +40,36 @@ public:
         return collectionF[level]; 
     }
 
-    void computerAdjacentNodes(ComponentTreeFZPtr tree, std::vector<FlatZoneRef>& flatZones) {
+    void computerAdjacentNodes(ComponentTreeFZPtr tree, const std::vector<int>& flatZonesID) {
         bool isMaxtree = tree->isMaxtree();
-        ListOfAdjacentFlatzones& flatzoneGraph = tree->getListOfAdjacentFlatzones();
-        for (FlatZoneRef flatZonePRef : flatZones) {   
-            FlatZone& flatZoneP = flatZonePRef.get();
-            int flatZoneID_P = flatZoneP.front();
+        FlatZonesGraphPtr& graph = tree->getFlatZonesGraph();
+        for (int flatZoneID_P : flatZonesID) {   
             int grayFlatZoneP = tree->getSC(flatZoneID_P)->getLevel(); //is same that: f(p)
     
-            for (int flatZoneID_Q : *flatzoneGraph[flatZoneID_P]) {
+            for (int flatZoneID_Q : graph->getAdjacentFlatzones(flatZoneID_P)) {
                 NodeFZPtr node = tree->getSC(flatZoneID_Q);
                 if ( (isMaxtree && node->getLevel() > grayFlatZoneP) || (!isMaxtree && node->getLevel() < grayFlatZoneP) ) {
                     if(!visitedAdj[node->getIndex()]){
                         nodesNL.push_back(node);  
                         visitedAdj[node->getIndex()] = true;
                     }
+                }
+            }
+        }
+        resetAdjacentNode();
+    }
+
+    void computerAdjacentNodes(ComponentTreeFZPtr tree, int flatZoneID_P) {
+        bool isMaxtree = tree->isMaxtree();
+        FlatZonesGraphPtr& graph = tree->getFlatZonesGraph();
+        
+        int grayFlatZoneP = tree->getSC(flatZoneID_P)->getLevel(); //is same that: f(p)
+        for (int flatZoneID_Q : graph->getAdjacentFlatzones(flatZoneID_P)) {
+            NodeFZPtr node = tree->getSC(flatZoneID_Q);
+            if ( (isMaxtree && node->getLevel() > grayFlatZoneP) || (!isMaxtree && node->getLevel() < grayFlatZoneP) ) {
+                if(!visitedAdj[node->getIndex()]){
+                    nodesNL.push_back(node);  
+                    visitedAdj[node->getIndex()] = true;
                 }
             }
         }
@@ -103,8 +119,6 @@ public:
             }
     }
 
-
-
     int firstLambda() {
         lambdaList.clear();
         for (int i = 0; i < 256; ++i) {
@@ -126,89 +140,6 @@ public:
     }
 };
 
-class UnionNodes {
-protected:
-    bool isMaxtree; // Se true, percorre de forma decrescente
-    std::list<FlatZoneNode> flatZoneNodeList;
-    std::list<int> listFlatzoneIDs;
-    FlatZoneNode nodeTauStar; //nodeTauStar é o nó correspondente da folha da sub-arvore a ser podada com maior (ou menor, para min-tree) intensidade
-    std::unordered_set<NodeFZPtr> nodesToBeRemoved; //nodes que foram removido devido ao fusão das zonas planas quando newGrayLevel = \lambda
-
-public:
-
-    // Construtor permite definir a ordem de iteração
-    UnionNodes(bool isMaxtree):  isMaxtree(isMaxtree) {}
-    
-    
-    std::list<FlatZoneNode>& getFlatzoneNodeList() {
-        return flatZoneNodeList;
-    }
-
-    std::vector<FlatZoneRef> getFlatzones() {
-        std::vector<FlatZoneRef> flatzones;
-        for(FlatZoneNode fzNode: flatZoneNodeList){
-            flatzones.push_back(*fzNode.flatzone);
-        }
-        return flatzones;
-    }
-
-    FlatZoneNode getNodeTauStar() {
-        return nodeTauStar;
-    }
-   
-    std::unordered_set<NodeFZPtr>& getNodesToBeRemoved() {
-        return nodesToBeRemoved;
-    }
-
-    void addCNPsToConnectedFlatzone(NodeFZPtr nodeUnion, ComponentTreeFZPtr tree) {
-        if (flatZoneNodeList.size() > 1) {
-            FlatZone unifiedFlatzone;
-            std::unique_ptr<FlatZonesGraph>& flatzoneGraph = tree->getFlatZonesGraph();
-            flatzoneGraph->updateGraph(flatZoneNodeList, unifiedFlatzone, nodeTauStar.node, tree);
-            nodeUnion->addCNPsToConnectedFlatzone(std::move(unifiedFlatzone), tree);
-        }else{
-            nodeUnion->addCNPsToConnectedFlatzone(std::move(*nodeTauStar.flatzone), tree);
-        }
-        
-    }
-
-    void removeFlatzones() {
-        for(FlatZoneNode fzNode: flatZoneNodeList){
-            NodeFZPtr node = fzNode.node;
-            node->removeFlatzone(fzNode.idFlatZone);  
-            if(fzNode.node->getNumCNPs() == 0){
-                nodesToBeRemoved.insert(fzNode.node);
-            }
-        }
-    }
-
-    bool isRemoved(NodeFZPtr node){
-        return nodesToBeRemoved.find(node) == nodesToBeRemoved.end();
-    }
-    
-    void resetCollection(bool isMaxtree) {
-        this->isMaxtree = isMaxtree;
-        this->flatZoneNodeList.clear();
-        this->listFlatzoneIDs.clear();
-        this->nodesToBeRemoved.clear();
-
-        this->nodeTauStar.node = nullptr;
-        this->nodeTauStar.flatzone = nullptr;
-        this->nodeTauStar.idFlatZone = -1;
-    }
-    
-    void addNode(NodeFZPtr nodeTau, std::list<int>& fzTau) {
-        flatZoneNodeList.emplace_back(nodeTau, fzTau);
-        listFlatzoneIDs.push_back(fzTau.front());
-        
-        if (!this->nodeTauStar.node || ( (!isMaxtree && nodeTau->getLevel() > nodeTauStar.node->getLevel()) || (isMaxtree && nodeTau->getLevel() < nodeTauStar.node->getLevel()))) {
-            this->nodeTauStar.node = nodeTau;
-            this->nodeTauStar.flatzone = &fzTau;
-        }
-    }
-
-};
-
 
 class ComponentTreeAdjustment {
 
@@ -216,8 +147,6 @@ protected:
     ComponentTreeFZPtr mintree;
     ComponentTreeFZPtr maxtree; 
     int maxIndex; 
-    int pixelUpperBound=-1;    
-    UnionNodes unionNodeTauSubtree;
     MergedNodesCollection F;
     std::unordered_set<NodeFZPtr> Fb;
     std::ostringstream outputLog;
@@ -245,32 +174,26 @@ protected:
     
 public:
 
-    ComponentTreeAdjustment(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree); 
-
-    ~ComponentTreeAdjustment(); 
-
     std::string getOutputLog() {
         return outputLog.str();
     }
 
+    ComponentTreeAdjustment(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree): mintree(mintree), maxtree(maxtree), maxIndex(std::max(maxtree->getNumNodes(), mintree->getNumNodes())), F(maxIndex)  { }
+
+    ComponentTreeAdjustment() = delete; 
+
+    virtual ~ComponentTreeAdjustment() = default;
  
-    void buildMergedAndNestedCollections(ComponentTreeFZPtr tree, std::vector<FlatZoneRef>& flatZone, int newGrayLevel, bool isMaxtree);
+    virtual void buildMergedAndNestedCollections(ComponentTreeFZPtr, std::vector<int>&, int, int, bool) = 0;
     
-    void updateTree(ComponentTreeFZPtr tree, NodeFZPtr L_leaf);
-
-    void updateTree2(ComponentTreeFZPtr tree, NodeFZPtr rSubtree);
-
-    void adjustMinTree(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree, std::vector<NodeFZPtr> nodesToPruning);
+    virtual void buildMergedAndNestedCollections(ComponentTreeFZPtr, int, int, int, bool) = 0;
     
-    void adjustMaxTree(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree, std::vector<NodeFZPtr> nodesToPruning);
+    virtual void updateTree(ComponentTreeFZPtr tree, NodeFZPtr node) = 0;
 
-    void adjustMinTree2(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree, std::vector<NodeFZPtr> nodesToPruning);
+    virtual void adjustMinTree(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree, std::vector<NodeFZPtr>& nodesToPruning) = 0;
     
-    void adjustMaxTree2(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree, std::vector<NodeFZPtr> nodesToPruning);
-
-
-
-    
+    virtual void adjustMaxTree(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree, std::vector<NodeFZPtr>& nodesToPruning) = 0;
+  
 };
 
 

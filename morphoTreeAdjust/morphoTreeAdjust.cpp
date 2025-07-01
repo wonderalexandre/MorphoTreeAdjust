@@ -1,7 +1,8 @@
 #include "include/NodeCT.hpp"
 #include "pybind/PyBindComponentTree.hpp"
 #include "include/AdjacencyRelation.hpp"
-#include "pybind/PyBindComponentTreeAdjustment.hpp"
+#include "pybind/PyBindComponentTreeAdjustmentByLeaf.hpp"
+#include "pybind/PyBindComponentTreeAdjustmentBySubtree.hpp"
 
 #include <iterator>
 #include <utility>
@@ -13,7 +14,7 @@ void init_NodeCT(py::module &m) {
     py::class_<NodeCT<FlatZones>, std::shared_ptr<NodeCT<FlatZones>>>(m, "NodeCT")
         .def(py::init<>())
         .def_property_readonly("id", &NodeCT<FlatZones>::getIndex)
-        .def("__str__", [](const NodeCT<FlatZones> &node) {
+        .def("__str__", [](NodeCT<FlatZones> &node) {
             std::ostringstream oss;
             oss << "NodeCT(id=" << node.getIndex() 
                 << ", level=" << node.getLevel() 
@@ -96,8 +97,8 @@ void init_NodeCT_Iterators(py::module &m) {
 void init_ComponentTree(py::module &m) {
     using PyBindTree = PyBindComponentTree<FlatZones>; 
     py::class_<PyBindTree, std::shared_ptr<PyBindTree>>(m, "ComponentTree")
-        .def(py::init<py::array_t<int> &, int, int, bool, double>())
-        .def(py::init<py::array_t<int> &, int, int, bool>())
+        .def(py::init<py::array_t<uint8_t> &, int, int, bool>())
+        //.def(py::init<py::array_t<uint8_t> &, int, int, bool>())
         .def("reconstructionImage", &PyBindTree::reconstructionImage)
         .def("recNode", &PyBindTree::reconstructionNode)
         .def("getSC", [](PyBindTree &self, int p) -> NodeFZPtr {
@@ -112,6 +113,11 @@ void init_ComponentTree(py::module &m) {
             tree.prunning(smart_node);
             node = py::none();
         })
+       /* .def("mergeWithParent", [](PyBindTree& tree, py::object node) {
+            NodeCT<FlatZones>* raw_node = node.cast<NodeCT<FlatZones>*>();
+            tree.mergeWithParent(raw_node);
+            node = py::none();
+        })*/
         .def("getNodesThreshold", &PyBindTree::getNodesThreshold)
         .def("leaves", &PyBindTree::getLeaves)
         .def("nodes", &PyBindTree::getNodes)
@@ -124,12 +130,21 @@ void init_ComponentTree(py::module &m) {
 
 void init_ComponentTreeAdjustment(py::module &m) {
     using PyBindTree = PyBindComponentTree<FlatZones>; 
-    py::class_<PyBindComponentTreeAdjustment>(m, "ComponentTreeAdjustment")
+    py::class_<PyBindComponentTreeAdjustmentByLeaf>(m, "ComponentTreeAdjustmentByLeaf")
         .def(py::init<std::shared_ptr<PyBindTree>, std::shared_ptr<PyBindTree>>())
-        .def("updateTree", &PyBindComponentTreeAdjustment::updateTree)
-        .def("updateTree2", &PyBindComponentTreeAdjustment::updateTree2)
-        .def("buildCollections", &PyBindComponentTreeAdjustment::buildCollections)
-        .def("log", &PyBindComponentTreeAdjustment::getOutputLog);
+        .def("updateTree", [](PyBindComponentTreeAdjustmentByLeaf &self, PyBindComponentTreeFZPtr tree, NodeFZPtr leaf) {
+            self.updateTree(tree, leaf);
+        })
+        .def("buildCollections", &PyBindComponentTreeAdjustmentByLeaf::buildCollections)
+        .def("log", &PyBindComponentTreeAdjustmentByLeaf::getOutputLog);
+
+    py::class_<PyBindComponentTreeAdjustmentBySubtree>(m, "ComponentTreeAdjustmentBySubtree")
+        .def(py::init<std::shared_ptr<PyBindTree>, std::shared_ptr<PyBindTree>>())
+        .def("updateTree", [](PyBindComponentTreeAdjustmentBySubtree &self, PyBindComponentTreeFZPtr tree, NodeFZPtr leaf) {
+            self.updateTree(tree, leaf);
+        })
+        .def("buildCollections", &PyBindComponentTreeAdjustmentBySubtree::buildCollections)
+        .def("log", &PyBindComponentTreeAdjustmentBySubtree::getOutputLog);
 }
 
 void init_AdjacencyRelation(py::module &m) {

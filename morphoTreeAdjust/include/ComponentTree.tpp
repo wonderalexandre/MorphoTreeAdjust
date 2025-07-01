@@ -8,6 +8,7 @@
 #include <iostream>
 #include <iomanip>
 #include <utility>
+#include <algorithm> 
 
 #include "../include/NodeCT.hpp"
 #include "../include/ComponentTree.hpp"
@@ -16,8 +17,9 @@
 
 
 template <typename CNPsType>
-int* ComponentTree<CNPsType>::countingSort(int* img){
+int* ComponentTree<CNPsType>::countingSort(ImageUInt8Ptr imgPtr){
 	int n = this->numRows * this->numCols;
+    auto img = imgPtr->rawData();
 	int maxvalue = img[0];
 	for (int i = 1; i < n; i++)
 		if(maxvalue < img[i]) maxvalue = img[i];
@@ -62,10 +64,12 @@ int ComponentTree<CNPsType>::findRoot(int *zPar, int x) {
 }
 
 template <typename CNPsType>
-int* ComponentTree<CNPsType>::createTreeByUnionFind(int* orderedPixels, int* img) {
-	int *zPar = new int[numPixels];
+int* ComponentTree<CNPsType>::createTreeByUnionFind(int* orderedPixels, ImageUInt8Ptr imgPtr) {
+	int numPixels = numRows*numCols;
+    int *zPar = new int[numPixels];
 	int *parent = new int[numPixels];
-		
+	auto img = imgPtr->rawData();
+    
 	for (int p = 0; p < numPixels; p++) {
 		zPar[p] =  -1;
 	}
@@ -74,7 +78,7 @@ int* ComponentTree<CNPsType>::createTreeByUnionFind(int* orderedPixels, int* img
 		int p = orderedPixels[i];
 		parent[p] = p;
 		zPar[p] = p;
-		for (int n : this->adj.getAdjPixels(p)) {
+		for (int n : this->adj->getAdjPixels(p)) {
 			if(zPar[n] != -1){
 				int r = this->findRoot(zPar, n);
 				if(p != r){
@@ -101,7 +105,7 @@ int* ComponentTree<CNPsType>::createTreeByUnionFind(int* orderedPixels, int* img
 
 
 template <typename CNPsType>
-void ComponentTree<CNPsType>::reconstruction(NodeCTPtr<CNPsType> node, int* imgOut) {
+void ComponentTree<CNPsType>::reconstruction(NodeCTPtr<CNPsType> node, uint8_t* imgOut) {
     assert(node != nullptr && "Erro: Nó inválido passado para reconstrução!");
     assert(imgOut != nullptr && "Erro: Ponteiro de saída da imagem é nulo!");
 
@@ -113,28 +117,35 @@ void ComponentTree<CNPsType>::reconstruction(NodeCTPtr<CNPsType> node, int* imgO
         reconstruction(child, imgOut);
     }
 }
+/*
+template <typename CNPsType>
+ComponentTree<CNPsType>::ComponentTree(int numRows, int numCols, bool isMaxtree, double radiusOfAdjacencyRelation)
+    : numRows(numRows), numCols(numCols),maxtreeTreeType(isMaxtree){   
+    adj = std::make_shared<AdjacencyRelation>(numRows, numCols, radiusOfAdjacencyRelation);
+    int numPixels = numRows*numCols;
+    pixelToNode.resize(numPixels, nullptr);
+}*/
 
 template <typename CNPsType>
-ComponentTree<CNPsType>::ComponentTree(int numRows, int numCols, bool isMaxtree, double radiusOfAdjacencyRelation):
-    numRows(numRows), numCols(numCols), 
-    maxtreeTreeType(isMaxtree), numPixels(numRows*numCols), 
-    adj(numRows, numCols, radiusOfAdjacencyRelation)
-{   
-    pixelToNode.resize(numPixels, nullptr);
+ComponentTree<CNPsType>::ComponentTree(ImageUInt8Ptr img, bool isMaxtree, AdjacencyRelationPtr adj) : numRows(img->getNumRows()), numCols(img->getNumCols()), maxtreeTreeType(isMaxtree), adj(adj){   
+    pixelToNode.resize(numRows*numCols, nullptr);
+    build(img);
 }
 
 template <typename CNPsType>
-ComponentTree<CNPsType>::ComponentTree(int* img, int numRows, int numCols, bool isMaxtree, double radiusOfAdjacencyRelation)
-    : ComponentTree<CNPsType>(numRows, numCols, isMaxtree, radiusOfAdjacencyRelation) {
+ComponentTree<CNPsType>::ComponentTree(ImageUInt8Ptr img, bool isMaxtree, AdjacencyRelationPtr adj, std::shared_ptr<FlatZonesGraph> graph) : numRows(img->getNumRows()), numCols(img->getNumCols()), maxtreeTreeType(isMaxtree), adj(adj), flatzoneGraph(graph){   
+    pixelToNode.resize(numRows*numCols, nullptr);
     build(img);
 }
 
 
 template <typename CNPsType>
-void ComponentTree<CNPsType>::build(int* img){ 
-	int* orderedPixels = countingSort(img);
-	int* parent = createTreeByUnionFind(orderedPixels, img);
+void ComponentTree<CNPsType>::build(ImageUInt8Ptr imgPtr){ 
+	int* orderedPixels = countingSort(imgPtr);
+	int* parent = createTreeByUnionFind(orderedPixels, imgPtr);
+    auto img = imgPtr->rawData();
 	this->numNodes = 0;
+    int numPixels = numRows*numCols;
 	for (int i = 0; i < numPixels; i++) {
 		int p = orderedPixels[i];
 		if (p == parent[p]) { //representante do node raiz
@@ -156,7 +167,7 @@ void ComponentTree<CNPsType>::build(int* img){
 		}
 	}
 	
-    this->assignCNPs(img);
+    this->assignCNPs();
 	computerArea(this->root); //computer area
 
 	delete[] parent;
@@ -164,25 +175,30 @@ void ComponentTree<CNPsType>::build(int* img){
 }
 
 template <>
-inline void ComponentTreeP::assignCNPs(int* img) {
+inline void ComponentTreeP::assignCNPs() {
+    int numPixels = numRows*numCols;
     for (int p = 0; p < numPixels; p++) {
         pixelToNode[p]->addCNPs(p);
     }
 }
 
 /*
-Esse método faz atribuição dos pixels as suas respectivas flatzones e depois constroí-se um grafo de flatzones.
+Esse método faz atribuição dos pixels as suas respectivas flatzones.
 O menor pixel (o primeiro a ser visitado durante a construção da flatzone) é considerado o id da flatzone.
 Essa propriedade será mantida no grafo ao realizar operações de fusão de flatzones
 */
 template <>
-inline void ComponentTreeFZ::assignCNPs(int* img) {
-    this->flatzoneGraph = FlatZonesGraph::createInstance(img, this->numRows, this->numCols, this->adj);
+inline void ComponentTreeFZ::assignCNPs() {
+    
+    u_int32_t *numFlatzones = new u_int32_t[this->numNodes]();
     for (FlatZone& flatZone : this->flatzoneGraph->getFlatzones()) {
-        this->pixelToNode[flatZone.front()]->addCNPsOfDisjointFlatzone(std::move(flatZone));
+        numFlatzones[this->pixelToNode[flatZone.front()]->getIndex()] += 1;        
     }
-
-
+    for (FlatZone flatZone : this->flatzoneGraph->getFlatzones()) {
+        this->pixelToNode[flatZone.front()]->addCNPsOfDisjointFlatzone(std::move(flatZone), nullptr, numFlatzones[this->pixelToNode[flatZone.front()]->getIndex()]);
+    }
+    delete[] numFlatzones;
+    
     assert([&]() {
         for(NodeFZPtr node: this->root->getIteratorBreadthFirstTraversal()){
             for (auto& [id, flatZone] : node->getCNPsByFlatZone()) {
@@ -232,7 +248,7 @@ void ComponentTree<CNPsType>::setSC(int p, NodeCTPtr<CNPsType> n){
 }
 
 template <typename CNPsType>
-AdjacencyRelation& ComponentTree<CNPsType>::getAdjacencyRelation(){
+AdjacencyRelationPtr ComponentTree<CNPsType>::getAdjacencyRelation(){
 	return this->adj;
 }
 
@@ -292,7 +308,8 @@ inline void ComponentTreeFZ::prunning(NodeFZPtr rootSubtree) {
     
     assert(rootSubtree != nullptr && "Erro: node is nullptr");
     assert(rootSubtree->getParent() != nullptr && "Erro: node é a raiz");
-    std::list<FlatZone> flatZoneList;
+    FlatZone flatzonesPruned;
+
     if (rootSubtree != this->root) {
         NodeFZPtr parent = rootSubtree->getParent();
         parent->getChildren().remove(rootSubtree);
@@ -300,7 +317,7 @@ inline void ComponentTreeFZ::prunning(NodeFZPtr rootSubtree) {
 
         std::queue<NodeFZPtr> queue;
         queue.push(rootSubtree);
-
+        int idMinimum = rootSubtree->getCNPsByFlatZone().begin()->first; // pega um idFlatzone qualquer
         // Coletar todas as flatzones que serão fundidas
         while (!queue.empty()) {
             NodeFZPtr node = queue.front(); queue.pop();
@@ -310,25 +327,103 @@ inline void ComponentTreeFZ::prunning(NodeFZPtr rootSubtree) {
                 queue.push(child);
             }
             
-            for (auto& [id, flatzone] : node->getCNPsByFlatZone()) {
-                flatZoneList.push_back(flatzone);
+            auto& cnps = node->getCNPsByFlatZone();
+            for (auto it = cnps.begin(); it != cnps.end(); ) {
+                for (const int& p : it->second) {
+                    this->setSC(p, parent);
+                }
+                if(it->first < idMinimum) {
+                    idMinimum = it->first; 
+                    flatzonesPruned.splice(flatzonesPruned.begin(), it->second); 
+                }else{
+                    flatzonesPruned.splice(flatzonesPruned.end(), it->second); 
+                }
+                it = cnps.erase(it); // remove e avança
             }
             
-            if(node != rootSubtree){
-                node = nullptr;
+        }
+
+    
+        int idFlatzonePruned = flatzonesPruned.front();
+        int idFlatzonePrunedRep = flatzoneGraph->findRepresentative(idFlatzonePruned);// pega o id da flatzone
+        auto& cnps = parent->getCNPsByFlatZone();
+        for (auto it = cnps.begin(); it != cnps.end(); ) {
+            int idFlatzone = it->first;
+            int idFlatzoneRep = flatzoneGraph->findRepresentative(idFlatzone);
+            //std::cout << "==> idFlatzonePruned:" <<idFlatzonePruned << ", Rep(idFlatzonePruned):" << idFlatzonePrunedRep << ", idFlatzone:" << idFlatzone <<  ", Rep(idFlatzone): " << idFlatzoneRep ;
+            if (idFlatzoneRep == idFlatzonePrunedRep) {
+                if (idMinimum > idFlatzone) {
+                    flatzonesPruned.splice(flatzonesPruned.begin(), it->second); // flatzone contem o id da flatzone
+                    idMinimum = idFlatzone; 
+                    //std::cout << " - MERGED BEGIN" << std::endl;
+                } else {
+                    flatzonesPruned.splice(flatzonesPruned.end(), it->second); // flatzonePruned contem o id da flatzone
+                    //std::cout << " - MERGED END" << std::endl;
+                }
+                
+                it = cnps.erase(it); // remove e avança
+            } else {
+                //std::cout << " - NOT MERGED" << std::endl;
+                ++it; // apenas avança se não remover
             }
         }
-        if(flatZoneList.size() > 1){
-            //unifica todas as flatzones em uma unica flatzone na raiz da subtree e atualiza o grafo
-            FlatZone unifiedFlatzone;
-            flatzoneGraph->updateGraphAfterPruning(flatZoneList, unifiedFlatzone, rootSubtree, this->shared_from_this());
-            parent->addCNPsToConnectedFlatzone(std::move(unifiedFlatzone), this->shared_from_this());
-        }else{
-            parent->addCNPsToConnectedFlatzone(std::move(flatZoneList.front()), this->shared_from_this());
-        }
-        rootSubtree = nullptr;
+
+        //std::cout << " - New flatzone id: " << flatzonePruned.front() << std::endl;
+        // Adiciona a flatzone pruned ao parent
+        cnps[flatzonesPruned.front()] = std::move(flatzonesPruned);
+
     }
 }
+
+
+
+template <>
+inline void ComponentTreeP::mergeWithParent(NodePPtr node){
+    if(node->getParent() != nullptr){
+        NodePPtr parent = node->getParent();
+        std::list<NodePPtr>& childrenParent = parent->getChildren();
+        childrenParent.remove( node );			
+        this->numNodes--;
+
+        for( int p: node->getCNPs() ) {				
+            parent->addCNPs(p);
+            this->pixelToNode[p] = parent;	
+        }
+
+        for(NodePPtr child : node->getChildren()) {							
+            childrenParent.push_back(child);				
+            child->setParent(parent);			
+        }	
+        
+        node = nullptr;
+    }
+}
+
+template <>
+inline void ComponentTreeFZ::mergeWithParent(NodeFZPtr node){
+    if(node->getParent() != nullptr){
+        NodeFZPtr parent = node->getParent();
+        std::list<NodeFZPtr>& childrenParent = parent->getChildren();
+        childrenParent.remove( node );			
+        this->numNodes--;
+
+        for(auto& [id, flatzone]: node->getCNPsByFlatZone()){
+            if(flatzoneGraph->isAdjacent(id, parent)){
+                parent->addCNPsToConnectedFlatzone(std::move(flatzone), this->shared_from_this());
+            }else{
+                parent->addCNPsOfDisjointFlatzone(std::move(flatzone), this->shared_from_this());
+            }
+        }
+        
+        for(NodeFZPtr child : node->getChildren()) {							
+            childrenParent.push_back(child);				
+            child->setParent(parent);			
+        }			
+
+        node = nullptr;
+    }
+}
+
 
 
 
@@ -340,7 +435,7 @@ std::vector<NodeCTPtr<CNPsType>> ComponentTree<CNPsType>::getNodesThreshold(int 
     
     int sumArea = 0; //somente para uso estatistico
     int numFlatZones=0; //somente para uso estatistico
-
+    int numDescendents = 0; //somente para uso estatistico
 	while(!queue.empty()) {
 	    NodeCTPtr<CNPsType> node = queue.front(); queue.pop();
 	    if(node->getArea() > areaThreshold) {
@@ -352,6 +447,7 @@ std::vector<NodeCTPtr<CNPsType>> ComponentTree<CNPsType>::getNodesThreshold(int 
             if(PRINT_LOG){ //somente para uso estatistico
                 sumArea += node->getArea(); 
                 numFlatZones += node->getNumFlatzone(); 
+                numDescendents += node->computerNumDescendants();
             }
 			lista.push_back(node);
 	    }
@@ -359,7 +455,7 @@ std::vector<NodeCTPtr<CNPsType>> ComponentTree<CNPsType>::getNodesThreshold(int 
     if(PRINT_LOG){
         int areaImage = this->getNumColsOfImage() * this->getNumRowsOfImage();
         std::cout << "\tArea threshold: " << areaThreshold 
-          << ", #Nodes: " << lista.size() 
+          << ", #Nodes: " << (numDescendents+1)
           << ", #FlatZones: " << numFlatZones
           << ", #InputTreeNodes: " << this->getNumNodes()
           << ", |Pruning Area|: " << sumArea 
@@ -367,6 +463,10 @@ std::vector<NodeCTPtr<CNPsType>> ComponentTree<CNPsType>::getNodesThreshold(int 
           << (static_cast<double>(sumArea) / areaImage) * 100.0 << "% of the image area)" 
           << std::endl;
     }
+    /*std::sort(lista.begin(), lista.end(),
+          [](const NodeCTPtr<CNPsType>& a, const NodeCTPtr<CNPsType>& b) {
+              return a->getArea() < b->getArea(); // ordem decrescente
+          });*/
 	return lista;
 }
 
@@ -390,14 +490,11 @@ std::vector<NodeCTPtr<CNPsType>> ComponentTree<CNPsType>::getLeaves(){
 }
 
 template <typename CNPsType>
-int* ComponentTree<CNPsType>::reconstructionImage(){
-	int n = this->numRows * this->numCols;
-	int* img = new int[n];
-	this->reconstruction(this->root, img);
-	return img;
+ImageUInt8Ptr ComponentTree<CNPsType>::reconstructionImage(){
+	ImageUInt8Ptr imgPtr = ImageUInt8::create(this->numRows, this->numCols);
+	this->reconstruction(this->root, imgPtr->rawData());
+	return imgPtr;
 }
-
-
 
 template <>
 template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
@@ -407,13 +504,7 @@ FlatZone& ComponentTreeFZ::getFlatzoneByID(int idFlatZone) {
 
 template <>
 template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
-ListOfAdjacentFlatzones& ComponentTreeFZ::getListOfAdjacentFlatzones(){
-    return this->flatzoneGraph->getGraph();
-}
-
-template <>
-template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
-std::unique_ptr<FlatZonesGraph>& ComponentTreeFZ::getFlatZonesGraph(){
+std::shared_ptr<FlatZonesGraph>& ComponentTreeFZ::getFlatZonesGraph(){
     return this->flatzoneGraph;
 }
 

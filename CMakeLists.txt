@@ -2,22 +2,29 @@
 # cmake -DPYTHON_LIBRARY_DIR=$(python -c "import sysconfig; print(sysconfig.get_config_var('LIBDIR'))") -DPYTHON_EXECUTABLE=$(python -c "import sys; print(sys.executable)") ../
 # make
 # make install
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.10)
+project(MorphoTreeAdjust LANGUAGES CXX)
 
-
-set(CMAKE_CXX_STANDARD 17)
+# C++20 sem extensões específicas de compilador
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Define build padrão, se não for especificado
 if(NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE Release)
+  set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
 endif()
 
-set(CMAKE_CXX_FLAGS "-O3")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+# Flags específicas por tipo de build
+set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -Wall -Wextra -Wpedantic")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -Wextra -Wpedantic")
+
+# Mensagens úteis
+message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "Compiler: ${CMAKE_CXX_COMPILER}")
+message(STATUS "C++ Standard: C++${CMAKE_CXX_STANDARD}")
 
 
-project(morphoTreeAdjust)
 
 include_directories("${CMAKE_SOURCE_DIR}/python")
 

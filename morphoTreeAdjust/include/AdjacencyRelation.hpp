@@ -22,12 +22,11 @@ private:
  
     std::vector<int> offsetRow;
     std::vector<int> offsetCol;
-    
       
 
 public:
 
-    AdjacencyRelation(int numCols, int numRows, double radius);
+    AdjacencyRelation(int numRows, int numCols, double radius);
     int nextValid();
     int getSize();
     AdjacencyRelation& getAdjPixels(int row, int col);
@@ -35,6 +34,7 @@ public:
     bool isAdjacent(int p, int q);
     bool isAdjacent(int px, int py, int qx, int qy);
     double getRadius();
+    
     class IteratorAdjacency { 
     private:
         int index;
@@ -44,7 +44,7 @@ public:
         using iterator_category = std::input_iterator_tag;
         using value_type = int;
 
-        IteratorAdjacency(AdjacencyRelation* obj, int id) : instance(obj), index(id) { }
+        IteratorAdjacency(AdjacencyRelation* obj, int id) :  index(id), instance(obj) { }
 
         AdjacencyRelation* getInstance() { return instance; } 
 

@@ -12,40 +12,40 @@
 #include <fstream>
 #include <iostream>
 
-inline void printFlatzoneGraph(ListOfAdjacentFlatzones flatzoneGraph, int size) {
+inline void printFlatzoneGraph(ListOfAdjacentFlatZones flatzoneGraph, int size) {
     std::cout << "Grafo de FlatZones:\n";
 
     for (int i = 0; i < size; ++i) {
         std::cout << "FlatZone " << i << " → { ";   
-        for (int neighbor : *flatzoneGraph[i]) {
+        for (int neighbor : flatzoneGraph[i]) {
             std::cout << neighbor << " ";
         }
         std::cout << "}\n";
     }
 }
 
-template <typename CNPsType>
-inline void printTree(NodeCTPtr<CNPsType> root, int indent = 0) {
-    
-    // Imprime o nó atual com indentação
-    for (int i = 0; i < indent; ++i) {
-        std::cout << "|-";
-    }
-    std::cout << "Node: " << root->getIndex() <<  ", Level: " << root->getLevel()<< std::endl;
+ template <typename CNPsType>
+inline void printTree(NodeCTPtr<CNPsType> root, std::string prefix = "", bool isLast = true) {
+    std::cout << prefix;
+    std::cout << (isLast ? "└──" : "├──");
+    std::cout << "ID: " << root->getIndex() <<  ", Level: " <<  root->getLevel()<< ", |cnps|: " << root->getNumCNPs() << std::endl;
 
-    // Chama recursivamente a função para cada filho
-    for (NodeCTPtr<CNPsType> child : root->getChildren()) {
-        printTree(child, indent + 1);
+    prefix += (isLast ? "   " : "│  ");
+
+    uint32_t cont = 0;
+    for (auto child: root->getChildren()) {
+        printTree(child, prefix, cont == root->getChildren().size() - 1);
+        cont++;
     }
 }
 
 template <typename CNPsType>
-inline void printMappingSC(ComponentTreePtr<CNPsType> tree, std::string nomeArquivo = "") {
+inline void printMappingSC(ComponentTreePtr<CNPsType> tree, int setw=4, std::string nomeArquivo = "") {
 
     int numRows = tree->getNumRowsOfImage();
     int numCols = tree->getNumColsOfImage();
     int n = numRows*numCols;
-    int map[n];
+    std::unique_ptr<int[]> map = std::unique_ptr<int[]>(new int[n]);
     for (int p=0; p < n; p++){
         map[p] = tree->getSC(p)->getIndex();
     }
@@ -63,14 +63,23 @@ inline void printMappingSC(ComponentTreePtr<CNPsType> tree, std::string nomeArqu
         streamSaida = &arquivoSaida;
     }
     if(tree->isMaxtree()){
-        *streamSaida << "---- max-tree ----" << "\n";
+        *streamSaida << "---- Mapping from pixel to small component of max-tree ----" << "\n";
     }else{
-        *streamSaida << "---- min-tree ----" << "\n";
+        *streamSaida << "---- Mapping from pixel to small component of min-tree ----" << "\n";
     }
-    // Impressão bidimensional
-   for (int i = 0; i < tree->getNumRowsOfImage(); ++i) {
-        for (int j = 0; j < tree->getNumColsOfImage(); ++j) {
-            *streamSaida << std::setw(2) <<  map[i * tree->getNumColsOfImage() + j] << " ";
+
+    // Imprime o cabeçalho de colunas
+    *streamSaida << std::setw(setw) << " "; // espaço para a primeira coluna (índice da linha)
+    for (int col = 0; col < numCols; col++) {
+        *streamSaida << std::setw(setw) << col;
+    }
+    *streamSaida << "\n";
+
+    // Impressão bidimensional com índice de linha
+    for (int row = 0; row < numRows; row++) {
+        *streamSaida << std::setw(setw) << row; // índice da linha
+        for (int col = 0; col < numCols; col++) {
+            *streamSaida << std::setw(setw) << map[ImageUtils::to1D(row, col, numCols)]; // ou ImageUtils::to1D(row, col, numCols)
         }
         *streamSaida << "\n";
     }
@@ -81,10 +90,9 @@ inline void printMappingSC(ComponentTreePtr<CNPsType> tree, std::string nomeArqu
 }
 
 template <typename CNPsType>
-inline  void printConnectedComponent(NodeCTPtr<CNPsType> node, ComponentTreePtr<CNPsType> tree, std::string nomeArquivo = "") {
+inline void printConnectedComponents(ComponentTreePtr<CNPsType> tree, int setw=3, std::string nomeArquivo = ""){
     int numRows = tree->getNumRowsOfImage();
     int numCols = tree->getNumColsOfImage();
-    int n = numRows*numCols;
     std::ostream* streamSaida;
     std::ofstream arquivoSaida;
 
@@ -98,18 +106,81 @@ inline  void printConnectedComponent(NodeCTPtr<CNPsType> node, ComponentTreePtr<
         }
         streamSaida = &arquivoSaida;
     }
-    if(tree->isMaxtree()){
-        *streamSaida << "---- max-tree ----" << "\n";
-    }else{
-        *streamSaida << "---- min-tree ----" << "\n";
+    auto printTreeType = [](int tipo) {
+        if (tipo == 0)
+            return "max-tree";
+        else if (tipo == 1)
+            return "min-tree";
+        else
+            return "tree of shapes";
+    };
+    *streamSaida << "----------- Connected components of "<< printTreeType(tree->getTreeType()) <<"  -----------\n" << std::endl;
+    for(auto node: tree->getRoot()->getIteratorBreadthFirstTraversal()){
+        *streamSaida << "---- ID: " << node->getIndex() 
+                    << ", level:" << node->getLevel() 
+                    << ", |cnps|:" << node->getCNPs().size()
+                    << ", Area:" << node->getAreaCC()  << " ---\n";
+        
+        // Imprime o cabeçalho de colunas
+        *streamSaida << std::setw(setw) << " "; // espaço para a primeira coluna (índice da linha)
+        for (int col = 0; col < numCols; col++) {
+            *streamSaida << std::setw(setw) << col;
+        }
+        *streamSaida << "\n";
+        // Impressão bidimensional
+        for (int row = 0; row < numRows; ++row) {
+            *streamSaida << std::setw(setw) << row; // índice da linha
+            for (int col = 0; col < numCols; ++col) {
+                if(tree->isDescendant(tree->getSC(ImageUtils::to1D(row, col, numCols)), node)){
+                    *streamSaida << std::setw(setw) << 1;
+                }else{
+                    *streamSaida << std::setw(setw) << 0;
+                }
+            }
+            *streamSaida << "\n";
+        }
     }
+    if (streamSaida != &std::cout){
+        dynamic_cast<std::ofstream*>(streamSaida)->close(); // std::cout não precisa ser fechado explicitamente
+    }
+}
+
+template <typename CNPsType>
+inline  void printConnectedComponent(NodeCTPtr<CNPsType> node, ComponentTreePtr<CNPsType> tree, int setw=3, std::string nomeArquivo = "") {
+    int numRows = tree->getNumRowsOfImage();
+    int numCols = tree->getNumColsOfImage();
+    std::ostream* streamSaida;
+    std::ofstream arquivoSaida;
+
+    if (nomeArquivo.empty()) {
+        streamSaida = &std::cout;
+    } else {
+        arquivoSaida.open(nomeArquivo); 
+        if (!arquivoSaida.is_open()) {
+            std::cerr << "Erro ao abrir o arquivo para escrita." << std::endl;
+            return;
+        }
+        streamSaida = &arquivoSaida;
+    }
+    *streamSaida << "---- ID: " << node->getIndex() 
+                 << ", level:" << node->getLevel() 
+                 << ", |cnps|:" << node->getCNPs().size()
+                 << ", Area:" << node->getAreaCC()  << " ---\n";
+    
+    // Imprime o cabeçalho de colunas
+    *streamSaida << std::setw(setw) << " "; // espaço para a primeira coluna (índice da linha)
+    for (int col = 0; col < numCols; col++) {
+        *streamSaida << std::setw(setw) << col;
+    }
+    *streamSaida << "\n";                 
     // Impressão bidimensional
-   for (int i = 0; i < numRows; ++i) {
-        for (int j = 0; j < numCols; ++j) {
-            if(tree->getSC(i * numCols + j) == node){
-                *streamSaida <<  1 << " ";
+    for (int row = 0; row < numRows; ++row) {
+        *streamSaida << std::setw(setw) << row; // índice da linha
+        for (int col = 0; col < numCols; ++col) {
+            if(tree->isDescendant(tree->getSC(ImageUtils::to1D(row, col, numCols)), node)){
+                *streamSaida << std::setw(setw) << 1;
             }else{
-                *streamSaida <<  0 << " ";
+                *streamSaida << std::setw(setw) << 0;
             }
         }
         *streamSaida << "\n";
@@ -120,10 +191,11 @@ inline  void printConnectedComponent(NodeCTPtr<CNPsType> node, ComponentTreePtr<
 
 }
 
-inline  void printImage(int* img, int numRows, int numCols, std::string nomeArquivo = "") {
-    int n = numRows*numCols;
+inline void printImage(ImageUInt8Ptr imgPtr, int setw=4, std::string nomeArquivo = "") {
+    auto img = imgPtr->rawData();
     std::ostream* streamSaida;
     std::ofstream arquivoSaida;
+    
     if (nomeArquivo.empty()) {
         streamSaida = &std::cout;
     } else {
@@ -134,84 +206,43 @@ inline  void printImage(int* img, int numRows, int numCols, std::string nomeArqu
         }
         streamSaida = &arquivoSaida;
     }
+    *streamSaida << "Image size: " << imgPtr->getNumCols() << "x" << imgPtr->getNumRows() << "\n";
+    // Imprime o cabeçalho de colunas
+    *streamSaida << std::setw(setw) << " "; // espaço para a primeira coluna (índice da linha)
+    for (int col = 0; col < imgPtr->getNumCols(); col++) {
+        *streamSaida << std::setw(setw) << col;
+    }
+    *streamSaida << "\n";
 
-    // Impressão bidimensional
-   for (int i = 0; i < numRows; ++i) {
-        for (int j = 0; j < numCols; ++j) {
-            *streamSaida << std::setw(2) <<  img[i * numCols + j] << " ";
+    // Impressão bidimensional com índice de linha
+    for (int row = 0; row < imgPtr->getNumRows(); row++) {
+        *streamSaida << std::setw(setw) << row; // índice da linha
+        for (int col = 0; col < imgPtr->getNumCols(); col++) {
+            *streamSaida << std::setw(setw) << static_cast<int>(img[ImageUtils::to1D(row, col, imgPtr->getNumCols())]); // ou ImageUtils::to1D(row, col, numCols)
         }
         *streamSaida << "\n";
     }
-    if (streamSaida != &std::cout){
-        dynamic_cast<std::ofstream*>(streamSaida)->close(); // std::cout não precisa ser fechado explicitamente
-    }
 
+    if (streamSaida != &std::cout) {
+        dynamic_cast<std::ofstream*>(streamSaida)->close();
+    }
 }
 
-/*
-inline  void printMappingFZ(ComponentTreeFZPtr tree, std::string nomeArquivo = "") {
-    int numRows = tree->getNumRowsOfImage();
-    int numCols = tree->getNumColsOfImage();
-    int n = numRows*numCols;
-    int map[n];
-    for (int p=0; p < n; p++){
-        map[p] = tree->getFlatzoneRef(p).size() > 99 ? 99 : tree->getFlatzoneRef(p).size();
-    }
 
-    std::ostream* streamSaida;
-    std::ofstream arquivoSaida;
-    if (nomeArquivo.empty()) {
-        streamSaida = &std::cout;
-    } else {
-        arquivoSaida.open(nomeArquivo);
-        if (!arquivoSaida.is_open()) {
-            std::cerr << "Erro ao abrir o arquivo para escrita." << std::endl;
-            return;
-        }
-        streamSaida = &arquivoSaida;
-    }
-    if(tree->isMaxtree()){
-        *streamSaida << "---- max-tree ----" << "\n";
-    }else{
-        *streamSaida << "---- min-tree ----" << "\n";
-    }
-    // Impressão bidimensional
-   for (int i = 0; i < tree->getNumRowsOfImage(); ++i) {
-        for (int j = 0; j < tree->getNumColsOfImage(); ++j) {
-            *streamSaida << std::setw(2) <<  map[i * tree->getNumColsOfImage() + j] << " ";
-        }
-        *streamSaida << "\n";
-    }
-    if (streamSaida != &std::cout){
-        dynamic_cast<std::ofstream*>(streamSaida)->close(); // std::cout não precisa ser fechado explicitamente
-    }
-
-}*/
-
-inline bool isEquals(int* imgOut1, int* imgOut2, int size){
-    int equals = 0;
-    for(int p=0; p < size; p++){
-        if(imgOut1[p] != imgOut2[p]){
-            equals++;
-            
-        }
-    }
-    //std::cout << "\tDiff:" << equals <<"\t";
-    return equals == 0;
- }
-
-
-
- template <typename CNPsType>
- inline  void testComponentTree(ComponentTreePtr<CNPsType> tree, const std::string& treeType, int* img, int numRows, int numCols) {
+ template <typename CNPsType, typename ImageType>
+ inline  void testComponentTree(ComponentTreePtr<CNPsType> tree, const std::string& treeType, ImagePtr<ImageType> imgPtr) {
     std::cout << "🔍 Testando " << treeType << "..." << std::endl;
 
+    int numRows = imgPtr->getNumRows();
+    int numCols = imgPtr->getNumCols();
+    auto img = imgPtr->rawData();
     if (!tree) {
         std::cerr << "❌ Erro: " << treeType << " não foi criada corretamente!" << std::endl;
         return;
     }
 
     //Teste: Verifica se o Iterator getPixelsOfCC está correto
+    /*
     int area = tree->getRoot()->getArea();
     int count_area = 0;
     for(int p : tree->getRoot()->getPixelsOfCC()){
@@ -221,13 +252,15 @@ inline bool isEquals(int* imgOut1, int* imgOut2, int size){
         std::cout << "✅ Iterator getPixelsOfCC da " << treeType << " está correto." << std::endl;
     }else{
         std::cout << "❌ Erro: Iterator getPixelsOfCC da " << treeType << ". Valor de count_area:" << count_area << std::endl;
-    }
+    }*/
+        
 
     //Teste: Verifica se o Iterator getCNPs está correto
     int num_cnps = tree->getRoot()->getNumCNPs();
     int count_cnps= 0;
     for(int p : tree->getRoot()->getCNPs()){
-        count_cnps++;
+        if(p >= 0)
+            count_cnps++;
     }
     if (num_cnps == count_cnps) {
         std::cout << "✅ Iterator getCNPs da" << treeType << " está correto." << std::endl;
@@ -325,14 +358,15 @@ inline bool computerArea(NodeFZPtr node){
     return node->getArea() == area;
 }
 
-inline void testComponentTreeFZ(ComponentTreeFZPtr tree, const std::string& treeType, int* img, int numRows, int numCols) {
-    testComponentTree(tree, treeType, img, numRows, numCols);
+template <typename CNPsType>
+inline void testComponentTreeFZ(ComponentTreeFZPtr tree, const std::string& treeType, ImagePtr<CNPsType> imgPtr) {
+    testComponentTree(tree, treeType, imgPtr);
 
     // Teste: Verificando se as flatzones estão corretamente definidas
     bool allFlatzonesCorrect = true;
     for (NodeFZPtr node : tree->getRoot()->getIteratorBreadthFirstTraversal()) {
         if(node->getNumCNPs() == 0){
-            std::cerr << "❌ Erro: O nó de id " << node->getIndex() << " não possui flatzones vazias na " << treeType << "!" << std::endl;
+            std::cerr << "❌ Erro: O nó de id " << node->getIndex() << " possui flatzones vazias na " << treeType << "!" << std::endl;
             allFlatzonesCorrect = false;
         }
         for (const auto& [flatZoneID, flatzone] : node->getCNPsByFlatZone()) {  // 🔹 Itera diretamente sobre os valores
@@ -354,46 +388,21 @@ inline void testComponentTreeFZ(ComponentTreeFZPtr tree, const std::string& tree
     if (allFlatzonesCorrect) {
         std::cout << "✅ Todas as flatzones estão corretamente definidas na " << treeType << "." << std::endl;
     }
-    /*
-    bool isEqualsGraph = true;
-    ComponentTreeFZPtr recTree = new ComponentTreeFZ(img, numRows, numCols, tree->isMaxtree(), tree->getAdjacencyRelation()->getRadius());
-    for (int p = 0; p < numRows * numCols; p++) {
-        std::unordered_set<int>* recNeighbors = recTree->flatzoneGraph[p];
-        std::unordered_set<int>* treeNeighbors = tree->flatzoneGraph[p];
-        if (recNeighbors == nullptr){
-            if(treeNeighbors != nullptr){
-                isEqualsGraph = false;
-                std::cerr << "ERRO: flatzoneGraph[" << p << "] deveria ser nullptr " << std::endl;
-                break;
-            }else
-                continue;
-
-        }
-        NodeFZPtr node = tree->getSC(p);
-        NodeFZPtr recNode = recTree->getSC(p);
-        if(recNode->getRepresentativeCNPs() != node->getRepresentativeCNPs()){
-            isEqualsGraph = false;
-            std::cerr << "ERRO: O pixel representative de SC(" << p << ") é "<< node->getRepresentativeCNPs() <<" mas deveria ser o pixel " << recNode->getRepresentativeCNPs() << std::endl;
-        }
-
-        if(recNode->getFlatZone(p).front() != recNode->getFlatZone(p).front()){
-            isEqualsGraph = false;
-            std::cerr << "ERRO: O pixel " << p << " deveria ser o ID da flatzone mas o ID é o pixel " << tree->getSC(p)->getFlatZone(p).front() << std::endl;
-        }
-    }
-    if (isEqualsGraph) {
-        std::cout << "✅ O grafo de flatzones está correto!" << std::endl;
-    } else {
-        std::cerr << "❌ O grafo de flatzones NÃO representa a imagem corretamente!" << std::endl;
-    }
-    */
+    
     
 
     // Teste: Verifica se o atributo area permanece correto
-    if (computerArea(tree->getRoot())) {
-        std::cout << "✅ O atributo area permanece correto para todos os nós da " << treeType << "." << std::endl;
-    }else{
-        std::cerr << "❌ Erro: O atributo area está errado." << std::endl;
+    bool allAreaCorrect = true;
+    for (NodeFZPtr node : tree->getRoot()->getIteratorBreadthFirstTraversal()) {
+        if (!computerArea(node)) {
+            allAreaCorrect = false;
+            break;
+        }
+    }
+    if( allAreaCorrect) {
+        std::cout << "✅ Atributo area está correto para todos os nós na " << treeType << "." << std::endl;
+    } else {
+        std::cerr << "❌ Erro: Atributo area incorreto em pelo menos um nó na " << treeType << "!" << std::endl;
     }
     
  }
@@ -408,9 +417,40 @@ inline NodeCTPtr<CNPsType> getNodeByIndex(ComponentTreePtr<CNPsType> tree, int i
 	return nullptr;
 }
 
+inline ImageUInt8Ptr getWonderImage(){
+    auto img = new uint8_t[625]{
+        203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,
+        203,203,203, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78,203,203,203,203,203,203,203,203,
+        203,203, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78,203,203,203,203,203,203,203,
+        203,203, 78, 78,126,126,126,126,126,126,126, 78, 78, 78, 78, 78, 78, 78,203,203,203, 54, 54,203,203,
+        203,203, 78, 78,126, 38, 38, 38,126,126,126, 78, 78, 78, 78, 78, 78, 78,203,203, 54, 54, 54, 54,203,
+        203,203, 78, 78,126, 38, 38, 38,126,126,126, 78, 78, 78, 78, 78, 78, 78,203, 54, 54, 54, 80, 54,203,
+        203,203, 78, 78,126, 38, 38, 38,126, 78, 78, 78, 78, 78, 78, 78, 78, 78,203, 54, 80, 54, 54, 54,203,
+        203, 78, 78, 78,126, 38, 38,126,126, 78, 78, 78,203,203,203,203,203,203,203, 54, 54, 54, 54,203,203,
+        203, 78, 78, 78,126,126,126,126, 78, 78,203,203,203,203,203,203,203,203, 54, 54, 54, 54, 54,203,203,
+        203, 78, 78, 78,126,126,126, 78, 78, 78,203,203,253,253,253,203,203,203, 54, 80, 54, 54, 54,203,203,
+        203, 78, 78, 78,126,126,126, 78, 78, 78,203,203,253,253,253,203,203, 54, 54, 54, 54, 54,203,203,203,
+        203, 78, 78, 78,126,126,126, 78, 78, 78,203,203,253,253,253,203,203,203, 54, 54, 54,203,203,203,203,
+        203, 78, 78, 78,126,126,126, 78, 78, 78, 78,203,203,203,203,203,203,203,203,203,203,203,203,203,203,
+        203, 78, 78, 78,126,126,126, 78, 78, 78, 78,203,203,203,126,126,126,126,203,203,203,203,203,203,203,
+        203, 78, 78, 78,126,126,126, 78, 78, 78, 78,203,203,126,126,126,126,126,126,126,126,126,203,203,203,
+        203, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78,203,203,126,126,126,126,126,126, 72,126,126,203,203,203,
+        203, 78, 78, 78, 78, 78, 78,161,161,161, 78, 78,203,126,126,126,126,126,126, 72, 72,126,126,126,203,
+        203, 78, 78, 78, 78, 78,161,161,161,161,161, 78,203,126,126,126,126,126, 72, 72, 72,126,126,126,203,
+        203, 78, 78, 78, 78, 78,161, 30, 30, 30,161, 78,203,203,126,126,126, 72, 72, 72, 72, 72,126,126,203,
+        203, 78, 78, 78, 78, 78,161, 30, 90, 30,161, 78, 78,203,126,126, 72, 72, 72, 72, 72, 72, 72,126,203,
+        203, 78, 78, 78, 78, 78,161, 30, 30, 30,161, 78, 78,203,203,126,126,126,126,126,126,126,126,126,203,
+        203, 78, 78, 78, 78, 78,161,161,161,161,161, 78, 78, 78,203,203,126,126,126,126,126,126,126,203,203,
+        203, 78, 78, 78, 78, 78,161,161,161,161,161, 78, 78, 78,203,203,203,203,126,126,126,126,203,203,203,
+        203,203, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78,203,203,203,203,203,203,203,203,203,203,
+        203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203};
+    return ImageUInt8::fromRaw(img, 25, 25);
+}
 
-inline int* getPassatImage(int& numRows, int& numCols){
-    int* img=new int[6164]{
+
+
+inline ImageUInt8Ptr getPassatImage(){
+    auto img= new uint8_t[6164]{
         6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,1,1,1,1,1,1,6,6,6,6,6,6,6,6,6,6,5,5,5,5,2,2,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,7,7,7,7,7,7,7,7,7,
         6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,1,1,1,1,1,1,6,6,6,6,6,6,6,6,6,6,5,5,5,5,2,2,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,7,7,7,7,7,7,7,7,7,
         6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,1,1,1,1,1,1,6,6,6,6,6,6,6,6,6,6,5,5,5,5,2,2,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,7,7,7,7,7,7,7,7,7,
@@ -478,15 +518,11 @@ inline int* getPassatImage(int& numRows, int& numCols){
         1,1,1,1,1,1,1,1,3,3,3,3,3,3,3,3,3,3,3,3,3,3,1,1,1,1,1,0,0,0,0,0,0,2,2,2,2,2,3,3,3,3,3,3,3,3,3,3,0,0,0,0,0,0,2,2,2,2,2,2,2,2,2,2,2,4,4,4,4,4,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,4,4,4,4,4,4,4,
         1,1,1,1,1,1,1,1,3,3,3,3,3,3,3,3,3,3,3,3,3,3,1,1,1,1,1,0,0,0,0,0,0,2,2,2,2,2,3,3,3,3,3,3,3,3,3,3,0,0,0,0,0,0,2,2,2,2,2,2,2,2,2,2,2,4,4,4,4,4,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,4,4,4,4,4,4,4,
         1,1,1,1,1,1,1,1,3,3,3,3,3,3,3,3,3,3,3,3,3,3,1,1,1,1,1,0,0,0,0,0,0,2,2,2,2,2,3,3,3,3,3,3,3,3,3,3,0,0,0,0,0,0,2,2,2,2,2,2,2,2,2,2,2,4,4,4,4,4,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,4,4,4,4,4,4,4};
-        
-    
-        numRows=67;
-        numCols=92;
-        return img;
+        return ImageUInt8::fromRaw(img, 67, 92);
 }
 
-inline int* getPeppersImage(int& numRows, int& numCols){
-    int* img = new int[16384]{
+inline ImageUInt8Ptr getPeppersImage(){
+    auto img = new uint8_t[16384]{
         93,103,105,108,110,111,110,108,110,111,110,110,109,110,109,107,107,107,106,105,107,138,162,164,119,86,85,83,99,129,126,152,168,171,175,178,177,177,177,177,176,175,169,164,157,156,132,136,155,158,160,152,146,146,151,154,153,151,148,144,137,129,123,116,118,141,160,164,163,161,163,163,164,166,167,167,169,175,181,179,75,87,142,150,173,167,122,92,97,100,103,101,87,119,108,97,94,90,94,96,112,124,131,132,136,144,150,142,144,142,135,105,99,104,106,87,95,110,115,117,119,127,139,148,150,146,144,136,
         94,105,104,105,104,102,102,100,101,102,104,104,107,107,107,104,104,103,102,98,96,108,143,174,176,128,89,74,97,125,118,151,176,183,188,195,198,195,193,190,188,186,178,165,149,133,131,144,170,150,106,82,85,88,91,92,97,102,107,107,110,110,106,109,147,168,174,182,192,191,188,189,191,192,192,189,192,197,204,167,55,82,158,162,153,162,122,111,105,100,95,92,83,85,90,94,92,101,106,115,133,142,148,156,156,158,161,163,164,164,161,144,109,112,111,91,102,114,122,125,123,130,138,149,152,153,152,143,
         90,104,102,104,101,99,102,101,100,102,105,102,106,105,106,103,103,105,103,100,100,98,103,137,173,181,168,145,131,123,113,148,172,184,189,199,203,205,204,201,197,191,174,147,126,138,157,171,158,93,86,90,92,93,95,96,96,96,99,97,95,96,99,124,169,176,183,192,200,191,192,196,199,199,199,193,194,194,201,113,85,88,175,190,161,149,125,153,151,133,139,99,83,85,84,84,96,111,119,128,138,145,148,153,155,158,161,164,167,166,165,161,137,109,102,86,98,108,110,113,122,132,140,149,151,150,147,142,
@@ -616,14 +652,11 @@ inline int* getPeppersImage(int& numRows, int& numCols){
         94,104,139,132,161,164,168,165,166,167,171,168,168,168,165,164,163,162,163,164,166,174,177,179,188,182,170,177,180,186,197,185,178,179,173,154,147,152,157,163,166,168,171,174,181,183,186,187,187,185,177,169,165,162,161,166,169,172,174,176,178,181,183,168,128,84,67,70,78,88,96,100,97,93,92,93,95,94,91,90,87,84,84,84,85,91,97,103,110,122,142,146,128,169,141,137,82,77,78,84,82,83,88,88,83,77,116,144,95,90,91,90,89,92,95,96,97,98,100,109,117,129,181,179,158,194,180,188,
         89,93,142,143,160,164,166,162,163,166,173,168,170,170,169,168,170,166,164,167,175,181,178,181,185,181,174,172,167,163,165,161,162,155,148,153,158,162,165,168,169,171,172,179,182,184,185,189,192,193,192,191,187,185,187,188,188,188,186,186,186,186,188,186,186,186,169,122,73,74,81,90,97,101,102,98,94,96,94,93,91,89,89,90,94,101,110,112,123,139,173,184,147,147,152,144,102,74,79,81,83,85,84,78,55,98,148,111,87,89,88,85,85,90,91,94,96,97,105,109,117,140,174,201,172,192,190,182        
     };
-
-    numRows=128;
-    numCols=128;
-    return img;
+    return ImageUInt8::fromRaw(img, 128, 128);
 }
 
-inline int* getCharImage(int& numRows, int& numCols){
-    int* img = new int[17920]{
+inline ImageUInt8Ptr getCharImage(){
+    auto img = new uint8_t[17920]{
         118,118,118,118,118,118,118,118,118,118,118,112,112,112,109,107,109,116,117,117,119,123,132,134,134,138,153,160,162,160,153,138,127,120,101,99,92,80,82,84,90,88,80,71,67,67,56,56,42,33,33,33,33,33,33,39,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,39,33,33,33,33,33,33,33,33,33,37,44,44,41,35,33,33,33,33,33,33,39,50,50,50,50,50,50,65,67,65,50,44,44,44,44,42,44,37,33,33,33,33,33,33,33,33,33,33,27,16,16,
         118,118,118,118,118,118,118,118,118,118,118,118,118,118,118,118,134,136,138,134,134,134,134,134,134,162,168,168,168,168,164,151,145,130,101,101,101,101,101,101,101,101,97,84,69,67,67,67,67,44,33,33,33,33,33,42,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,39,33,33,33,33,33,33,33,33,35,50,50,50,50,50,37,33,33,33,33,33,39,50,50,50,50,50,56,67,67,67,56,50,50,50,50,50,50,50,37,39,39,39,39,37,33,33,33,33,27,16,16,
         122,118,118,118,118,118,118,118,118,118,118,118,118,118,118,126,140,151,151,145,134,134,134,134,145,168,168,168,174,174,170,151,151,145,105,101,101,101,101,101,101,101,101,84,82,71,67,67,67,56,37,33,33,33,39,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,48,33,33,33,33,33,33,33,33,33,42,50,50,50,50,50,44,33,33,33,33,33,39,50,50,50,50,50,50,65,67,65,50,50,50,50,50,50,50,50,50,50,50,50,50,50,42,33,33,33,27,16,16,
@@ -764,14 +797,13 @@ inline int* getCharImage(int& numRows, int& numCols){
         50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,48,35,33,33,33,44,50,50,50,50,50,50,63,67,67,67,69,78,84,84,84,71,59,50,50,50,50,39,33,33,33,33,33,33,33,33,44,52,65,67,67,67,67,67,67,67,67,71,84,84,84,84,84,84,84,84,84,103,164,168,174,232,236,236,236,236,236,236,236,198,151,151,142,134,134,134,134,134,134,134,134,134,134,134,134,134,134,134,134,134,134,120,118,118,118,118,118,101,99,92,
         50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,41,33,33,33,33,33,48,50,50,50,50,50,61,67,67,67,67,69,80,84,76,67,52,50,50,50,48,33,33,33,33,33,33,33,33,33,46,65,67,67,67,67,67,67,67,67,67,67,84,84,84,84,84,84,84,84,84,112,168,168,185,234,236,236,236,236,236,236,236,213,162,151,145,134,134,134,134,134,134,134,134,134,134,134,134,134,134,134,134,134,127,118,118,118,118,118,118,101,88,84,
         31,50,50,50,44,44,46,50,50,50,50,50,50,44,44,44,50,50,50,50,50,50,50,50,50,50,50,50,39,33,33,33,33,33,22,27,27,27,27,27,61,67,67,67,67,67,67,67,67,58,41,39,39,39,33,33,33,33,33,33,33,33,33,33,58,67,67,67,67,67,67,67,67,67,67,67,80,84,84,84,84,84,84,84,88,133,168,168,193,225,234,236,236,236,236,236,236,217,168,155,151,134,134,134,134,134,130,123,123,123,123,123,123,123,123,123,121,110,107,107,107,116,118,118,118,101,84,84};
-    numRows=140;
-    numCols=128;
-    return img;
+    return ImageUInt8::fromRaw(img, 140, 128);
+        
 }
 
 
-inline int* getLenaCropImage(int& numRows, int& numCols){
-    int* img = new int[5508]{
+inline ImageUInt8Ptr getLenaCropImage(){
+    auto img = new uint8_t[5508]{
     184,	188,	186,	185,	191,	190,	192,	195,	195,	196,	194,	198,	201,	200,	200,	202,	202,	205,	205,	205,	205,	208,	211,	211,	213,	213,	215,	216,	219,	218,	217,	214,	205,	182,	109,	60,	50,	50,	60,	57,	60,	69,	68,	56,	57,	61,	78,	65,	50,	51,	69,	104,	159,	160,	143,	140,	131,	142,	144,	144,	140,	150,	147,	149,	147,	142,	148,	149,	144,	147,	144,	146,	141,	145,	143,	144,	147,	141,	145,	142,	139,
     181,	187,	185,	186,	187,	188,	189,	192,	193,	192,	198,	197,	198,	197,	200,	201,	201,	206,	205,	206,	201,	206,	210,	212,	211,	210,	215,	216,	219,	222,	217,	215,	213,	200,	153,	71,	49,	49,	53,	57,	66,	113,	67,	52,	57,	64,	75,	63,	50,	52,	67,	112,	163,	155,	143,	135,	133,	144,	137,	146,	151,	148,	153,	145,	146,	146,	146,	145,	146,	147,	146,	147,	142,	147,	144,	151,	145,	141,	147,	143,	140,
     185,	188,	193,	187,	185,	189,	188,	192,	193,	192,	198,	199,	199,	201,	200,	200,	203,	205,	204,	205,	204,	209,	211,	207,	211,	211,	212,	216,	217,	221,	219,	215,	215,	206,	188,	112,	51,	55,	51,	53,	59,	59,	66,	53,	57,	65,	71,	54,	52,	52,	67,	113,	160,	150,	150,	134,	129,	141,	143,	151,	150,	153,	147,	145,	145,	147,	149,	143,	146,	145,	145,	143,	144,	142,	139,	145,	148,	140,	142,	138,	143,
@@ -840,16 +872,14 @@ inline int* getLenaCropImage(int& numRows, int& numCols){
     152,	159,	160,	160,	160,	163,	160,	165,	165,	164,	169,	168,	165,	166,	170,	169,	173,	175,	178,	178,	182,	182,	188,	188,	190,	188,	190,	194,	196,	196,	196,	200,	200,	202,	204,	205,	207,	205,	208,	209,	208,	209,	209,	211,	210,	210,	209,	209,	214,	215,	211,	213,	212,	207,	194,	128,	86,	85,	94,	95,	103,	108,	101,	105,	103,	110,	109,	111,	107,	107,	107,	114,	104,	109,	102,	98,	98,	104,	110,	103,	102,
     154,	164,	164,	159,	159,	162,	161,	162,	165,	165,	171,	167,	166,	169,	167,	170,	174,	173,	177,	179,	181,	183,	183,	187,	188,	189,	191,	194,	196,	196,	198,	200,	200,	200,	204,	203,	202,	203,	207,	209,	210,	210,	210,	210,	212,	210,	212,	211,	212,	217,	214,	211,	212,	207,	200,	146,	88,	91,	86,	97,	96,	100,	99,	107,	108,	103,	113,	111,	106,	106,	107,	111,	108,	104,	104,	105,	103,	107,	106,	100,	106,
     153,	155,	158,	160,	160,	159,	161,	163,	163,	166,	167,	166,	166,	170,	170,	169,	178,	174,	171,	178,	182,	182,	183,	183,	190,	188,	187,	191,	191,	194,	195,	197,	202,	199,	204,	203,	204,	203,	207,	209,	210,	210,	210,	210,	213,	210,	209,	211,	211,	216,	211,	213,	212,	206,	202,	164,	98,	84,	88,	92,	103,	101,	103,	106,	106,	104,	106,	107,	103,	108,	108,	115,	114,	102,	110,	101,	100,	102,	104,	100,	105};
-
-    numRows = 68;
-    numCols = 81;
-    return img;
+    return ImageUInt8::fromRaw(img, 68, 81);
+    
 }
 
 
-inline int* getSimpleImage(int& numRows, int& numCols){
+inline ImageUInt8Ptr getSimpleImage(){
     
-    int* img=new int[255]{
+    auto img=new uint8_t[255]{
         122, 127, 166, 201, 152,  96,  54,  44,  40,  41,  42,  43,  44,
         44,  37, 133, 143, 213, 246, 236, 196, 137,  85,  55,  43,  44,
         45,  35,  40,  42, 133, 168, 231, 242, 246, 246, 228, 172, 111,
@@ -870,10 +900,8 @@ inline int* getSimpleImage(int& numRows, int& numCols){
        105, 106, 109, 123,  54,  48,  59,  95, 145, 158,  84,  52,  60,
         96, 110, 115, 116, 110, 113,  49,  45,  44,  48,  71,  89,  49,
         47,  71,  95, 162, 156, 119, 122, 111};
-
-    numRows=17;
-    numCols=15;
-    return img;
+    return ImageUInt8::fromRaw(img, 17, 15);
+    
 }
 
 

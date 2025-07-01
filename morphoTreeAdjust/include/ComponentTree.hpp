@@ -26,47 +26,49 @@ protected:
     
     int numNodes;
     int maxIndex;
-    bool maxtreeTreeType; //maxtree is true; mintree is false
-
-    int numCols;
+    
     int numRows;
-    int numPixels;
+    int numCols;
+    bool maxtreeTreeType; //maxtree is true; mintree is false
+   // int numPixels;
+
+    AdjacencyRelationPtr adj; //disk of a given ratio: ratio(1) for 4-connect and ratio(1.5) for 8-connect 
     
-    AdjacencyRelation adj; //disk of a given ratio: ratio(1) for 4-connect and ratio(1.5) for 8-connect 
-    
-    int* countingSort(int* img);
-    int* createTreeByUnionFind(int* orderedPixels, int* img);
+    int* countingSort(ImageUInt8Ptr img);
+    int* createTreeByUnionFind(int* orderedPixels, ImageUInt8Ptr img);
     int findRoot(int* zPar, int x);
-    void reconstruction(NodeCTPtr<CNPsType> node, int* imgOut);
+    void reconstruction(NodeCTPtr<CNPsType> node, uint8_t* data);
 
 
     // Define `flatzoneGraph` apenas para `FlatZones`
     using FlatzoneGraphType = std::conditional_t<std::is_same_v<CNPsType, FlatZones>,
-        std::unique_ptr<FlatZonesGraph>, 
+        std::shared_ptr<FlatZonesGraph>, 
         std::monostate>;
     FlatzoneGraphType flatzoneGraph;
 
 public:
 
     
-    ComponentTree(int numRows, int numCols, bool isMaxtree, double radiusOfAdjacencyRelation);
+    //ComponentTree(int numRows, int numCols, bool isMaxtree, double radiusOfAdjacencyRelation);
 
-    ComponentTree(int* img, int numRows, int numCols, bool isMaxtree, double radiusOfAdjacencyRelation);
+    ComponentTree(ImageUInt8Ptr img, bool isMaxtree, AdjacencyRelationPtr adj);
 
+    ComponentTree(ImageUInt8Ptr img, bool isMaxtree, AdjacencyRelationPtr adj, std::shared_ptr<FlatZonesGraph> graph);
+    
     virtual ~ComponentTree() = default;
 
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-	std::list<int>& getFlatzoneByID(int p);
+	FlatZone& getFlatzoneByID(int p);
 	
-    template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    ListOfAdjacentFlatzones& getListOfAdjacentFlatzones();
+    //template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
+    //ListOfAdjacentFlatZones& getListOfAdjacentFlatzones();
 
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    std::unique_ptr<FlatZonesGraph>& getFlatZonesGraph();
+    std::shared_ptr<FlatZonesGraph>& getFlatZonesGraph();
 
-    void assignCNPs(int* img);
+    void assignCNPs();
 
-    void build(int* img);
+    void build(ImageUInt8Ptr img);
 
     NodeCTPtr<CNPsType> getSC(int p);
 
@@ -86,13 +88,15 @@ public:
 
     void computerArea(NodeCTPtr<CNPsType> node);
 
-    int* reconstructionImage();
+    ImageUInt8Ptr reconstructionImage();
 
-    AdjacencyRelation& getAdjacencyRelation();
+    AdjacencyRelationPtr getAdjacencyRelation();
 
     void setSC(int p, NodeCTPtr<CNPsType> n);
 
     void prunning(NodeCTPtr<CNPsType> node);
+
+    void mergeWithParent(NodeCTPtr<CNPsType> node);
     
     std::vector<NodeCTPtr<CNPsType>> getLeaves();
 
