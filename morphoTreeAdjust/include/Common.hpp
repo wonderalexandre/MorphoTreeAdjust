@@ -55,20 +55,22 @@ using AdjacentFlatZones = std::unordered_set<int>;
 using ListOfAdjacentFlatZones = std::vector<AdjacentFlatZones>;
 
 
-struct FlatZoneNode {
-    NodeFZPtr node = nullptr;
-    FlatZone* flatzone = nullptr;
-    int idFlatZone;
 
-    FlatZoneNode(){}
 
-    // Construtor para mover a FlatZone
-    FlatZoneNode(NodeFZPtr n, FlatZone& fz) : node(n), flatzone(&fz), idFlatZone(fz.front()) {} 
-    
+class ImageUtils{
+public:
+    // Converte (row, col) para índice 1D (row-major)
+    static int to1D(int row, int col, int numCols) {
+        return row * numCols + col;
+    }
 
+    // Converte índice 1D para (row, col) (row-major)
+    static std::pair<int, int> to2D(int index, int numCols) {
+        int row = index / numCols;
+        int col = index % numCols;
+        return std::make_pair(row, col);
+    }
 };
-
-
 
 
 /*

@@ -163,7 +163,7 @@ void NodeFZ::addCNPsToConnectedFlatzone(FlatZone&& flatZone, ComponentTreeFZPtr 
    //this->numCNPs = -1; //o cache contendo o numero de cnps será recomputado
    int flatZoneID = flatZone.front();    
 
-   std::unique_ptr<FlatZonesGraph>& graph = tree->getFlatZonesGraph();
+   FlatZonesGraphPtr& graph = tree->getFlatZonesGraph();
    auto [unifiedFlatzoneID, flatzonesToMergeList] = graph->mergeConnectedFlatzone(flatZoneID, this->shared_from_this(), tree) ;
    FlatZone& unifiedFlatzone = this->getFlatZone(unifiedFlatzoneID); //tree->getSC(unifiedFlatzoneID)->getFlatZone(unifiedFlatzoneID); 
 

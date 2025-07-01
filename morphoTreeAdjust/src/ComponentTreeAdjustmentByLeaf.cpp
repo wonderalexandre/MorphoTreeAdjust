@@ -8,13 +8,10 @@
 #include <utility>
 
 
-void ComponentTreeAdjustmentByLeaf::buildMergedAndNestedCollections(ComponentTreeFZPtr tree, std::vector<FlatZonePtr>& flatZone, int pixelUpperBound, int newGrayLevel, bool isMaxtree){
+void ComponentTreeAdjustmentByLeaf::buildMergedAndNestedCollections(ComponentTreeFZPtr tree, int flatZoneID, int pixelUpperBound, int newGrayLevel, bool isMaxtree){
 	Fb.clear();
 	F.resetCollection(isMaxtree);
-    /*if(this->pixelUpperBound == -1){
-        this->pixelUpperBound = flatZone.front()->front();
-    }*/
-    F.computerAdjacentNodes(tree, flatZone);
+    F.computerAdjacentNodes(tree, flatZoneID);
     NodeFZPtr nodeTauL = tree->getSC(pixelUpperBound); //pixel de tauStar ou tauL, para termos o node (limite) mais proximo de root
 
     for (NodeFZPtr nodeNL: F.getAdjacentNodes()) {
@@ -61,11 +58,11 @@ void ComponentTreeAdjustmentByLeaf::updateTree(ComponentTreeFZPtr tree, NodeFZPt
 
     bool nodeTauCNPsIsEqualL = nodeTauL->getNumFlatzone() == 1;
     FlatZonePtr flatzoneTauL = &tree->getFlatzoneByID(idLeaf); 
-    std::vector<FlatZonePtr> flatZonesTauL = {flatzoneTauL};
+    //std::vector<FlatZonePtr> flatZonesTauL = {flatzoneTauL};
     
     assert(leaf->getNumCNPs() == flatzoneTauL->size() && "O número de CNPs de L_leaf é diferente do número de pixels da flatzone de tauL");
 
-    this->buildMergedAndNestedCollections(tree, flatZonesTauL, pixelUpperBound, newGrayLevel, isMaxtree);
+    this->buildMergedAndNestedCollections(tree, flatzoneTauL->front(), pixelUpperBound, newGrayLevel, isMaxtree);
 
     int lambda = F.firstLambda(); //star with b = newGrayLevel
     NodeFZPtr nodeUnion = nullptr; // tau_{lambda}

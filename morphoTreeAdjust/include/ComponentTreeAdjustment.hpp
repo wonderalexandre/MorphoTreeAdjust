@@ -40,11 +40,10 @@ public:
         return collectionF[level]; 
     }
 
-    void computerAdjacentNodes(ComponentTreeFZPtr tree, const std::vector<FlatZonePtr>& flatZones) {
+    void computerAdjacentNodes(ComponentTreeFZPtr tree, const std::vector<int>& flatZonesID) {
         bool isMaxtree = tree->isMaxtree();
         FlatZonesGraphPtr& graph = tree->getFlatZonesGraph();
-        for (FlatZonePtr flatZoneP : flatZones) {   
-            int flatZoneID_P = flatZoneP->front();
+        for (int flatZoneID_P : flatZonesID) {   
             int grayFlatZoneP = tree->getSC(flatZoneID_P)->getLevel(); //is same that: f(p)
     
             for (int flatZoneID_Q : graph->getAdjacentFlatzones(flatZoneID_P)) {
@@ -60,10 +59,10 @@ public:
         resetAdjacentNode();
     }
 
-    void computerAdjacentNodes(ComponentTreeFZPtr tree, FlatZonePtr flatZoneP) {
+    void computerAdjacentNodes(ComponentTreeFZPtr tree, int flatZoneID_P) {
         bool isMaxtree = tree->isMaxtree();
         FlatZonesGraphPtr& graph = tree->getFlatZonesGraph();
-        int flatZoneID_P = flatZoneP->front();
+        
         int grayFlatZoneP = tree->getSC(flatZoneID_P)->getLevel(); //is same that: f(p)
         for (int flatZoneID_Q : graph->getAdjacentFlatzones(flatZoneID_P)) {
             NodeFZPtr node = tree->getSC(flatZoneID_Q);
@@ -179,14 +178,15 @@ public:
         return outputLog.str();
     }
 
-    ComponentTreeAdjustment(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree): mintree(mintree), maxtree(maxtree), maxIndex(std::max(maxtree->getNumNodes(), mintree->getNumNodes())), F(maxIndex)  
-    { }
+    ComponentTreeAdjustment(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree): mintree(mintree), maxtree(maxtree), maxIndex(std::max(maxtree->getNumNodes(), mintree->getNumNodes())), F(maxIndex)  { }
 
-    ComponentTreeAdjustment() = delete; // Default constructor is deleted to ensure that the derived classes must implement it
+    ComponentTreeAdjustment() = delete; 
 
     virtual ~ComponentTreeAdjustment() = default;
  
-    virtual void buildMergedAndNestedCollections(ComponentTreeFZPtr tree, std::vector<FlatZonePtr>& flatZones, int pixelUpperBound, int newGrayLevel, bool isMaxtree) =0 ;
+    virtual void buildMergedAndNestedCollections(ComponentTreeFZPtr, std::vector<int>&, int, int, bool) = 0;
+    
+    virtual void buildMergedAndNestedCollections(ComponentTreeFZPtr, int, int, int, bool) = 0;
     
     virtual void updateTree(ComponentTreeFZPtr tree, NodeFZPtr node) = 0;
 

@@ -28,7 +28,7 @@ public:
    using ComponentTreeAdjustmentByLeaf::updateTree;
    void updateTree(PyBindComponentTreeFZPtr tree, NodeFZPtr L_leaf);
 
-   py::tuple buildCollections(PyBindComponentTreeFZPtr tree, std::vector<int> flatZone, int newGrayLevel, bool isMaxtree);
+   py::tuple buildCollections(PyBindComponentTreeFZPtr tree, NodeFZPtr leaf, int newGrayLevel);
 
 };
 
