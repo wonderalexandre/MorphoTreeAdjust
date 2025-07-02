@@ -8,39 +8,6 @@
 #include <utility>
 
 
-
-void ComponentTreeAdjustmentBySubtree::buildMergedAndNestedCollections(ComponentTreeFZPtr tree, std::vector<int>& flatZonesID,  int pixelUpperBound, int newGrayLevel, bool isMaxtree){
-	Fb.clear();
-	F.resetCollection(isMaxtree);
-    F.computerAdjacentNodes(tree, flatZonesID);
-    NodeFZPtr nodeTauStar = tree->getSC(pixelUpperBound); //pixel de tauStar ou tauL, para termos o node (limite) mais proximo de root
-
-    for (NodeFZPtr nodeNL: F.getAdjacentNodes()) {
-	    if( (isMaxtree && nodeNL->getLevel() <= newGrayLevel) || (!isMaxtree &&  nodeNL->getLevel() >= newGrayLevel)) { //o nodeNL está entre g(p) e f(p)
-		    F.addNodesOfPath(nodeNL, nodeTauStar); 
-	    } 
-	    else { 
-            //o nodeNL está abaixo de g(p). É armazenado somente a raiz da subtree antes de atingir o nivel g(p)
-	        NodeFZPtr nodeSubtree = nodeNL;
-            for (NodeFZPtr n : nodeNL->getNodesOfPathToRoot()) {
-                if ( (isMaxtree && newGrayLevel > n->getLevel()) || (!isMaxtree && newGrayLevel < n->getLevel())) {
-                    break;
-                }
-                nodeSubtree = n; 
-            }
-	        // se a subtree tiver level = g(p), então ela entra em F[\lambda]
-            if (nodeSubtree->getLevel() == newGrayLevel) {
-                F.addNodesOfPath(nodeSubtree, nodeTauStar); //F_lambda
-            } 
-            else {
-                Fb.insert(nodeSubtree); //F_{lambda} > b
-            }
-	    }
-        
-	}
-}
-
-
 void ComponentTreeAdjustmentBySubtree::updateTree(ComponentTreeFZPtr tree, NodeFZPtr rootSubtree) {
     assert(rootSubtree != nullptr && "rootSubtree is nullptr"); 
     ComponentTreeFZPtr otherTree = tree->isMaxtree()? this->mintree : this->maxtree;
@@ -83,7 +50,7 @@ void ComponentTreeAdjustmentBySubtree::updateTree(ComponentTreeFZPtr tree, NodeF
 
 
     
-    this->buildMergedAndNestedCollections(tree,  unionNodeTauSubtree.getFlatzonesID(), pixelUpperBound, newGrayLevel, isMaxtree);
+    ComponentTreeAdjustment::buildMergedAndNestedCollections(tree,  unionNodeTauSubtree.getFlatzonesID(), pixelUpperBound, newGrayLevel, isMaxtree);
 
     if(PRINT_LOG){
         outputLog << "F_λ = { ";

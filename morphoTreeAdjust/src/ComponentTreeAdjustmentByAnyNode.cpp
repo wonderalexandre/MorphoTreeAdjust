@@ -1,4 +1,4 @@
-#include "../include/ComponentTreeAdjustmentByLeaf.hpp"
+#include "../include/ComponentTreeAdjustmentByAnyNode.hpp"
 #include <unordered_set>
 #include <list>
 #include <vector>
@@ -9,24 +9,33 @@
 
 
 
-void ComponentTreeAdjustmentByLeaf::updateTree(ComponentTreeFZPtr tree, NodeFZPtr leaf) {
-    assert(leaf != nullptr && "L_leaf is nullptr"); 
-    assert(leaf->isLeaf() && "L_leaf is not leaf"); 
+
+void ComponentTreeAdjustmentByAnyNode::updateTree(ComponentTreeFZPtr tree, NodeFZPtr node) {
+    assert(node != nullptr && "L_leaf is nullptr"); 
 
     bool isMaxtree = tree->isMaxtree();
-    int newGrayLevel = leaf->getParent()->getLevel();  // b = g(p)
-    int oldGrayLevel = leaf->getLevel();  // a = f(p)
-    int idLeaf = leaf->getCNPsByFlatZone().begin()->second.front(); //pixel (id) of flatzone 
+    int newGrayLevel = node->getParent()->getLevel();  // b = g(p)
+    int oldGrayLevel = node->getLevel();  // a = f(p)
+    int idNode = node->getCNPsByFlatZone().begin()->second.front(); //pixel (id) of flatzone 
     
-    NodeFZPtr nodeTauL = tree->getSC(idLeaf); //node of correspondence flatzone in other treee
-    int pixelUpperBound = idLeaf; 
+    NodeFZPtr nodeTauL = tree->getSC(idNode); //node of correspondence flatzone in other treee
+    int pixelUpperBound = idNode; 
 
     bool nodeTauCNPsIsEqualL = nodeTauL->getNumFlatzone() == 1;
-    FlatZonePtr flatzoneTauL = &tree->getFlatzoneByID(idLeaf); 
-    //std::vector<FlatZonePtr> flatZonesTauL = {flatzoneTauL};
-    
-    assert(leaf->getNumCNPs() == flatzoneTauL->size() && "O número de CNPs de L_leaf é diferente do número de pixels da flatzone de tauL");
-
+    FlatZonePtr flatzoneTauL = &tree->getFlatzoneByID(idNode); 
+    if (PRINT_LOG) {
+        outputLog << "Updating tree: " << (isMaxtree ? "Maxtree" : "Mintree") << std::endl;
+        outputLog << "\tNode to update: id:" << node->getIndex() << ", level: " << node->getLevel() 
+                  << ", |cnps|: " << node->getNumCNPs() << ", |children|: " << node->getChildren().size() 
+                  << ", pixelUpperBound: " << pixelUpperBound 
+                  << ", newGrayLevel: " << newGrayLevel 
+                  << ", oldGrayLevel: " << oldGrayLevel 
+                  << ", idNode: " << idNode 
+                  << ", nodeTauL id: " << nodeTauL->getIndex() 
+                  << ", nodeTauL level: " << nodeTauL->getLevel() 
+                  << ", nodeTauL numCNPs: " << nodeTauL->getNumCNPs() 
+                  << std::endl;
+    }
     ComponentTreeAdjustment::buildMergedAndNestedCollections(tree, flatzoneTauL->front(), pixelUpperBound, newGrayLevel, isMaxtree);
 
     int lambda = F.firstLambda(); //star with b = newGrayLevel
@@ -132,27 +141,20 @@ void ComponentTreeAdjustmentByLeaf::updateTree(ComponentTreeFZPtr tree, NodeFZPt
 }
 
 
-void ComponentTreeAdjustmentByLeaf::adjustMinTree(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree, std::vector<NodeFZPtr>& nodesToPruning) {
-    for (NodeFZPtr node : nodesToPruning) {        
-        
-        for (NodeFZPtr Lmax : node->getIteratorPostOrderTraversal()) { 
-            assert(Lmax != maxtree->getRoot() && "Lmax is root");
-            assert(Lmax->isLeaf() && "Lmax não é uma folha");
-            
-            updateTree(mintree, Lmax);     
-            maxtree->prunning(Lmax);
-        }
+
+void ComponentTreeAdjustmentByAnyNode::adjustMinTree(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree, std::vector<NodeFZPtr>& nodesToRemoved) {
+    for (NodeFZPtr node : nodesToRemoved) {  	
+        assert(node != maxtree->getRoot() && "node is root");
+        updateTree(mintree, node); 
+        maxtree->mergeWithParent(node); 
     }
 }
 
-void ComponentTreeAdjustmentByLeaf::adjustMaxTree(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree, std::vector<NodeFZPtr>& nodesToPruning) {
-    for (NodeFZPtr node : nodesToPruning) {  	
-        for (NodeFZPtr Lmin : node->getIteratorPostOrderTraversal()) {
-            assert(Lmin != mintree->getRoot() && "Lmin is root");
-            assert(Lmin->isLeaf() && "Lmin não é uma folha");
-            
-            updateTree(maxtree, Lmin);             
-            mintree->prunning(Lmin);
-        }
+void ComponentTreeAdjustmentByAnyNode::adjustMaxTree(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree, std::vector<NodeFZPtr>& nodesToRemoved) {
+    for (NodeFZPtr node : nodesToRemoved) {  
+        assert(node != mintree->getRoot() && "node is root");
+
+        updateTree(maxtree, node);   
+        mintree->mergeWithParent(node); 
     }
 }

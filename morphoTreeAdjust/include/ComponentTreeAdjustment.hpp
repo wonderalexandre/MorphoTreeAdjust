@@ -184,15 +184,78 @@ public:
 
     virtual ~ComponentTreeAdjustment() = default;
  
-    virtual void buildMergedAndNestedCollections(ComponentTreeFZPtr, std::vector<int>&, int, int, bool) = 0;
-    
-    virtual void buildMergedAndNestedCollections(ComponentTreeFZPtr, int, int, int, bool) = 0;
-    
     virtual void updateTree(ComponentTreeFZPtr tree, NodeFZPtr node) = 0;
 
     virtual void adjustMinTree(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree, std::vector<NodeFZPtr>& nodesToPruning) = 0;
     
     virtual void adjustMaxTree(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree, std::vector<NodeFZPtr>& nodesToPruning) = 0;
+
+    
+    void buildMergedAndNestedCollections(ComponentTreeFZPtr tree, std::vector<int>& flatZonesID,  int pixelUpperBound, int newGrayLevel, bool isMaxtree){
+        Fb.clear();
+        F.resetCollection(isMaxtree);
+        F.computerAdjacentNodes(tree, flatZonesID);
+        NodeFZPtr nodeTauStar = tree->getSC(pixelUpperBound); //pixel de tauStar ou tauL, para termos o node (limite) mais proximo de root
+
+        for (NodeFZPtr nodeNL: F.getAdjacentNodes()) {
+            if( (isMaxtree && nodeNL->getLevel() <= newGrayLevel) || (!isMaxtree &&  nodeNL->getLevel() >= newGrayLevel)) { //o nodeNL está entre g(p) e f(p)
+                F.addNodesOfPath(nodeNL, nodeTauStar); 
+            } 
+            else { 
+                //o nodeNL está abaixo de g(p). É armazenado somente a raiz da subtree antes de atingir o nivel g(p)
+                NodeFZPtr nodeSubtree = nodeNL;
+                for (NodeFZPtr n : nodeNL->getNodesOfPathToRoot()) {
+                    if ( (isMaxtree && newGrayLevel > n->getLevel()) || (!isMaxtree && newGrayLevel < n->getLevel())) {
+                        break;
+                    }
+                    nodeSubtree = n; 
+                }
+                // se a subtree tiver level = g(p), então ela entra em F[\lambda]
+                if (nodeSubtree->getLevel() == newGrayLevel) {
+                    F.addNodesOfPath(nodeSubtree, nodeTauStar); //F_lambda
+                } 
+                else {
+                    Fb.insert(nodeSubtree); //F_{lambda} > b
+                }
+            }
+            
+        }
+    }
+            
+    void buildMergedAndNestedCollections(ComponentTreeFZPtr tree, int flatZoneID, int pixelUpperBound, int newGrayLevel, bool isMaxtree){
+        Fb.clear();
+        F.resetCollection(isMaxtree);
+        F.computerAdjacentNodes(tree, flatZoneID);
+        NodeFZPtr nodeTauL = tree->getSC(pixelUpperBound); //pixel de tauStar ou tauL, para termos o node (limite) mais proximo de root
+
+        for (NodeFZPtr nodeNL: F.getAdjacentNodes()) {
+            if( (isMaxtree && nodeNL->getLevel() <= newGrayLevel) || (!isMaxtree &&  nodeNL->getLevel() >= newGrayLevel)) { //o nodeNL está entre g(p) e f(p)
+                F.addNodesOfPath(nodeNL, nodeTauL); 
+            } 
+            else { 
+                //o nodeNL está abaixo de g(p). É armazenado somente a raiz da subtree antes de atingir o nivel g(p)
+                NodeFZPtr nodeSubtree = nodeNL;
+                for (NodeFZPtr n : nodeNL->getNodesOfPathToRoot()) {
+                    if ( (isMaxtree && newGrayLevel > n->getLevel()) || (!isMaxtree && newGrayLevel < n->getLevel())) {
+                        break;
+                    }
+                    nodeSubtree = n; 
+                }
+                // se a subtree tiver level = g(p), então ela entra em F[\lambda]
+                if (nodeSubtree->getLevel() == newGrayLevel) {
+                    F.addNodesOfPath(nodeSubtree, nodeTauL); //F_lambda
+                } 
+                else {
+                    if(nodeSubtree->getParent() && nodeSubtree->getParent()->getIndex() != nodeTauL->getIndex() ){ // caso raro: se o pai de nodeSubtree for diferente de tauL
+                        F.addNodesOfPath(nodeSubtree->getParent(), nodeTauL); // Adiciona os nodes do caminho até tauL
+                    }else{
+                        Fb.insert(nodeSubtree); //F_{lambda} > b
+                    }
+                }
+            }
+            
+        }
+    }
   
 };
 

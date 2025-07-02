@@ -126,12 +126,6 @@ protected:
 public:
 
     ComponentTreeAdjustmentBySubtree(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree) : ComponentTreeAdjustment(maxtree, mintree), unionNodeTauSubtree(maxtree->isMaxtree(), std::max(mintree->getNumNodes(), maxtree->getNumNodes())) { }
-    
-    void buildMergedAndNestedCollections(ComponentTreeFZPtr, int, int, int, bool) override {
-        throw std::runtime_error("Método com vetor de FlatZones não suportado nesta subclasse.");
-    }
-
-    void buildMergedAndNestedCollections(ComponentTreeFZPtr tree, std::vector<int>& flatZonesID, int pixelUpperBound, int newGrayLevel, bool isMaxtree) override;
       
     void updateTree(ComponentTreeFZPtr tree, NodeFZPtr node) override;
     

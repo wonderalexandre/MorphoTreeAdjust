@@ -117,14 +117,6 @@ void ComponentTree<CNPsType>::reconstruction(NodeCTPtr<CNPsType> node, uint8_t* 
         reconstruction(child, imgOut);
     }
 }
-/*
-template <typename CNPsType>
-ComponentTree<CNPsType>::ComponentTree(int numRows, int numCols, bool isMaxtree, double radiusOfAdjacencyRelation)
-    : numRows(numRows), numCols(numCols),maxtreeTreeType(isMaxtree){   
-    adj = std::make_shared<AdjacencyRelation>(numRows, numCols, radiusOfAdjacencyRelation);
-    int numPixels = numRows*numCols;
-    pixelToNode.resize(numPixels, nullptr);
-}*/
 
 template <typename CNPsType>
 ComponentTree<CNPsType>::ComponentTree(ImageUInt8Ptr img, bool isMaxtree, AdjacencyRelationPtr adj) : numRows(img->getNumRows()), numCols(img->getNumCols()), maxtreeTreeType(isMaxtree), adj(adj){   
@@ -350,25 +342,20 @@ inline void ComponentTreeFZ::prunning(NodeFZPtr rootSubtree) {
         for (auto it = cnps.begin(); it != cnps.end(); ) {
             int idFlatzone = it->first;
             int idFlatzoneRep = flatzoneGraph->findRepresentative(idFlatzone);
-            //std::cout << "==> idFlatzonePruned:" <<idFlatzonePruned << ", Rep(idFlatzonePruned):" << idFlatzonePrunedRep << ", idFlatzone:" << idFlatzone <<  ", Rep(idFlatzone): " << idFlatzoneRep ;
             if (idFlatzoneRep == idFlatzonePrunedRep) {
                 if (idMinimum > idFlatzone) {
                     flatzonesPruned.splice(flatzonesPruned.begin(), it->second); // flatzone contem o id da flatzone
                     idMinimum = idFlatzone; 
-                    //std::cout << " - MERGED BEGIN" << std::endl;
                 } else {
                     flatzonesPruned.splice(flatzonesPruned.end(), it->second); // flatzonePruned contem o id da flatzone
-                    //std::cout << " - MERGED END" << std::endl;
                 }
                 
                 it = cnps.erase(it); // remove e avança
             } else {
-                //std::cout << " - NOT MERGED" << std::endl;
                 ++it; // apenas avança se não remover
             }
         }
 
-        //std::cout << " - New flatzone id: " << flatzonePruned.front() << std::endl;
         // Adiciona a flatzone pruned ao parent
         cnps[flatzonesPruned.front()] = std::move(flatzonesPruned);
 
@@ -407,18 +394,47 @@ inline void ComponentTreeFZ::mergeWithParent(NodeFZPtr node){
         childrenParent.remove( node );			
         this->numNodes--;
 
-        for(auto& [id, flatzone]: node->getCNPsByFlatZone()){
-            if(flatzoneGraph->isAdjacent(id, parent)){
-                parent->addCNPsToConnectedFlatzone(std::move(flatzone), this->shared_from_this());
-            }else{
-                parent->addCNPsOfDisjointFlatzone(std::move(flatzone), this->shared_from_this());
-            }
-        }
         
         for(NodeFZPtr child : node->getChildren()) {							
             childrenParent.push_back(child);				
             child->setParent(parent);			
-        }			
+        }		
+
+        auto& cnps = node->getCNPsByFlatZone();
+        for (auto it = cnps.begin(); it != cnps.end(); ) {
+            int idFZ = it->first;
+            FlatZone& fz = it->second;
+            int idFZRep = flatzoneGraph->findRepresentative(idFZ);// pega o id da flatzone
+            bool moreThanOneMerged = false;
+            bool hasMerged = false;
+            auto& cnpsParent = parent->getCNPsByFlatZone();
+            for (auto itParent = cnpsParent.begin(); itParent != cnpsParent.end(); ) {
+                int idFZParent = itParent->first;
+                FlatZone& fzParent = itParent->second;
+                int idFRepParent = flatzoneGraph->findRepresentative(idFZParent);
+                if (idFZRep == idFRepParent) {    
+                    if(fz.front() > fzParent.front()){
+                        fzParent.splice(fzParent.end(), fz);
+                    }else{
+                        fzParent.splice(fzParent.begin(), fz);
+                    }
+                    if(moreThanOneMerged){
+                        itParent = cnps.erase(itParent); // remove e avança
+                    }
+                    else {
+                        ++itParent;
+                        moreThanOneMerged = true;
+                    }
+                    hasMerged = true;
+                }else{
+                    ++itParent;
+                }
+            }
+            if(!hasMerged){
+                cnpsParent[idFZRep] = std::move(fz);
+            }
+        }
+	
 
         node = nullptr;
     }
@@ -463,10 +479,7 @@ std::vector<NodeCTPtr<CNPsType>> ComponentTree<CNPsType>::getNodesThreshold(int 
           << (static_cast<double>(sumArea) / areaImage) * 100.0 << "% of the image area)" 
           << std::endl;
     }
-    /*std::sort(lista.begin(), lista.end(),
-          [](const NodeCTPtr<CNPsType>& a, const NodeCTPtr<CNPsType>& b) {
-              return a->getArea() < b->getArea(); // ordem decrescente
-          });*/
+
 	return lista;
 }
 
