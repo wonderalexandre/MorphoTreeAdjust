@@ -40,14 +40,6 @@ add_executable(dgmm2025 dgmm2025.cpp
 )
 target_compile_options(dgmm2025 PRIVATE -Wno-deprecated-declarations)
 
-add_executable(jmiv2025 jmiv2025.cpp
-    ../morphoTreeAdjust/src/AdjacencyRelation.cpp
-    ../morphoTreeAdjust/src/ComponentTreeAdjustmentByLeaf.cpp
-    ../morphoTreeAdjust/src/ComponentTreeAdjustmentBySubtree.cpp
-    ./external/stb/stb_image.cpp
-)
-target_compile_options(jmiv2025 PRIVATE -Wno-deprecated-declarations)
-
 add_executable(testePruningLeaf testePruningLeaf.cpp
     ../morphoTreeAdjust/src/AdjacencyRelation.cpp
     ../morphoTreeAdjust/src/ComponentTreeAdjustmentByLeaf.cpp
@@ -62,14 +54,4 @@ add_executable(TestComponentTree TestComponentTree.cpp
 add_executable(testePruningSubtree testePruningSubtree.cpp
     ../morphoTreeAdjust/src/AdjacencyRelation.cpp
     ../morphoTreeAdjust/src/ComponentTreeAdjustmentBySubtree.cpp
-)
-
-add_executable(testeRemovingAnyNode testeRemovingAnyNode.cpp
-    ../morphoTreeAdjust/src/AdjacencyRelation.cpp
-    ../morphoTreeAdjust/src/ComponentTreeAdjustmentByAnyNode.cpp
-)
-
-add_executable(testeRemovingFlatzone testeRemovingFlatzone.cpp
-    ../morphoTreeAdjust/src/AdjacencyRelation.cpp
-    ../morphoTreeAdjust/src/ComponentTreeAdjustmentByFlatzone.cpp
 )
