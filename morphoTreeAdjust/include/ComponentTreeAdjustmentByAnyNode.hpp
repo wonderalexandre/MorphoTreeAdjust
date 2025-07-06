@@ -11,8 +11,8 @@
 #include "../include/ComponentTreeAdjustment.hpp"
 #include "../include/ComponentTreeAdjustmentBySubtree.hpp"
 
-#ifndef COMPONENT_TREE_ADJUSTMENT_FLATZONE_H
-#define COMPONENT_TREE_ADJUSTMENT_FLATZONE_H
+#ifndef COMPONENT_TREE_ADJUSTMENT_ANY_NODE_H
+#define COMPONENT_TREE_ADJUSTMENT_ANY_NODE_H
 
 
 class ComponentTreeAdjustmentByAnyNode: public  ComponentTreeAdjustment {
@@ -25,11 +25,11 @@ public:
 
     ComponentTreeAdjustmentByAnyNode(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree) : ComponentTreeAdjustment(maxtree, mintree), unionNodeTauSubtree(maxtree->isMaxtree(), std::max(mintree->getNumNodes(), maxtree->getNumNodes())) { }
       
-    void updateTree(ComponentTreeFZPtr tree, NodeFZPtr node) override;
+    void updateTree(ComponentTreeFZPtr tree, NodeFZPtr node);
     
-    void adjustMinTree(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree, std::vector<NodeFZPtr>& nodesToPruning) override;
+    void adjustMinTree(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree, std::vector<NodeFZPtr>& nodesToPruning);
     
-    void adjustMaxTree(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree, std::vector<NodeFZPtr>& nodesToPruning) override;
+    void adjustMaxTree(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree, std::vector<NodeFZPtr>& nodesToPruning);
     
     
 

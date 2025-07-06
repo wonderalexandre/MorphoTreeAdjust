@@ -84,6 +84,7 @@ public:
 	std::list<NodeCTPtr<CNPsType>>& getChildren();
 	int getNumSiblings() const;
     int computerNumDescendants();
+    int computerNumFlatzoneDescendants();
     
 
 

@@ -31,8 +31,8 @@ using FlatZone = std::list<int>;                 // Representa uma flatzone
 using FlatZones = std::unordered_map<int, FlatZone>;   // Representa uma lista de flatzones (CNPs ficarão separados em flatzones)
 
 //Alias em função do tipo dos CNPs
-using FlatZonePtr = FlatZone*;   // Representa uma flatzone
-using FlatZonesPtr = std::list<FlatZonePtr>;   // Representa uma lista de flatzones
+//using FlatZonePtr = FlatZone*;   // Representa uma flatzone
+//using FlatZonesPtr = std::list<FlatZonePtr>;   // Representa uma lista de flatzones
 
 using ComponentTreeFZ = ComponentTree<FlatZones>; //representa uma component tree por flatzones
 using ComponentTreeP = ComponentTree<Pixels>; //representa uma component tree sem tratamento de flatzones

@@ -386,61 +386,133 @@ inline void ComponentTreeP::mergeWithParent(NodePPtr node){
     }
 }
 
+
+
 template <>
-inline void ComponentTreeFZ::mergeWithParent(NodeFZPtr node){
-    if(node->getParent() != nullptr){
-        NodeFZPtr parent = node->getParent();
-        std::list<NodeFZPtr>& childrenParent = parent->getChildren();
-        childrenParent.remove( node );			
-        this->numNodes--;
+inline void ComponentTreeFZ::mergeWithParent(NodeFZPtr node) {
+    if (!node || node->getParent() == nullptr) return;
+
+    NodeFZPtr parent = node->getParent();
+    std::list<NodeFZPtr>& childrenParent = parent->getChildren();
+    childrenParent.remove(node);
+    this->numNodes--;
+
+    for (NodeFZPtr child : node->getChildren()) {
+        childrenParent.push_back(child);
+        child->setParent(parent);
+    }
+
+    auto& cnps = node->getCNPsByFlatZone();
+    auto& cnpsParent = parent->getCNPsByFlatZone();
+    for (auto it = cnps.begin(); it != cnps.end(); ) {
+        int idFZ = it->first;
+        FlatZone& fz = it->second;
+        int idFZRep = flatzoneGraph->findRepresentative(idFZ);
 
         
-        for(NodeFZPtr child : node->getChildren()) {							
-            childrenParent.push_back(child);				
-            child->setParent(parent);			
-        }		
+        auto itFound = cnpsParent.find(idFZRep);
+        if (itFound != cnpsParent.end()) { // Se idFZRep está em parent, então adicionar no final os pixels de fz nessa flatzone do parent
+            FlatZone& targetParentFZ = itFound->second;
+            targetParentFZ.splice(targetParentFZ.end(), fz);
 
-        auto& cnps = node->getCNPsByFlatZone();
-        for (auto it = cnps.begin(); it != cnps.end(); ) {
-            int idFZ = it->first;
-            FlatZone& fz = it->second;
-            int idFZRep = flatzoneGraph->findRepresentative(idFZ);// pega o id da flatzone
-            bool moreThanOneMerged = false;
-            bool hasMerged = false;
-            auto& cnpsParent = parent->getCNPsByFlatZone();
             for (auto itParent = cnpsParent.begin(); itParent != cnpsParent.end(); ) {
                 int idFZParent = itParent->first;
-                FlatZone& fzParent = itParent->second;
                 int idFRepParent = flatzoneGraph->findRepresentative(idFZParent);
-                if (idFZRep == idFRepParent) {    
-                    if(fz.front() > fzParent.front()){
-                        fzParent.splice(fzParent.end(), fz);
-                    }else{
-                        fzParent.splice(fzParent.begin(), fz);
-                    }
-                    if(moreThanOneMerged){
-                        itParent = cnps.erase(itParent); // remove e avança
-                    }
-                    else {
-                        ++itParent;
-                        moreThanOneMerged = true;
-                    }
-                    hasMerged = true;
+                if(idFZParent != idFRepParent) { //se idFZParent tem um novo represetante em parent
+                    FlatZone& fzParent = itParent->second;
+                    targetParentFZ.splice(targetParentFZ.end(), fzParent);
+                    itParent = cnpsParent.erase(itParent); // remove duplicata
                 }else{
                     ++itParent;
                 }
             }
-            if(!hasMerged){
-                cnpsParent[idFZRep] = std::move(fz);
-            }
         }
-	
-
-        node = nullptr;
+        else{ //Se idFZRep não está em parent, então idFZRep é representando de flatzones que estão em parent
+            for (auto itParent = cnpsParent.begin(); itParent != cnpsParent.end(); ) {
+                int idFZParent = itParent->first;
+                int idFRepParent = flatzoneGraph->findRepresentative(idFZParent);
+                if(idFZRep == idFRepParent) { //o representando de FZParent é fz, então adicionar no final os pixels de FZParent em fz e atualizar as chaves de cnps
+                    FlatZone& fzParent = itParent->second;
+                    fz.splice(fz.end(), fzParent);
+                    itParent = cnpsParent.erase(itParent); // remove chave antiga
+                }else{
+                    ++itParent;
+                }
+            }
+            cnpsParent[idFZRep] = std::move(fz);      
+        }
+        it = cnps.erase(it);
     }
+
 }
 
 
+
+template <>
+inline void ComponentTreeP::mergeWithParent(FlatZone* flatzone){
+    int idFlatzone = flatzone->front();
+    NodePPtr node = this->pixelToNode[idFlatzone];
+    if(node->getNumCNPs() == static_cast<int>(flatzone->size())) {
+        this->mergeWithParent(node);
+    }
+    else{
+        NodePPtr parent = node->getParent();
+        for( int p: *flatzone) {				
+            parent->addCNPs(p);
+            this->pixelToNode[p] = parent;	
+        }
+
+    }
+}
+
+template <>
+inline void ComponentTreeFZ::mergeWithParent(FlatZone* fz) {
+    int idFZ = fz->front();
+    NodeFZPtr node = this->pixelToNode[idFZ];
+    if (node->getNumFlatzone() == 1) {
+        // Caso trivial: apenas um flat zone — usa merge tradicional
+        this->mergeWithParent(node);
+    } else {
+        int idFZRep = flatzoneGraph->findRepresentative(idFZ);
+        NodeFZPtr parent = node->getParent();
+        auto& cnpsParent = parent->getCNPsByFlatZone();
+
+        auto itFound = cnpsParent.find(idFZRep);
+        if (itFound != cnpsParent.end()) {
+            // Se já existe o representante, funde em seu final
+            FlatZone& targetParentFZ = itFound->second;
+            targetParentFZ.splice(targetParentFZ.end(), *fz);
+
+            // Remove duplicatas: todas as flat zones do mesmo grupo, exceto a chave do representante
+            for (auto itParent = cnpsParent.begin(); itParent != cnpsParent.end(); ) {
+                int idFZParent = itParent->first;
+                int idFRepParent = flatzoneGraph->findRepresentative(idFZParent);
+                if (idFZParent != idFZRep && idFRepParent == idFZRep) {
+                    FlatZone& fzParent = itParent->second;
+                    targetParentFZ.splice(targetParentFZ.end(), fzParent);
+                    itParent = cnpsParent.erase(itParent);
+                } else {
+                    ++itParent;
+                }
+            }
+        } else {
+            // Não existe entrada para o grupo, então funde todas as flat zones do grupo (exceto fz)
+            for (auto itParent = cnpsParent.begin(); itParent != cnpsParent.end(); ) {
+                int idFZParent = itParent->first;
+                int idFRepParent = flatzoneGraph->findRepresentative(idFZParent);
+                if (idFZRep == idFRepParent) {
+                    FlatZone& fzParent = itParent->second;
+                    fz->splice(fz->end(), fzParent);
+                    itParent = cnpsParent.erase(itParent);
+                } else {
+                    ++itParent;
+                }
+            }
+            // Agora registra tudo sob a chave do representante
+            cnpsParent[idFZRep] = std::move(*fz);
+        }
+    }
+}
 
 
 template <typename CNPsType>
@@ -451,7 +523,7 @@ std::vector<NodeCTPtr<CNPsType>> ComponentTree<CNPsType>::getNodesThreshold(int 
     
     int sumArea = 0; //somente para uso estatistico
     int numFlatZones=0; //somente para uso estatistico
-    int numDescendents = 0; //somente para uso estatistico
+    int numNodes = 0; //somente para uso estatistico
 	while(!queue.empty()) {
 	    NodeCTPtr<CNPsType> node = queue.front(); queue.pop();
 	    if(node->getArea() > areaThreshold) {
@@ -462,8 +534,8 @@ std::vector<NodeCTPtr<CNPsType>> ComponentTree<CNPsType>::getNodesThreshold(int 
 	    else {
             if(PRINT_LOG){ //somente para uso estatistico
                 sumArea += node->getArea(); 
-                numFlatZones += node->getNumFlatzone(); 
-                numDescendents += node->computerNumDescendants();
+                numFlatZones += (node->computerNumFlatzoneDescendants() + node->getNumFlatzone()); 
+                numNodes += node->computerNumDescendants() + 1;
             }
 			lista.push_back(node);
 	    }
@@ -471,7 +543,7 @@ std::vector<NodeCTPtr<CNPsType>> ComponentTree<CNPsType>::getNodesThreshold(int 
     if(PRINT_LOG){
         int areaImage = this->getNumColsOfImage() * this->getNumRowsOfImage();
         std::cout << "\tArea threshold: " << areaThreshold 
-          << ", #Nodes: " << (numDescendents+1)
+          << ", #Nodes: " << numNodes
           << ", #FlatZones: " << numFlatZones
           << ", #InputTreeNodes: " << this->getNumNodes()
           << ", |Pruning Area|: " << sumArea 

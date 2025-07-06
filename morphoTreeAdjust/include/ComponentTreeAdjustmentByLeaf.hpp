@@ -20,11 +20,11 @@ public:
 
     ComponentTreeAdjustmentByLeaf(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree) : ComponentTreeAdjustment(maxtree, mintree) { }
     
-    void updateTree(ComponentTreeFZPtr tree, NodeFZPtr L_leaf) override;
+    void updateTree(ComponentTreeFZPtr tree, NodeFZPtr L_leaf);
 
-    void adjustMinTree(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree, std::vector<NodeFZPtr>& nodesToPruning) override;
+    void adjustMinTree(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree, std::vector<NodeFZPtr>& nodesToPruning) ;
     
-    void adjustMaxTree(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree, std::vector<NodeFZPtr>& nodesToPruning) override;
+    void adjustMaxTree(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree, std::vector<NodeFZPtr>& nodesToPruning) ;
   
 };
 

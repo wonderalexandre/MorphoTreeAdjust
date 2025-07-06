@@ -277,3 +277,14 @@ int NodeCT<CNPsType>::computerNumDescendants() {
     }
     return numDescendants;
 }
+
+template <typename CNPsType>
+int NodeCT<CNPsType>::computerNumFlatzoneDescendants() {
+    int numFlatzoneDescendants = 0;
+    for(NodeCTPtr<CNPsType> desc: this->getIteratorBreadthFirstTraversal()){
+        if(desc != this->shared_from_this()){
+            numFlatzoneDescendants += desc->getNumFlatzone();
+        }
+    }
+    return numFlatzoneDescendants;
+}

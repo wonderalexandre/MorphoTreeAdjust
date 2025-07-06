@@ -1,4 +1,4 @@
-#include "../include/ComponentTreeAdjustmentByAnyNode.hpp"
+#include "../include/ComponentTreeAdjustmentByFlatzone.hpp"
 #include <unordered_set>
 #include <list>
 #include <vector>
@@ -10,13 +10,15 @@
 
 
 
-void ComponentTreeAdjustmentByAnyNode::updateTree(ComponentTreeFZPtr tree, NodeFZPtr node) {
-    assert(node != nullptr && "L_leaf is nullptr"); 
+void ComponentTreeAdjustmentByFlatzone::updateTree(ComponentTreeFZPtr tree, FlatZone* flatzone) {
 
     bool isMaxtree = tree->isMaxtree();
-    int newGrayLevel = node->getParent()->getLevel();  // b = g(p)
+    ComponentTreeFZPtr otherTree = getOtherTree(isMaxtree);
+
+    int idNode = flatzone->front(); //pixel (id) of flatzone 
+    NodeFZPtr node = tree->getSC(idNode);
+    int newGrayLevel =  otherTree->getSC(idNode)->getParent()->getLevel(); //b = g(p)
     int oldGrayLevel = node->getLevel();  // a = f(p)
-    int idNode = node->getCNPsByFlatZone().begin()->second.front(); //pixel (id) of flatzone 
     
     NodeFZPtr nodeTauL = tree->getSC(idNode); //node of correspondence flatzone in other treee
     int pixelUpperBound = idNode; 
@@ -30,15 +32,16 @@ void ComponentTreeAdjustmentByAnyNode::updateTree(ComponentTreeFZPtr tree, NodeF
                   << ", pixelUpperBound: " << pixelUpperBound 
                   << ", newGrayLevel: " << newGrayLevel 
                   << ", oldGrayLevel: " << oldGrayLevel 
-                  << ", idNode: " << idNode 
+                  << ", idFlatzone: " << idNode 
                   << ", nodeTauL id: " << nodeTauL->getIndex() 
                   << ", nodeTauL level: " << nodeTauL->getLevel() 
                   << ", nodeTauL numCNPs: " << nodeTauL->getNumCNPs() 
                   << std::endl;
+        std::cout << outputLog.str() << std::endl;
     }
     ComponentTreeAdjustment::buildMergedAndNestedCollections(tree, flatzoneTauL->front(), pixelUpperBound, newGrayLevel, isMaxtree);
 
-    int lambda = F.firstLambda(); //star with b = newGrayLevel
+    int lambda = F.firstLambda(); //inicia com b = newGrayLevel
     NodeFZPtr nodeUnion = nullptr; // tau_{lambda}
     NodeFZPtr nodeUnionPrevious = nullptr; //maxtree: tau_{\lambda+1}, mintree:  tau_{\lambda-1}
 
@@ -142,19 +145,12 @@ void ComponentTreeAdjustmentByAnyNode::updateTree(ComponentTreeFZPtr tree, NodeF
 
 
 
-void ComponentTreeAdjustmentByAnyNode::adjustMinTree(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree, std::vector<NodeFZPtr>& nodesToRemoved) {
-    for (NodeFZPtr node : nodesToRemoved) {  	
-        assert(node != maxtree->getRoot() && "node is root");
-        updateTree(mintree, node); 
-        maxtree->mergeWithParent(node); 
-    }
+void ComponentTreeAdjustmentByFlatzone::adjustMinTree(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree, FlatZone* flatzone) {
+    updateTree(mintree, flatzone); 
+    maxtree->mergeWithParent(flatzone); 
 }
 
-void ComponentTreeAdjustmentByAnyNode::adjustMaxTree(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree, std::vector<NodeFZPtr>& nodesToRemoved) {
-    for (NodeFZPtr node : nodesToRemoved) {  
-        assert(node != mintree->getRoot() && "node is root");
-
-        updateTree(maxtree, node);   
-        mintree->mergeWithParent(node); 
-    }
+void ComponentTreeAdjustmentByFlatzone::adjustMaxTree(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree, FlatZone* flatzone) {
+    updateTree(maxtree, flatzone);   
+    mintree->mergeWithParent(flatzone); 
 }

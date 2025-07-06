@@ -144,8 +144,9 @@ public:
 class ComponentTreeAdjustment {
 
 protected:
+    ComponentTreeFZPtr maxtree;     
     ComponentTreeFZPtr mintree;
-    ComponentTreeFZPtr maxtree; 
+    
     int maxIndex; 
     MergedNodesCollection F;
     std::unordered_set<NodeFZPtr> Fb;
@@ -171,6 +172,10 @@ protected:
         nodeUnion->getChildren().splice(nodeUnion->getChildren().end(), n->getChildren());
     }
     
+    ComponentTreeFZPtr getOtherTree(bool isMaxtree){
+        return isMaxtree ? mintree : maxtree;
+    }
+
     
 public:
 
@@ -178,17 +183,17 @@ public:
         return outputLog.str();
     }
 
-    ComponentTreeAdjustment(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree): mintree(mintree), maxtree(maxtree), maxIndex(std::max(maxtree->getNumNodes(), mintree->getNumNodes())), F(maxIndex)  { }
+    ComponentTreeAdjustment(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree): maxtree(maxtree), mintree(mintree), maxIndex(std::max(maxtree->getNumNodes(), mintree->getNumNodes())), F(maxIndex)  { }
 
     ComponentTreeAdjustment() = delete; 
 
     virtual ~ComponentTreeAdjustment() = default;
  
-    virtual void updateTree(ComponentTreeFZPtr tree, NodeFZPtr node) = 0;
+    //virtual void updateTree(ComponentTreeFZPtr tree, NodeFZPtr node) = 0;
 
-    virtual void adjustMinTree(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree, std::vector<NodeFZPtr>& nodesToPruning) = 0;
+    //virtual void adjustMinTree(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree, std::vector<NodeFZPtr>& nodesToPruning) = 0;
     
-    virtual void adjustMaxTree(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree, std::vector<NodeFZPtr>& nodesToPruning) = 0;
+    //virtual void adjustMaxTree(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree, std::vector<NodeFZPtr>& nodesToPruning) = 0;
 
     
     void buildMergedAndNestedCollections(ComponentTreeFZPtr tree, std::vector<int>& flatZonesID,  int pixelUpperBound, int newGrayLevel, bool isMaxtree){

@@ -22,7 +22,7 @@ void ComponentTreeAdjustmentByLeaf::updateTree(ComponentTreeFZPtr tree, NodeFZPt
     int pixelUpperBound = idLeaf; 
 
     bool nodeTauCNPsIsEqualL = nodeTauL->getNumFlatzone() == 1;
-    FlatZonePtr flatzoneTauL = &tree->getFlatzoneByID(idLeaf); 
+    FlatZone* flatzoneTauL = &tree->getFlatzoneByID(idLeaf); 
     //std::vector<FlatZonePtr> flatZonesTauL = {flatzoneTauL};
     
     assert(leaf->getNumCNPs() == flatzoneTauL->size() && "O número de CNPs de L_leaf é diferente do número de pixels da flatzone de tauL");

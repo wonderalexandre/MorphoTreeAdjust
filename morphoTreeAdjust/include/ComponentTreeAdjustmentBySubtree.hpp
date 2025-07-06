@@ -25,7 +25,7 @@ protected:
     std::vector<NodeFZPtr> nodesWithFZToBeRemoved; // nodes que possuem flatzones a serem removidas
     std::vector<bool> isNodesToBeRemoved; // vetor de booleanos que indica se o nó deve ser removido ou não
     
-    FlatZonePtr unifiedFlatzone;
+    FlatZone* unifiedFlatzone;
 public:
 
     // Construtor permite definir a ordem de iteração
@@ -127,11 +127,11 @@ public:
 
     ComponentTreeAdjustmentBySubtree(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree) : ComponentTreeAdjustment(maxtree, mintree), unionNodeTauSubtree(maxtree->isMaxtree(), std::max(mintree->getNumNodes(), maxtree->getNumNodes())) { }
       
-    void updateTree(ComponentTreeFZPtr tree, NodeFZPtr node) override;
+    void updateTree(ComponentTreeFZPtr tree, NodeFZPtr node);
     
-    void adjustMinTree(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree, std::vector<NodeFZPtr>& nodesToPruning) override;
+    void adjustMinTree(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree, std::vector<NodeFZPtr>& nodesToPruning) ;
     
-    void adjustMaxTree(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree, std::vector<NodeFZPtr>& nodesToPruning) override;
+    void adjustMaxTree(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree, std::vector<NodeFZPtr>& nodesToPruning) ;
 
 
 };

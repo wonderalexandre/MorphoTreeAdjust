@@ -68,3 +68,8 @@ add_executable(testeRemovingAnyNode testeRemovingAnyNode.cpp
     ../morphoTreeAdjust/src/AdjacencyRelation.cpp
     ../morphoTreeAdjust/src/ComponentTreeAdjustmentByAnyNode.cpp
 )
+
+add_executable(testeRemovingFlatzone testeRemovingFlatzone.cpp
+    ../morphoTreeAdjust/src/AdjacencyRelation.cpp
+    ../morphoTreeAdjust/src/ComponentTreeAdjustmentByFlatzone.cpp
+)
