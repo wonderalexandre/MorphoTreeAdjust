@@ -317,6 +317,21 @@ inline NodeCTPtr<CNPsType> getNodeByIndex(ComponentTreePtr<CNPsType> tree, int i
 	return nullptr;
 }
 
+inline ImageUInt8Ptr getSmallImage(){
+    auto img = new uint8_t[81]{
+        7, 7, 7, 7, 7, 7, 7, 7, 7,
+        7, 5, 5, 5, 7, 7, 7, 7, 7,
+        7, 5, 1, 5, 7, 7, 7, 7, 7,
+        7, 5, 1, 5, 7, 2, 2, 2, 7,
+        7, 5, 1, 5, 7, 2, 4, 2, 7,
+        7, 5, 5, 5, 7, 2, 2, 2, 7,
+        7, 7, 7, 7, 7, 2, 4, 2, 7,
+        7, 7, 7, 7, 7, 2, 2, 2, 7,
+        7, 7, 7, 7, 7, 7, 7, 7, 7
+    };
+    return ImageUInt8::fromRaw(img, 9, 9);
+}
+
 inline ImageUInt8Ptr getWonderImage(){
     auto img = new uint8_t[625]{
         203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,203,

@@ -19,8 +19,8 @@ void ComponentTreeAdjustmentBySubtree::updateTree(ComponentTreeFZPtr tree, NodeF
     for (NodeFZPtr nSubtree : rootSubtree->getIteratorBreadthFirstTraversal()) {
         for(auto& [idFlatZoneNSubtree, fzSubtree]: nSubtree->getCNPsByFlatZone()){    
             NodeFZPtr nodeTau = tree->getSC(idFlatZoneNSubtree);
-            FlatZone& fzTau = nodeTau->getFlatZone(idFlatZoneNSubtree); //tree->getFlatzoneByID(idFlatZoneNSubtree);
-            unionNodeTauSubtree.addNode(nodeTau, fzTau); //, fzSubtree.size() == fzTau.size()  
+            FlatZone& fzTau = nodeTau->getFlatZone(idFlatZoneNSubtree); 
+            unionNodeTauSubtree.addNode(nodeTau, fzTau); 
         }
     }
     NodeFZPtr nodeTauStar = unionNodeTauSubtree.getNodeTauStar();

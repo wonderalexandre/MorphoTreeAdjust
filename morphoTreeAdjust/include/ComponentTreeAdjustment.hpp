@@ -143,10 +143,10 @@ public:
 
 class ComponentTreeAdjustment {
 
-protected:
-    ComponentTreeFZPtr maxtree;     
+protected: 
     ComponentTreeFZPtr mintree;
-    
+    ComponentTreeFZPtr maxtree;    
+
     int maxIndex; 
     MergedNodesCollection F;
     std::unordered_set<NodeFZPtr> Fb;
@@ -183,7 +183,7 @@ public:
         return outputLog.str();
     }
 
-    ComponentTreeAdjustment(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree): maxtree(maxtree), mintree(mintree), maxIndex(std::max(maxtree->getNumNodes(), mintree->getNumNodes())), F(maxIndex)  { }
+    ComponentTreeAdjustment(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree): mintree(mintree), maxtree(maxtree), maxIndex(std::max(maxtree->getNumNodes(), mintree->getNumNodes())), F(maxIndex)  { }
 
     ComponentTreeAdjustment() = delete; 
 

@@ -23,7 +23,7 @@ protected:
     
 public:
 
-    ComponentTreeAdjustmentByAnyNode(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree) : ComponentTreeAdjustment(maxtree, mintree), unionNodeTauSubtree(maxtree->isMaxtree(), std::max(mintree->getNumNodes(), maxtree->getNumNodes())) { }
+    ComponentTreeAdjustmentByAnyNode(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree) : ComponentTreeAdjustment(mintree, maxtree), unionNodeTauSubtree(maxtree->isMaxtree(), std::max(mintree->getNumNodes(), maxtree->getNumNodes())) { }
       
     void updateTree(ComponentTreeFZPtr tree, NodeFZPtr node);
     

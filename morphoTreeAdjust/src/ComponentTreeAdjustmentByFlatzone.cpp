@@ -23,6 +23,7 @@ void ComponentTreeAdjustmentByFlatzone::updateTree(ComponentTreeFZPtr tree, Flat
     NodeFZPtr nodeTauL = tree->getSC(idNode); //node of correspondence flatzone in other treee
     int pixelUpperBound = idNode; 
 
+    
     bool nodeTauCNPsIsEqualL = nodeTauL->getNumFlatzone() == 1;
     FlatZone* flatzoneTauL = &tree->getFlatzoneByID(idNode); 
     if (PRINT_LOG) {
@@ -40,7 +41,12 @@ void ComponentTreeAdjustmentByFlatzone::updateTree(ComponentTreeFZPtr tree, Flat
         std::cout << outputLog.str() << std::endl;
     }
     ComponentTreeAdjustment::buildMergedAndNestedCollections(tree, flatzoneTauL->front(), pixelUpperBound, newGrayLevel, isMaxtree);
+    //ComponentTreeAdjustment::buildMergedAndNestedCollections(tree,  fzIDs, pixelUpperBound, newGrayLevel, isMaxtree);
 
+    if(F.getAdjacentNodes().empty()){
+        NodeFZPtr nodeUnion = std::make_shared<NodeFZ>(this->numNodes++, nullptr, threshold1, threshold2);
+    }
+    
     int lambda = F.firstLambda(); //inicia com b = newGrayLevel
     NodeFZPtr nodeUnion = nullptr; // tau_{lambda}
     NodeFZPtr nodeUnionPrevious = nullptr; //maxtree: tau_{\lambda+1}, mintree:  tau_{\lambda-1}

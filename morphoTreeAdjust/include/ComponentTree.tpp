@@ -405,11 +405,12 @@ inline void ComponentTreeFZ::mergeWithParent(NodeFZPtr node) {
     auto& cnps = node->getCNPsByFlatZone();
     auto& cnpsParent = parent->getCNPsByFlatZone();
     for (auto it = cnps.begin(); it != cnps.end(); ) {
-        int idFZ = it->first;
         FlatZone& fz = it->second;
+        for(int pixel: fz){
+            this->pixelToNode[pixel] = parent;	
+        }
+        int idFZ = it->first;
         int idFZRep = flatzoneGraph->findRepresentative(idFZ);
-
-        
         auto itFound = cnpsParent.find(idFZRep);
         if (itFound != cnpsParent.end()) { // Se idFZRep está em parent, então adicionar no final os pixels de fz nessa flatzone do parent
             FlatZone& targetParentFZ = itFound->second;
@@ -475,6 +476,9 @@ inline void ComponentTreeFZ::mergeWithParent(FlatZone* fz) {
     } else {
         int idFZRep = flatzoneGraph->findRepresentative(idFZ);
         NodeFZPtr parent = node->getParent();
+        for(int pixel: *fz){
+            this->pixelToNode[pixel] = parent;	
+        }
         auto& cnpsParent = parent->getCNPsByFlatZone();
 
         auto itFound = cnpsParent.find(idFZRep);

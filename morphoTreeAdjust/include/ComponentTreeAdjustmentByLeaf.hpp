@@ -18,7 +18,7 @@ class ComponentTreeAdjustmentByLeaf: public ComponentTreeAdjustment {
     
 public:
 
-    ComponentTreeAdjustmentByLeaf(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree) : ComponentTreeAdjustment(maxtree, mintree) { }
+    ComponentTreeAdjustmentByLeaf(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree) : ComponentTreeAdjustment(mintree, maxtree) { }
     
     void updateTree(ComponentTreeFZPtr tree, NodeFZPtr L_leaf);
 

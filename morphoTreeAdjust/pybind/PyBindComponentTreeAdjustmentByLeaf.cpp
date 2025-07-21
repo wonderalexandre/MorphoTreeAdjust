@@ -11,7 +11,7 @@ py::tuple PyBindComponentTreeAdjustmentByLeaf::buildCollections(PyBindComponentT
     int idLeaf = leaf->getCNPsByFlatZone().begin()->second.front(); //pixel (id) of flatzone 
     int pixelUpperBound = idLeaf; 
     NodeFZPtr nodeTauL = tree->getSC(idLeaf); //node of correspondence flatzone in other treee
-    FlatZonePtr flatzoneTauL = &tree->getFlatzoneByID(idLeaf); 
+    FlatZone* flatzoneTauL = &tree->getFlatzoneByID(idLeaf); 
     
     ComponentTreeAdjustmentByLeaf::buildMergedAndNestedCollections(tree, flatzoneTauL->front(), pixelUpperBound, newGrayLevel, tree->isMaxtree());
 
