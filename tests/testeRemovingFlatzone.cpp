@@ -27,7 +27,7 @@ int main()
     
 
     //int* img = getPassatImage(numRows, numCols);
-    ImageUInt8Ptr img = getSmallImage();
+    ImageUInt8Ptr img = getPeppersImage();
     double radioAdj = 1.5;
 
     AdjacencyRelationPtr adj =std::make_shared<AdjacencyRelation>(img->getNumRows(), img->getNumCols(), radioAdj);
@@ -43,40 +43,43 @@ int main()
     //std::cout <<"\n\n" << std::endl;
     //printMappingSC(mintree);
     
-    NodeFZPtr N = nullptr;
-    int index = 2;
-    for (NodeFZPtr node : mintree->getRoot()->getIteratorBreadthFirstTraversal()) {
-        if(node->getIndex() == index){
-            N = node;
-            break;
-        }
-    }    
-    
-
     ComponentTreeAdjustmentByFlatzone adjust(mintree, maxtree);
-     
 
-    FlatZone flatzone = N->getCNPsByFlatZone().begin()->second;
-    std::cout <<"\nN:" << N->getIndex() << ", level:" << N->getLevel() << ", |cnps|:" << N->getNumCNPs() <<  std::endl;
-    adjust.updateTree(maxtree, &flatzone);
-    std::cout << adjust.getOutputLog() << std::endl;   
-    mintree->mergeWithParent(&flatzone);
-
-    auto imgOutMaxtree = maxtree->reconstructionImage();
-    auto imgOutMintree = mintree->reconstructionImage();
+    for (NodeFZPtr node : mintree->getRoot()->getIteratorBreadthFirstTraversal()) {
+        if(node == mintree->getRoot()){//} || node->getIndex() != 6){
+            continue;
+        }
+        
     
-    testComponentTreeFZ(maxtree, "max-tree", imgOutMaxtree);
-    testComponentTreeFZ(mintree, "min-tree", imgOutMintree);
-    if(imgOutMaxtree->isEqual(imgOutMintree))
-        std::cout <<"\n✅ Rec(maxtree) = Rec(mintree)" << std::endl;
-    else
-        std::cout <<"\n❌ Rec(maxtree) != Rec(mintree)" << std::endl;
 
+        FlatZone flatzone = node->getCNPsByFlatZone().begin()->second;
+        std::cout <<"\nN:" << node->getIndex() << ", level:" << node->getLevel() << ", numFlatzone:" << node->getNumFlatzone() << ", |cnps|:" << node->getNumCNPs() <<  std::endl;
+        adjust.updateTree(maxtree, &flatzone);
+        std::cout << adjust.getOutputLog() << std::endl;   
+        adjust.clearOutputLog();
+        ////atualizacao da mintree
+        NodeFZPtr nodeTmp = mintree->getSC(flatzone.front());
+        nodeTmp->setArea(nodeTmp->getArea() - flatzone.size());
+        mintree->mergeWithParent(&flatzone);
+        /////
 
-    std::cout <<"\n\nApos mudancas\n" << std::endl;
-    printImage(imgOutMaxtree);
-    std::cout <<"\n\n" << std::endl;
-    printImage(imgOutMintree);
+        auto imgOutMaxtree = maxtree->reconstructionImage();
+        auto imgOutMintree = mintree->reconstructionImage();
+        
+        testComponentTreeFZ(maxtree, "max-tree", imgOutMaxtree);
+        testComponentTreeFZ(mintree, "min-tree", imgOutMintree);
+        if(imgOutMaxtree->isEqual(imgOutMintree))
+            std::cout <<"\n✅ Rec(maxtree) = Rec(mintree)" << std::endl;
+        else
+            std::cout <<"\n❌ Rec(maxtree) != Rec(mintree)" << std::endl;
+
+        /*
+        std::cout <<"\n\nApos mudancas\n" << std::endl;
+        printImage(imgOutMaxtree);
+        std::cout <<"\n\n" << std::endl;
+        printImage(imgOutMintree);
+        */    
+    }
     
 	std::cout << "\n\nFim do teste...\n\n";
     

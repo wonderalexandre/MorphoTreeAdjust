@@ -474,6 +474,7 @@ inline void ComponentTreeFZ::mergeWithParent(FlatZone* fz) {
         // Caso trivial: apenas um flat zone — usa merge tradicional
         this->mergeWithParent(node);
     } else {
+        node->removeFlatzone(idFZ);
         int idFZRep = flatzoneGraph->findRepresentative(idFZ);
         NodeFZPtr parent = node->getParent();
         for(int pixel: *fz){

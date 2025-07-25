@@ -29,7 +29,7 @@ void ComponentTreeAdjustmentByLeaf::updateTree(ComponentTreeFZPtr tree, NodeFZPt
 
     ComponentTreeAdjustment::buildMergedAndNestedCollections(tree, flatzoneTauL->front(), pixelUpperBound, newGrayLevel, isMaxtree);
 
-    int lambda = F.firstLambda(); //star with b = newGrayLevel
+    int lambda = F.firstLambda(); //start with b = newGrayLevel
     NodeFZPtr nodeUnion = nullptr; // tau_{lambda}
     NodeFZPtr nodeUnionPrevious = nullptr; //maxtree: tau_{\lambda+1}, mintree:  tau_{\lambda-1}
 

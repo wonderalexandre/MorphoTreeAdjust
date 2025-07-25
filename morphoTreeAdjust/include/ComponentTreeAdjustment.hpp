@@ -118,13 +118,16 @@ public:
                 }
             }
     }
-
+    
     int firstLambda() {
         lambdaList.clear();
         for (int i = 0; i < 256; ++i) {
             if (!collectionF[i].empty()) {
                 lambdaList.push_back(i);
             }
+        }
+        if(lambdaList.empty()) {
+            return -1; // Retorna -1 se não houver lambdas
         }
         currentIndex = isMaxtree ? lambdaList.size() - 1 : 0;
         return lambdaList[currentIndex];
@@ -181,6 +184,11 @@ public:
 
     std::string getOutputLog() {
         return outputLog.str();
+    }
+
+    void clearOutputLog() {
+        outputLog.str(""); // Limpa o conteúdo do stream
+        outputLog.clear();
     }
 
     ComponentTreeAdjustment(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree): mintree(mintree), maxtree(maxtree), maxIndex(std::max(maxtree->getNumNodes(), mintree->getNumNodes())), F(maxIndex)  { }
