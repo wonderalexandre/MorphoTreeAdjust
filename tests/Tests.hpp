@@ -251,8 +251,10 @@ inline void printImage(ImageUInt8Ptr imgPtr, int setw=4, std::string nomeArquivo
 inline bool computerArea(NodeFZPtr node){
 	long int area = node->getNumCNPs();
 	for(NodeFZPtr child: node->getChildren()){
-		if(!computerArea(child))
+		if(!computerArea(child)){
+            std::cerr << "❌ Erro: Falha ao computar a área do nó de id " << child->getIndex() << "!" << std::endl;
             return false;
+        }
 		area += child->getArea();
 	}
     return node->getArea() == area;

@@ -118,7 +118,8 @@ void ComponentTreeAdjustmentByLeaf::updateTree(ComponentTreeFZPtr tree, NodeFZPt
             
             newRoot->setArea(nodeTauL->getArea());
             newRoot->setParent(nullptr);
-            tree->setRoot(nodeUnion);
+            tree->setRoot(newRoot);
+            
         }
         tree->setNumNodes(tree->getNumNodes() - 1);
         disconnect(nodeTauL, true);

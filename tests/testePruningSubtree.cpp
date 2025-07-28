@@ -24,8 +24,8 @@ int main()
     
     //auto img = getPassatImage();
     //auto img = getCharImage();
-    auto img = getPeppersImage();
-    //auto img = getLenaCropImage();
+    //auto img = getWonderImage();
+    auto img = getPassatImage();
 
     double radioAdj = 1.5;
 
@@ -41,7 +41,33 @@ int main()
     //std::cout <<"\n=========== mapIDs max-tree ===========\n" << std::endl;
     //printMappingSC(maxtree);
     ComponentTreeAdjustmentBySubtree adjust(mintree, maxtree);
-    for(int threshold = 10; threshold <= 1000; threshold += 10){
+    
+/*
+    NodeFZPtr N = nullptr;
+    int index = 11;
+    for (NodeFZPtr node : mintree->getRoot()->getIteratorBreadthFirstTraversal()) {
+        if(node->getIndex() == index){
+            N = node;
+            break;
+        }
+    }    
+    
+    adjust.updateTree(maxtree, N);
+    std::cout << adjust.getOutputLog() << std::endl;   
+    mintree->prunning(N);
+
+    auto imgOutMaxtree = maxtree->reconstructionImage();
+    auto imgOutMintree = mintree->reconstructionImage();
+        
+    testComponentTreeFZ(maxtree, "max-tree", imgOutMaxtree);
+    testComponentTreeFZ(mintree, "min-tree", imgOutMintree);
+    if(imgOutMaxtree->isEqual(imgOutMintree))
+        std::cout <<"\n✅ Rec(maxtree) = Rec(mintree)" << std::endl;
+    else
+        std::cout <<"\n❌ Rec(maxtree) != Rec(mintree)" << std::endl;
+*/
+    
+    for(int threshold = 10; threshold <= 100; threshold += 10){
         int cont = 1;
         for(NodeFZPtr rootSubtree: mintree->getNodesThreshold(threshold)){
             
@@ -84,7 +110,7 @@ int main()
 
         }
     }
-        
+    
    /*
     std::cout <<"\n=========== mapIDs min-tree ===========\n" << std::endl;
     printMappingSC(mintree);

@@ -205,7 +205,7 @@ void ComponentTreeAdjustmentBySubtree::updateTree(ComponentTreeFZPtr tree, NodeF
                     newRoot->addChild(nodeUnion);
                     nodeUnion->setParent(newRoot);
                 }
-                for (NodeFZPtr n : nodeTauStar->getChildren()) {
+                for (NodeFZPtr n : nodeTauStar->getChildren()) { //TODO: repensar sobre isso!
                     if (n != newRoot && !nodeUnion->isChild(n)) {
                         newRoot->addChild(n);
                         n->setParent(newRoot);
@@ -215,7 +215,7 @@ void ComponentTreeAdjustmentBySubtree::updateTree(ComponentTreeFZPtr tree, NodeF
             
             newRoot->setArea(nodeTauStar->getArea());
             newRoot->setParent(nullptr);
-            tree->setRoot(nodeUnion);
+            tree->setRoot(newRoot);
             
         }
         tree->setNumNodes( tree->getNumNodes() -1 );  

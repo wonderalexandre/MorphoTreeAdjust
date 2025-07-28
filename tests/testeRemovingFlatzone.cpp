@@ -49,19 +49,25 @@ int main()
         if(node == mintree->getRoot()){//} || node->getIndex() != 6){
             continue;
         }
-        
-    
+            
+        auto& flatzones = node->getCNPsByFlatZone(); 
+        while (!flatzones.empty()) {
+            FlatZone& flatzone = flatzones.begin()->second;
+            std::cout << "\nN:" << node->getIndex()
+                    << ", level:" << node->getLevel()
+                    << ", numFlatzone:" << node->getNumFlatzone()
+                    << ", |cnps|:" << node->getNumCNPs()
+                    << std::endl;
 
-        FlatZone flatzone = node->getCNPsByFlatZone().begin()->second;
-        std::cout <<"\nN:" << node->getIndex() << ", level:" << node->getLevel() << ", numFlatzone:" << node->getNumFlatzone() << ", |cnps|:" << node->getNumCNPs() <<  std::endl;
-        adjust.updateTree(maxtree, &flatzone);
-        std::cout << adjust.getOutputLog() << std::endl;   
-        adjust.clearOutputLog();
-        ////atualizacao da mintree
-        NodeFZPtr nodeTmp = mintree->getSC(flatzone.front());
-        nodeTmp->setArea(nodeTmp->getArea() - flatzone.size());
-        mintree->mergeWithParent(&flatzone);
-        /////
+            adjust.updateTree(maxtree, &flatzone);
+            std::cout << adjust.getOutputLog() << std::endl;
+            adjust.clearOutputLog();
+
+            // Atualização da mintree
+            NodeFZPtr nodeTmp = mintree->getSC(flatzone.front());
+            nodeTmp->setArea(nodeTmp->getArea() - flatzone.size());
+            mintree->mergeWithParent(&flatzone);        
+        }    
 
         auto imgOutMaxtree = maxtree->reconstructionImage();
         auto imgOutMintree = mintree->reconstructionImage();

@@ -27,7 +27,7 @@ int main()
     
 
     //int* img = getPassatImage(numRows, numCols);
-    ImageUInt8Ptr img = getPassatImage();
+    ImageUInt8Ptr img = getWonderImage();
     double radioAdj = 1.5;
 
     AdjacencyRelationPtr adj =std::make_shared<AdjacencyRelation>(img->getNumRows(), img->getNumCols(), radioAdj);
@@ -44,7 +44,7 @@ int main()
     //printMappingSC(mintree);
     
     NodeFZPtr N = nullptr;
-    int index = 5;
+    int index = 11;
     for (NodeFZPtr node : mintree->getRoot()->getIteratorBreadthFirstTraversal()) {
         if(node->getIndex() == index){
             N = node;

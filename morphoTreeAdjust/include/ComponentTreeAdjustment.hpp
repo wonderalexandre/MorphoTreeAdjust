@@ -224,7 +224,8 @@ public:
                     nodeSubtree = n; 
                 }
                 // se a subtree tiver level = g(p), então ela entra em F[\lambda]
-                if (nodeSubtree->getLevel() == newGrayLevel) {
+                if ( (nodeSubtree->getLevel() == newGrayLevel) || (nodeTauStar->getNumFlatzone()==1 && nodeSubtree->getParent() && nodeSubtree->getParent()->getIndex() != nodeTauStar->getIndex())) {
+                //if(nodeSubtree->getParent() && nodeSubtree->getParent()->getIndex() != nodeTauStar->getIndex() ){ // caso raro: se o pai de nodeSubtree for diferente de tauL
                     F.addNodesOfPath(nodeSubtree, nodeTauStar); //F_lambda
                 } 
                 else {

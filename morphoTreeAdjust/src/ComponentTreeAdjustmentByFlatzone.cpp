@@ -11,7 +11,6 @@
 
 
 void ComponentTreeAdjustmentByFlatzone::updateTree(ComponentTreeFZPtr tree, FlatZone* flatzone) {
-
     bool isMaxtree = tree->isMaxtree();
     ComponentTreeFZPtr otherTree = getOtherTree(isMaxtree);
 
@@ -57,6 +56,7 @@ void ComponentTreeAdjustmentByFlatzone::updateTree(ComponentTreeFZPtr tree, Flat
             newNode->addCNPsOfDisjointFlatzone(std::move(*flatzoneTauL), tree);
             nodeTauL->addChild(newNode);
             nodeTauL->removeFlatzone(idNode);
+            tree->setNumNodes(tree->getNumNodes() + 1); //TODO: verificar a consistência dos IDs dos nodes
         }
         
         return;
@@ -154,7 +154,7 @@ void ComponentTreeAdjustmentByFlatzone::updateTree(ComponentTreeFZPtr tree, Flat
             
             newRoot->setArea(nodeTauL->getArea());
             newRoot->setParent(nullptr);
-            tree->setRoot(nodeUnion);
+            tree->setRoot(newRoot);
         }
         tree->setNumNodes(tree->getNumNodes() - 1);
         disconnect(nodeTauL, true);

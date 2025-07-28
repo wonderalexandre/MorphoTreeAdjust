@@ -468,13 +468,13 @@ inline void ComponentTreeP::mergeWithParent(FlatZone* flatzone){
 
 template <>
 inline void ComponentTreeFZ::mergeWithParent(FlatZone* fz) {
+    assert(fz != nullptr && "Erro: FlatZone é nulo");
     int idFZ = fz->front();
     NodeFZPtr node = this->pixelToNode[idFZ];
     if (node->getNumFlatzone() == 1) {
         // Caso trivial: apenas um flat zone — usa merge tradicional
         this->mergeWithParent(node);
     } else {
-        node->removeFlatzone(idFZ);
         int idFZRep = flatzoneGraph->findRepresentative(idFZ);
         NodeFZPtr parent = node->getParent();
         for(int pixel: *fz){
@@ -516,6 +516,7 @@ inline void ComponentTreeFZ::mergeWithParent(FlatZone* fz) {
             // Agora registra tudo sob a chave do representante
             cnpsParent[idFZRep] = std::move(*fz);
         }
+        node->removeFlatzone(idFZ);
     }
 }
 
