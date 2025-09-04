@@ -8,110 +8,106 @@
 #include <utility>
 
 
+#include "../../tests/Tests.hpp"
 
 
-void ComponentTreeAdjustmentByFlatzone::updateTree(ComponentTreeFZPtr tree, FlatZone* flatzone) {
+void ComponentTreeAdjustmentByFlatzone::updateTree(ComponentTreeFZPtr tree, int repFZ) {
     bool isMaxtree = tree->isMaxtree();
     ComponentTreeFZPtr otherTree = getOtherTree(isMaxtree);
+    NodeFZ nodeTauL = tree->getSC(repFZ); //node of correspondence flatzone in other treee
+    this->areaFZsRemoved = tree->getFlatZonesGraph()->getNumPixelInFlatzone(repFZ);
 
-    int idNode = flatzone->front(); //pixel (id) of flatzone 
-    NodeFZPtr nodeTauL = tree->getSC(idNode); //node of correspondence flatzone in other treee
+    int newGrayLevel =  otherTree->getSC(repFZ).getParent().getLevel(); //b = g(p)
+    int oldGrayLevel = nodeTauL.getLevel();  // a = f(p)
     
-    int newGrayLevel =  otherTree->getSC(idNode)->getParent()->getLevel(); //b = g(p)
-    int oldGrayLevel = nodeTauL->getLevel();  // a = f(p)
-    
-    
-    int pixelUpperBound = idNode; 
-
-    
-    bool nodeTauCNPsIsEqualL = nodeTauL->getNumFlatzone() == 1;
-    FlatZone* flatzoneTauL = &tree->getFlatzoneByID(idNode); 
+    bool nodeTauCNPsIsEqualL = nodeTauL.getNumFlatzone() == 1;
     if (PRINT_LOG) {
         outputLog << "Updating tree: " << (isMaxtree ? "Maxtree" : "Mintree") << std::endl;
-        outputLog << "\tNode to update: id:" << nodeTauL->getIndex() << ", level: " << nodeTauL->getLevel() 
-                  << ", |cnps|: " << nodeTauL->getNumCNPs() << ", |children|: " << nodeTauL->getChildren().size() 
-                  << ", pixelUpperBound: " << pixelUpperBound 
+        outputLog << "\tNode to update: id:" << nodeTauL.getIndex() << ", level: " << nodeTauL.getLevel() 
+                  << ", |cnps|: " << nodeTauL.getNumCNPs() << ", |children|: " << nodeTauL.getNumChildren() 
                   << ", newGrayLevel: " << newGrayLevel 
                   << ", oldGrayLevel: " << oldGrayLevel 
-                  << ", idFlatzone: " << idNode 
+                  << ", repFZ: " << repFZ 
                   << std::endl;
-        std::cout << outputLog.str() << std::endl;
+        //std::cout << outputLog.str() << std::endl;
     }
-    ComponentTreeAdjustment::buildMergedAndNestedCollections(tree, flatzoneTauL->front(), pixelUpperBound, newGrayLevel, isMaxtree);
-    //ComponentTreeAdjustment::buildMergedAndNestedCollections(tree,  fzIDs, pixelUpperBound, newGrayLevel, isMaxtree);
+    ComponentTreeAdjustment::buildMergedAndNestedCollections(tree, repFZ, newGrayLevel, isMaxtree);
+    int lambda = F.firstLambda(); //inicia com b = newGrayLevel
 
     
-    
-    int lambda = F.firstLambda(); //inicia com b = newGrayLevel
-    if(lambda == -1) { 
-        //se não houver lambdas, não há o que atualizar
-        if(nodeTauL->getNumFlatzone() == 1){
-            nodeTauL->setLevel(newGrayLevel);
-        }else{
-            NodeFZPtr newNode = std::make_shared<NodeFZ>(tree->getNumNodes()+1, nodeTauL, newGrayLevel, newGrayLevel);
-            for(int p: *flatzoneTauL) {
-                tree->setSC(p, newNode);
-            }
-            newNode->setArea(flatzoneTauL->size());
-            newNode->addCNPsOfDisjointFlatzone(std::move(*flatzoneTauL), tree);
-            nodeTauL->addChild(newNode);
-            nodeTauL->removeFlatzone(idNode);
-            tree->setNumNodes(tree->getNumNodes() + 1); //TODO: verificar a consistência dos IDs dos nodes
-        }
+    NodeFZ newNode;
+    if(lambda != newGrayLevel){ //Não tem nenhum nó em F_{\lambda} no nível b, então precisamos criar um novo nó
         
-        return;
+        int threshold1 = (isMaxtree) ? nodeTauL.getLevel()+1 : nodeTauL.getLevel()-1; 
+        newNode = tree->createNode(repFZ, nodeTauL, threshold1, newGrayLevel);
+        newNode.addRepCNPs(repFZ);
+        newNode.setArea(areaFZsRemoved);
+
+        nodeTauL.addChild(newNode);
+        nodeTauL.removeFlatzone(repFZ); 
+
+        //anexa Fb no newNode
+        for (NodeId nodeId : F.getFb()) {
+            newNode.setArea(newNode.getArea() + tree->getAreaById(nodeId)); //atualiza a area do newNode            
+            disconnect(tree, nodeId);
+            tree->addChildById(newNode, nodeId);
+        }
     }
-    NodeFZPtr nodeUnion = nullptr; // tau_{lambda}
-    NodeFZPtr nodeUnionPrevious = nullptr; //maxtree: tau_{\lambda+1}, mintree:  tau_{\lambda-1}
+    
+
+    NodeFZ nodeUnion = newNode; // tau_{lambda}
+    NodeFZ nodeUnionPrevious; //maxtree: tau_{\lambda+1}, mintree:  tau_{\lambda-1}
 
     // Definição da direção do loop
-    while ( (isMaxtree && lambda > oldGrayLevel) || (!isMaxtree && lambda < oldGrayLevel)) {
-        std::vector<NodeFZPtr>& F_lambda = F.getMergedNodes(lambda);
+    while ((lambda!=-1) && ((isMaxtree && lambda > oldGrayLevel) || (!isMaxtree && lambda < oldGrayLevel))) {
+        std::vector<NodeId>& F_lambda = F.getMergedNodes(lambda);
 
-        nodeUnion = F_lambda.front();
-        disconnect(nodeUnion);
-
-        for (NodeFZPtr n : F_lambda) {
-            if (n != nodeUnion) {
-                nodeUnion->addCNPsOfDisjointFlatzones(n->moveCNPsByFlatZone(), tree);
-                mergedParentAndChildren(nodeUnion, n);
-                disconnect(n, true);
-                tree->setNumNodes(tree->getNumNodes() - 1);
+        nodeUnion = tree->proxy(F_lambda.front());
+        disconnect(tree, nodeUnion);
+    
+        for (NodeId nodeId : F_lambda) {
+            if (nodeId != nodeUnion && nodeId != newNode) {
+                nodeUnion.addCNPsOfDisjointFlatzones(tree->getRepCNPsById(nodeId), tree);
+                mergedParentAndChildren(tree, nodeUnion, nodeId);
+                disconnect(tree, nodeId);
+                tree->releaseNode(nodeId);
             }
         }
+        
         if (lambda == newGrayLevel) {
-            int idFlatzoneTauL = flatzoneTauL->front();
-            if(tree->getFlatZonesGraph()->isAdjacent(idFlatzoneTauL, nodeTauL)){
-                nodeUnion->addCNPsToConnectedFlatzone(std::move(*flatzoneTauL), tree); // Os mapeamentos são atualizados
+            if(tree->getFlatZonesGraph()->isAdjacent(repFZ, nodeUnion.getRepCNPs())){
+                nodeUnion.addCNPsToConnectedFlatzone(repFZ, tree); 
             } 
             else {
-                nodeUnion->addCNPsOfDisjointFlatzone(std::move(*flatzoneTauL), tree);
+                nodeUnion.addRepCNPs(repFZ);
             }
-            nodeTauL->removeFlatzone(idFlatzoneTauL);
-            for (NodeFZPtr n : this->Fb) {
-                disconnect(n);
-                nodeUnion->addChild(n);
-                n->setParent(nodeUnion);
-                
+            //disconnect(tree, newNode);
+            //tree->releaseNode(newNode);
+            nodeTauL.removeFlatzone(repFZ); 
+            for (NodeId nodeId : F.getFb()) {
+                disconnect(tree, nodeId);
+                tree->addChildById(nodeUnion, nodeId);
             }
         }
-        if (nodeUnionPrevious != nullptr) {
-            nodeUnionPrevious->setParent(nodeUnion);
-            nodeUnion->addChild(nodeUnionPrevious);
+        if (nodeUnionPrevious) {
+            nodeUnionPrevious.setParent(nodeUnion);
+            nodeUnion.addChild(nodeUnionPrevious);
         }
 
         // Atualiza atributo de área
-        nodeUnion->setArea(nodeUnion->getNumCNPs());
-        for (NodeFZPtr n : nodeUnion->getChildren()) {
-            nodeUnion->setArea(nodeUnion->getArea() + n->getArea());
+        nodeUnion.setArea(nodeUnion.getNumCNPs());
+        for(NodeId nodeId: tree->getChildrenById(nodeUnion)){
+            nodeUnion.setArea(nodeUnion.getArea() + tree->getAreaById(nodeId));
         }
+    
+
         
         if(PRINT_LOG){
             outputLog << "\tnodeUnion = union(F_{" << lambda << "}) = " << 
-                " id:" << nodeUnion->getIndex() << 
-                ", level: " << nodeUnion->getLevel() << 
-                ", |cnps|: " << nodeUnion->getNumCNPs() <<  
-                ", |children|: " << nodeUnion->getChildren().size() << std::endl;
+                " id:" << nodeUnion.getIndex() << 
+                ", level: " << nodeUnion.getLevel() << 
+                ", |cnps|: " << nodeUnion.getNumCNPs() <<  
+                ", |children|: " << nodeUnion.getNumChildren() << std::endl;
         }
 
         nodeUnionPrevious = nodeUnion;
@@ -119,49 +115,47 @@ void ComponentTreeAdjustmentByFlatzone::updateTree(ComponentTreeFZPtr tree, Flat
     }
 
     if (nodeTauCNPsIsEqualL) {
-        NodeFZPtr parentNodeTauL = nodeTauL->getParent();
-        nodeUnion->setParent(parentNodeTauL);
+        NodeFZ parentNodeTauL = nodeTauL.getParent();
+        nodeUnion.setParent(parentNodeTauL);
 
-        if (parentNodeTauL != nullptr) {
-            parentNodeTauL->addChild(nodeUnion);
-            for (NodeFZPtr n : nodeTauL->getChildren()) {
-                if (n != nodeUnion && !nodeUnion->isChild(n)) {
-                    nodeUnion->getChildren().push_back(n);
-                    nodeUnion->setArea(nodeUnion->getArea() + n->getArea());
-                    n->setParent(nodeUnion);
+        if (parentNodeTauL) {
+            parentNodeTauL.addChild(nodeUnion);
+            for(NodeId n: tree->getChildrenById(nodeTauL)){
+                if (n != nodeUnion && !tree->hasChildById(nodeUnion, n)) {
+                    tree->addChildById(nodeUnion, n);
+                    nodeUnion.setArea(nodeUnion.getArea() + tree->getAreaById(n));
                 }
             }
         } 
         else {  // Novo root
-            NodeFZPtr newRoot = nodeUnion;
-            if (!nodeTauL->getChildren().empty()) {
-                for (NodeFZPtr n : nodeTauL->getChildren()) {
-                    if ( (isMaxtree && n->getLevel() < newRoot->getLevel()) || (!isMaxtree && n->getLevel() > newRoot->getLevel())) {
+            NodeId newRoot = nodeUnion;
+            if (nodeTauL.getNumChildren() > 0) {
+                for(NodeId n: tree->getChildrenById(nodeTauL)){
+                    if ( (isMaxtree && tree->getLevelById(n) < tree->getLevelById(newRoot)) || (!isMaxtree && tree->getLevelById(n) > tree->getLevelById(newRoot))) {
                         newRoot = n;
                     }
                 }
                 if (newRoot != nodeUnion) {
-                    newRoot->addChild(nodeUnion);
-                    nodeUnion->setParent(newRoot);
+                    tree->addChildById(newRoot, nodeUnion);
                 }
-                for (NodeFZPtr n : nodeTauL->getChildren()) {
-                    if (n != newRoot && !nodeUnion->isChild(n)) {
-                        newRoot->addChild(n);
-                        n->setParent(newRoot);
+                for(NodeId n: tree->getChildrenById(nodeTauL)){
+                    if (n != newRoot && !tree->hasChildById(nodeUnion, n)) {
+                        tree->addChildById(newRoot, n);
                     }
                 }
+
             }
             
-            newRoot->setArea(nodeTauL->getArea());
-            newRoot->setParent(nullptr);
-            tree->setRoot(newRoot);
+            tree->setAreaById(newRoot, nodeTauL.getArea());
+            tree->setRootById(newRoot);
         }
-        tree->setNumNodes(tree->getNumNodes() - 1);
-        disconnect(nodeTauL, true);
+        //tree->setNumNodes(tree->getNumNodes() - 1);
+        disconnect(tree, nodeTauL);
+        tree->releaseNode(nodeTauL);
     } else {
         if (nodeUnion != nodeTauL) {
-            nodeUnion->setParent(nodeTauL);
-            nodeTauL->addChild(nodeUnion);
+            nodeUnion.setParent(nodeTauL);
+            nodeTauL.addChild(nodeUnion);
         }
 
     }
@@ -169,12 +163,12 @@ void ComponentTreeAdjustmentByFlatzone::updateTree(ComponentTreeFZPtr tree, Flat
 
 
 
-void ComponentTreeAdjustmentByFlatzone::adjustMinTree(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree, FlatZone* flatzone) {
-    updateTree(mintree, flatzone); 
-    maxtree->mergeWithParent(flatzone); 
+void ComponentTreeAdjustmentByFlatzone::adjustMinTree(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree, int repFlatzone) {
+    updateTree(mintree, repFlatzone); 
+    mergeWithParent(maxtree, repFlatzone); 
 }
 
-void ComponentTreeAdjustmentByFlatzone::adjustMaxTree(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree, FlatZone* flatzone) {
-    updateTree(maxtree, flatzone);   
-    mintree->mergeWithParent(flatzone); 
+void ComponentTreeAdjustmentByFlatzone::adjustMaxTree(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree, int repFlatzone) {
+    updateTree(maxtree, repFlatzone);   
+    mergeWithParent(mintree, repFlatzone); 
 }

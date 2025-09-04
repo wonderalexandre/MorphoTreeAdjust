@@ -24,64 +24,81 @@ int main()
 {
 
     std::cout << "Iniciando...\n";
-    
+    bool PRINTS = false;
 
-    //int* img = getPassatImage(numRows, numCols);
-    ImageUInt8Ptr img = getWonderImage();
+    ImageUInt8Ptr img = getCameramanImage();
     double radioAdj = 1.5;
 
     AdjacencyRelationPtr adj =std::make_shared<AdjacencyRelation>(img->getNumRows(), img->getNumCols(), radioAdj);
     std::shared_ptr<FlatZonesGraph> graph = std::make_shared<FlatZonesGraph>(img, adj);
 
-    ComponentTreeFZPtr maxtree = std::make_shared<ComponentTreeFZ>(img, true, adj, graph);
-    ComponentTreeFZPtr mintree = std::make_shared<ComponentTreeFZ>(img, false, adj, graph);
-    
-    testComponentTreeFZ(maxtree, "max-tree", img);
-    testComponentTreeFZ(mintree, "min-tree", img);
-
+    ComponentTreeFZPtr maxtree = std::make_shared<ComponentTreeFZ>(graph, true);
+    ComponentTreeFZPtr mintree = std::make_shared<ComponentTreeFZ>(graph, false);
+    if(PRINTS){
+        printImage(img);
+        testComponentTreeFZ(maxtree, "max-tree", img);
+        testComponentTreeFZ(mintree, "min-tree", img);
+    }
     //printMappingSC(maxtree);
     //std::cout <<"\n\n" << std::endl;
     //printMappingSC(mintree);
-    
-    NodeFZPtr N = nullptr;
-    int index = 11;
-    for (NodeFZPtr node : mintree->getRoot()->getIteratorBreadthFirstTraversal()) {
-        if(node->getIndex() == index){
-            N = node;
-            break;
-        }
-    }    
-    
+
 
     ComponentTreeAdjustmentByAnyNode adjust(mintree, maxtree);
-     
+    for (int rep: graph->getFlatzoneRepresentatives()){
+        NodeFZ node = mintree->getSC(rep);
+        if(node == mintree->getRoot()){//} || node.getIndex() != 6){
+            continue;
+        }
+        if(PRINTS){
+            std::cout << "\n\nImprimindo as árvores antes do ajuste:\n\n";
+            std::cout << "Max-tree:\n";
+            printTree(maxtree->getRoot());
+            std::cout << "Min-tree:\n";
+            printTree(mintree->getRoot());
+            
+            printConnectedComponent(maxtree->getSC(rep), maxtree);
+            std::cout << "\nN:" << node.getIndex()
+                        << ", level:" << node.getLevel()
+                        << ", numFlatzone:" << node.getNumFlatzone()
+                        << ", |cnps|:" << node.getNumCNPs()
+                        << std::endl;
+            printConnectedComponent(node, mintree);
 
-    //for(int i=0; i < numNodes; i++){
-    //    NodeCT* L_leaf = mintree->getLeaves().front();
-       // if(L_leaf->getIndex() != 293) continue;
-    //for(NodeFZPtr L_leaf : mintree->getRoot()->getIteratorPostOrderTraversal()){
+            std::cout << "Max-tree:\n";
+            printTree(maxtree->getRoot());
+            std::cout << "Min-tree:\n";
+            printTree(mintree->getRoot());
+        }
+
+        adjust.updateTree(maxtree, node);
+        adjust.mergeWithParent(mintree, node);
         
-        std::cout <<"\nN:" << N->getIndex() << ", level:" << N->getLevel() << ", |cnps|:" << N->getNumCNPs() <<  std::endl;
-        adjust.updateTree(maxtree, N);
-        std::cout << adjust.getOutputLog() << std::endl;   
-        mintree->mergeWithParent(N);
-
         auto imgOutMaxtree = maxtree->reconstructionImage();
         auto imgOutMintree = mintree->reconstructionImage();
-        
-        testComponentTreeFZ(maxtree, "max-tree", imgOutMaxtree);
-        testComponentTreeFZ(mintree, "min-tree", imgOutMintree);
-        if(imgOutMaxtree->isEqual(imgOutMintree))
+        if(PRINTS){
+            testComponentTreeFZ(maxtree, "max-tree", imgOutMaxtree);
+            testComponentTreeFZ(mintree, "min-tree", imgOutMintree);
+        }
+        if(imgOutMaxtree->isEqual(imgOutMintree)){
             std::cout <<"\n✅ Rec(maxtree) = Rec(mintree)" << std::endl;
-        else
+        }
+        else{
             std::cout <<"\n❌ Rec(maxtree) != Rec(mintree)" << std::endl;
+            //checkRepresentatives(maxtree, graph);
+            //checkRepresentatives(mintree, graph);
+            printImage(imgOutMaxtree);
+            printImage(imgOutMintree);
+            std::cout << "Max-tree:\n";
+            printTree(maxtree->getRoot());
+            std::cout << "Min-tree:\n";
+            printTree(mintree->getRoot());
+
+            break;
+        }
 
     
-    //}
-    std::cout <<"\n\nApos mudancas\n" << std::endl;
-    printImage(imgOutMaxtree);
-    std::cout <<"\n\n" << std::endl;
-    printImage(imgOutMintree);
+    }
     
 	std::cout << "\n\nFim do teste...\n\n";
     

@@ -9,11 +9,12 @@ AdjacencyRelation::AdjacencyRelation(int numRows, int numCols, double radius){
     this->numRows = numRows;
     this->numCols = numCols;
 	this->radius = radius;
+	this->radius2 = radius * radius;
 
     int i, j, k, dx, dy, r0, r2, i0 = 0;
     this->n = 0;
     r0 = (int) radius;
-    r2 = (int) (radius * radius);
+    r2 = (int) radius2;
 	for (dy = -r0; dy <= r0; dy++)
 		for (dx = -r0; dx <= r0; dx++)
 			if (((dx * dx) + (dy * dy)) <= r2)
@@ -35,9 +36,9 @@ AdjacencyRelation::AdjacencyRelation(int numRows, int numCols, double radius){
 		}
 	}
 		
-	double aux;
-	std::unique_ptr<double[]> da(new double[n]);
-	std::unique_ptr<double[]> dr(new double[n]);
+	float aux;
+	std::vector<float> da(n);
+	std::vector<float> dr(n);
 	
 	/* Set clockwise */
 	for (i = 0; i < n; i++) {
@@ -116,6 +117,14 @@ AdjacencyRelation::AdjacencyRelation(int numRows, int numCols, double radius){
 			
 	}
 
+    // máscara forward: 1, se (dy>0) || (dy==0 && dx>0); caso contrario é 0
+    forwardMask.resize(n, 0);
+    for (int k = 1; k < n; ++k) {
+        int dx = offsetCol[k], dy = offsetRow[k];
+        forwardMask[k] = (dy > 0 || (dy == 0 && dx > 0)) ? 1 : 0;
+    }
+    forwardMask[0] = 0;
+
     
 }
 
@@ -127,30 +136,43 @@ double AdjacencyRelation::getRadius(){
 	return this->radius;
 }
 
+/*
 bool AdjacencyRelation::isAdjacent(int px, int py, int qx, int qy) {
 	double distance = std::sqrt(std::pow(px - qx, 2) + std::pow(py - qy, 2));
     return (distance <= radius);
 }
+*/
+inline bool AdjacencyRelation::isAdjacent(int px, int py, int qx, int qy) const noexcept {
+    int dx = px - qx;
+    int dy = py - qy;
+    return double(dx)*dx + double(dy)*dy <= radius2;
+}
 
-bool AdjacencyRelation::isAdjacent(int p, int q) {
+inline bool AdjacencyRelation::isAdjacent(int p, int q) const noexcept {
     int py = p / numCols, px = p % numCols;
     int qy = q / numCols, qx = q % numCols;
 
     return isAdjacent(px, py, qx, qy);
 }
 
-int AdjacencyRelation::nextValid() {
-    this->id += 1;
-    while (this->id < this->n) {
-        int newRow = this->row + this->offsetRow[this->id];
-        int newCol = this->col + this->offsetCol[this->id];
 
-        if (newRow >= 0 && newRow < this->numRows && newCol >= 0 && newCol < this->numCols) {
-            return this->id;
+int AdjacencyRelation::nextValid() {
+    id += 1;
+    while (id < n) {
+
+        // checa "forward" se necessário
+        if (forwardOnly && !forwardMask[id]) { id += 1; continue; }
+
+        // coordenadas do vizinho
+        const int newRow = row + offsetRow[id];
+        const int newCol = col + offsetCol[id];
+
+        if (newRow >= 0 && newRow < numRows && newCol >= 0 && newCol < numCols) {
+            return id;
         }
-        this->id += 1;
+        id += 1;
     }
-    return this->n;
+    return n;
 }
 
 AdjacencyRelation::IteratorAdjacency AdjacencyRelation::begin() { 
@@ -168,9 +190,43 @@ AdjacencyRelation& AdjacencyRelation::getAdjPixels(int row, int col){
     this->row = row;
     this->col = col;
     this->id = -1;
+	this->forwardOnly = false;
+
     return *this;
 }
 
 AdjacencyRelation& AdjacencyRelation::getAdjPixels(int indexVector){
     return getAdjPixels(indexVector / this->numCols, indexVector % this->numCols);
 }
+
+AdjacencyRelation& AdjacencyRelation::getNeighborPixels(int row, int col){
+	if (row < 0 || row >= this->numRows || col < 0 || col >= this->numCols) {
+        throw std::out_of_range("Índice fora dos limites.");
+    }
+    this->row = row;
+    this->col = col;
+    this->id = 0;
+	this->forwardOnly = false;
+    return *this;
+}
+
+AdjacencyRelation& AdjacencyRelation::getNeighborPixels(int indexVector){
+    return getNeighborPixels(indexVector / this->numCols, indexVector % this->numCols);
+}
+
+AdjacencyRelation& AdjacencyRelation::getNeighborPixelsForward(int row, int col){
+	if (row < 0 || row >= this->numRows || col < 0 || col >= this->numCols) {
+        throw std::out_of_range("Índice fora dos limites.");
+    }
+    this->row = row;
+    this->col = col;
+    this->id = 0;
+	this->forwardOnly = true;
+    return *this;
+
+}
+
+AdjacencyRelation& AdjacencyRelation::getNeighborPixelsForward(int indexVector){
+	return getNeighborPixelsForward(indexVector / this->numCols, indexVector % this->numCols);
+}
+

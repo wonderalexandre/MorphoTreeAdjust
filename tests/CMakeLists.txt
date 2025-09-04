@@ -27,10 +27,15 @@ message(STATUS "C++ Standard: C++${CMAKE_CXX_STANDARD}")
 include_directories(
   "${CMAKE_CURRENT_SOURCE_DIR}/morphoTreeAdjust/src"
   "${CMAKE_CURRENT_SOURCE_DIR}/morphoTreeAdjust/include"
-  "${CMAKE_CURRENT_SOURCE_DIR}/tests/external/stb"
+  "${CMAKE_CURRENT_SOURCE_DIR}/external/stb"
   "${CMAKE_CURRENT_SOURCE_DIR}/tests"
   )
 
+# Desabilitando warnings desnecessários do STB
+set_source_files_properties(
+  ${CMAKE_CURRENT_SOURCE_DIR}/external/stb/stb_image.cpp
+  PROPERTIES COMPILE_OPTIONS "-Wno-deprecated-declarations;-Wno-missing-field-initializers"
+)
 
 add_executable(dgmm2025 dgmm2025.cpp
     ../morphoTreeAdjust/src/AdjacencyRelation.cpp
@@ -38,7 +43,6 @@ add_executable(dgmm2025 dgmm2025.cpp
     ../morphoTreeAdjust/src/ComponentTreeAdjustmentBySubtree.cpp
     ./external/stb/stb_image.cpp
 )
-target_compile_options(dgmm2025 PRIVATE -Wno-deprecated-declarations)
 
 add_executable(jmiv2025 jmiv2025.cpp
     ../morphoTreeAdjust/src/AdjacencyRelation.cpp
@@ -46,7 +50,6 @@ add_executable(jmiv2025 jmiv2025.cpp
     ../morphoTreeAdjust/src/ComponentTreeAdjustmentBySubtree.cpp
     ./external/stb/stb_image.cpp
 )
-target_compile_options(jmiv2025 PRIVATE -Wno-deprecated-declarations)
 
 add_executable(testePruningLeaf testePruningLeaf.cpp
     ../morphoTreeAdjust/src/AdjacencyRelation.cpp
@@ -64,12 +67,14 @@ add_executable(testePruningSubtree testePruningSubtree.cpp
     ../morphoTreeAdjust/src/ComponentTreeAdjustmentBySubtree.cpp
 )
 
-add_executable(testeRemovingAnyNode testeRemovingAnyNode.cpp
-    ../morphoTreeAdjust/src/AdjacencyRelation.cpp
-    ../morphoTreeAdjust/src/ComponentTreeAdjustmentByAnyNode.cpp
-)
 
 add_executable(testeRemovingFlatzone testeRemovingFlatzone.cpp
     ../morphoTreeAdjust/src/AdjacencyRelation.cpp
     ../morphoTreeAdjust/src/ComponentTreeAdjustmentByFlatzone.cpp
+)
+
+add_executable(testeRemovingAnyNode testeRemovingAnyNode.cpp
+    ../morphoTreeAdjust/src/AdjacencyRelation.cpp
+    ../morphoTreeAdjust/src/ComponentTreeAdjustmentByFlatzone.cpp
+    ../morphoTreeAdjust/src/ComponentTreeAdjustmentByAnyNode.cpp
 )

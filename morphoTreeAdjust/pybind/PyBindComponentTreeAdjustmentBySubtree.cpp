@@ -2,36 +2,34 @@
 
 
 
-void PyBindComponentTreeAdjustmentBySubtree::updateTree(PyBindComponentTreeFZPtr tree, NodeFZPtr nodeSubtree) {
+void PyBindComponentTreeAdjustmentBySubtree::updateTree(PyBindComponentTreeFZPtr tree, NodeFZ nodeSubtree) {
    ComponentTreeAdjustmentBySubtree::updateTree(tree, nodeSubtree);
 }
 
-py::tuple PyBindComponentTreeAdjustmentBySubtree::buildCollections(PyBindComponentTreeFZPtr tree, NodeFZPtr rootSubtree, int newGrayLevel) { 
-    
+py::tuple PyBindComponentTreeAdjustmentBySubtree::buildCollections(PyBindComponentTreeFZPtr tree, NodeFZ rootSubtree, int newGrayLevel) { 
     ComponentTreeFZPtr otherTree = tree->isMaxtree()? this->mintree : this->maxtree;
-
     bool isMaxtree = tree->isMaxtree();
     
-    unionNodeTauSubtree.resetCollections(isMaxtree);
-    for (NodeFZPtr nSubtree : rootSubtree->getIteratorBreadthFirstTraversal()) {
-        for(auto& [idFlatZoneNSubtree, fzSubtree]: nSubtree->getCNPsByFlatZone()){    
-            NodeFZPtr nodeTau = tree->getSC(idFlatZoneNSubtree);
-            FlatZone& fzTau = nodeTau->getFlatZone(idFlatZoneNSubtree); //tree->getFlatzoneByID(idFlatZoneNSubtree);
-            unionNodeTauSubtree.addNode(nodeTau, fzTau); //, fzSubtree.size() == fzTau.size()  
+    properPartsCollector.resetCollections(isMaxtree);
+    for (auto nSubtree : rootSubtree.getIteratorBreadthFirstTraversal()) {
+        for(int repFZ : nSubtree.getRepCNPs()) {   
+            properPartsCollector.addNode(tree, tree->getSC(repFZ), repFZ);
         }
     }
-    int pixelUpperBound = unionNodeTauSubtree.getFlatzoneIDTauStar();
+    int pixelUpperBound = properPartsCollector.getRepFZTauStar();
     
-    ComponentTreeAdjustmentBySubtree::buildMergedAndNestedCollections(tree,  unionNodeTauSubtree.getFlatzonesID(), pixelUpperBound, newGrayLevel, isMaxtree);
+    ComponentTreeAdjustmentBySubtree::buildMergedAndNestedCollections(tree,  properPartsCollector.getRepsFZ(), pixelUpperBound, newGrayLevel, isMaxtree);
     
-    std::array<std::vector<NodeFZPtr>, 256>& collectionF = this->F.getCollectionF();
-    std::map<int, std::vector<NodeFZPtr>> mapCollectionF;
+    auto &collectionF = this->F.getCollectionF();
+    std::map<int, std::vector<NodeFZ>> mapCollectionF;
     for (int i = 0; i < 256; ++i) {
         if (!collectionF[i].empty()) {
-            std::vector<NodeFZPtr> nodes = collectionF[i];
-            mapCollectionF[i] = nodes;
+            std::vector<NodeFZ> nodes;
+            nodes.reserve(collectionF[i].size());
+            for (NodeId nid : collectionF[i]) nodes.push_back(tree->proxy(nid));
+            mapCollectionF[i] = std::move(nodes);
         }
     }
 
-    return py::make_tuple(mapCollectionF, this->Fb);
+    return py::make_tuple(mapCollectionF, this->F.getFb());
 }

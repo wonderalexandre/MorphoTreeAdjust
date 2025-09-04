@@ -2,27 +2,29 @@
 
 
 
-void PyBindComponentTreeAdjustmentByLeaf::updateTree(PyBindComponentTreeFZPtr tree, NodeFZPtr L_leaf) {
+void PyBindComponentTreeAdjustmentByLeaf::updateTree(PyBindComponentTreeFZPtr tree, NodeFZ L_leaf) {
    ComponentTreeAdjustmentByLeaf::updateTree(tree, L_leaf);
 }
 
-py::tuple PyBindComponentTreeAdjustmentByLeaf::buildCollections(PyBindComponentTreeFZPtr tree, NodeFZPtr leaf, int newGrayLevel) { 
+py::tuple PyBindComponentTreeAdjustmentByLeaf::buildCollections(PyBindComponentTreeFZPtr tree, NodeFZ leaf, int newGrayLevel) { 
+    // representante (pixel) da flat-zone associada à folha
+    int idLeaf = leaf.getRepCNPs().empty() ? -1 : leaf.getRepCNPs().front();
+    if (idLeaf < 0) {
+        return py::make_tuple(std::map<int, std::vector<NodeFZ>>{}, std::vector<NodeId>{});
+    }
+    (void)tree->getSC(idLeaf); // força validação do SC (não utilizado aqui diretamente)
+    ComponentTreeAdjustmentByLeaf::buildMergedAndNestedCollections(tree, idLeaf, newGrayLevel, tree->isMaxtree());
 
-    int idLeaf = leaf->getCNPsByFlatZone().begin()->second.front(); //pixel (id) of flatzone 
-    int pixelUpperBound = idLeaf; 
-    NodeFZPtr nodeTauL = tree->getSC(idLeaf); //node of correspondence flatzone in other treee
-    FlatZone* flatzoneTauL = &tree->getFlatzoneByID(idLeaf); 
-    
-    ComponentTreeAdjustmentByLeaf::buildMergedAndNestedCollections(tree, flatzoneTauL->front(), pixelUpperBound, newGrayLevel, tree->isMaxtree());
-
-    std::array<std::vector<NodeFZPtr>, 256>& collectionF = this->F.getCollectionF();
-    std::map<int, std::vector<NodeFZPtr>> mapCollectionF;
+    auto &collectionF = this->F.getCollectionF();
+    std::map<int, std::vector<NodeFZ>> mapCollectionF;
     for (int i = 0; i < 256; ++i) {
         if (!collectionF[i].empty()) {
-            std::vector<NodeFZPtr> nodes = collectionF[i];
-            mapCollectionF[i] = nodes;
+            std::vector<NodeFZ> nodes;
+            nodes.reserve(collectionF[i].size());
+            for (NodeId nid : collectionF[i]) nodes.push_back(tree->proxy(nid));
+            mapCollectionF[i] = std::move(nodes);
         }
     }
 
-    return py::make_tuple(mapCollectionF, this->Fb);
+    return py::make_tuple(mapCollectionF, this->F.getFb());
 }
