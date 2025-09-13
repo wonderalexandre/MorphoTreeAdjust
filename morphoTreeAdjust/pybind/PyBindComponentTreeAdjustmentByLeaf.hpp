@@ -26,9 +26,9 @@ public:
         : ComponentTreeAdjustmentByLeaf(maxtree, mintree) {} 
 
    using ComponentTreeAdjustmentByLeaf::updateTree;
-   void updateTree(PyBindComponentTreeFZPtr tree, NodeFZPtr L_leaf);
+   void updateTree(PyBindComponentTreeFZPtr tree, NodeFZ L_leaf);
 
-   py::tuple buildCollections(PyBindComponentTreeFZPtr tree, NodeFZPtr leaf, int newGrayLevel);
+   py::tuple buildCollections(PyBindComponentTreeFZPtr tree, NodeFZ leaf, int newGrayLevel);
 
 };
 

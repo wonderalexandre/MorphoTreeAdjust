@@ -8,128 +8,97 @@
 #include <utility>
 
 
-
-void ComponentTreeAdjustmentBySubtree::buildMergedAndNestedCollections(ComponentTreeFZPtr tree, std::vector<int>& flatZonesID,  int pixelUpperBound, int newGrayLevel, bool isMaxtree){
-	Fb.clear();
-	F.resetCollection(isMaxtree);
-    F.computerAdjacentNodes(tree, flatZonesID);
-    NodeFZPtr nodeTauStar = tree->getSC(pixelUpperBound); //pixel de tauStar ou tauL, para termos o node (limite) mais proximo de root
-
-    for (NodeFZPtr nodeNL: F.getAdjacentNodes()) {
-	    if( (isMaxtree && nodeNL->getLevel() <= newGrayLevel) || (!isMaxtree &&  nodeNL->getLevel() >= newGrayLevel)) { //o nodeNL está entre g(p) e f(p)
-		    F.addNodesOfPath(nodeNL, nodeTauStar); 
-	    } 
-	    else { 
-            //o nodeNL está abaixo de g(p). É armazenado somente a raiz da subtree antes de atingir o nivel g(p)
-	        NodeFZPtr nodeSubtree = nodeNL;
-            for (NodeFZPtr n : nodeNL->getNodesOfPathToRoot()) {
-                if ( (isMaxtree && newGrayLevel > n->getLevel()) || (!isMaxtree && newGrayLevel < n->getLevel())) {
-                    break;
-                }
-                nodeSubtree = n; 
-            }
-	        // se a subtree tiver level = g(p), então ela entra em F[\lambda]
-            if (nodeSubtree->getLevel() == newGrayLevel) {
-                F.addNodesOfPath(nodeSubtree, nodeTauStar); //F_lambda
-            } 
-            else {
-                Fb.insert(nodeSubtree); //F_{lambda} > b
-            }
-	    }
-        
-	}
-}
-
-
-void ComponentTreeAdjustmentBySubtree::updateTree(ComponentTreeFZPtr tree, NodeFZPtr rootSubtree) {
-    assert(rootSubtree != nullptr && "rootSubtree is nullptr"); 
+void ComponentTreeAdjustmentBySubtree::updateTree(ComponentTreeFZPtr tree, NodeFZ rootSubtree) {
+    assert(rootSubtree && "rootSubtree is invalid"); 
     ComponentTreeFZPtr otherTree = tree->isMaxtree()? this->mintree : this->maxtree;
-
-    bool isMaxtree = tree->isMaxtree();
-    int newGrayLevel = rootSubtree->getParent()->getLevel();  // g(p)
     
-    unionNodeTauSubtree.resetCollections(isMaxtree);
-    for (NodeFZPtr nSubtree : rootSubtree->getIteratorBreadthFirstTraversal()) {
-        for(auto& [idFlatZoneNSubtree, fzSubtree]: nSubtree->getCNPsByFlatZone()){    
-            NodeFZPtr nodeTau = tree->getSC(idFlatZoneNSubtree);
-            FlatZone& fzTau = nodeTau->getFlatZone(idFlatZoneNSubtree); //tree->getFlatzoneByID(idFlatZoneNSubtree);
-            unionNodeTauSubtree.addNode(nodeTau, fzTau); //, fzSubtree.size() == fzTau.size()  
+    this->areaFZsRemoved = rootSubtree.getArea();
+    bool isMaxtree = tree->isMaxtree();
+    int newGrayLevel = rootSubtree.getParent().getLevel();  // g(p)
+    
+    properPartsCollector.resetCollections(isMaxtree);
+    
+    for (NodeId nSubtree : otherTree->getIteratorBreadthFirstTraversalById(rootSubtree)) {
+        for(int repFZ : otherTree->getRepCNPsById(nSubtree)) {
+            properPartsCollector.addNode(tree, tree->getSCById(repFZ), repFZ); 
         }
     }
-    NodeFZPtr nodeTauStar = unionNodeTauSubtree.getNodeTauStar();
-    int pixelUpperBound = unionNodeTauSubtree.getFlatzoneIDTauStar();
-    int grayTauStar = nodeTauStar->getLevel();  // f(pixelUpperBound)
+    
+    NodeFZ nodeTauStar = tree->proxy(properPartsCollector.getNodeTauStar());
+    int pixelUpperBound = properPartsCollector.getRepFZTauStar();
+    int grayTauStar = nodeTauStar.getLevel();  // f(pixelUpperBound)
     if(PRINT_LOG){
         outputLog.clear();
-        outputLog << "Area(rSubtree)= " << rootSubtree->getArea() << ", level(rSubtree)= " << rootSubtree->getLevel() << ", level(parent(rSubtree))= " << rootSubtree->getParent()->getLevel() << std::endl;
+        outputLog << "Area(rSubtree)= " << rootSubtree.getArea() << ", level(rSubtree)= " << rootSubtree.getLevel() << ", level(parent(rSubtree))= " << rootSubtree.getParent().getLevel() << std::endl;
         outputLog << "newGrayLevel: " << newGrayLevel  << std::endl; //g(p)
-        outputLog << "unionNodes (Tau_S): [";
+        outputLog << "Proper parts: (Tau_S): [";
         bool flagPrint = false;
-        for(int fzTauID: unionNodeTauSubtree.getFlatzonesID()){
-            NodeFZPtr nodeTau = tree->getSC(fzTauID);
+        for(int repFZTau: properPartsCollector.getRepsFZ()){
+            NodeFZ nodeTau = tree->getSC(repFZTau);
             if(flagPrint){
                 outputLog << "\t";
             }
             flagPrint = true;
-            outputLog << "\t(id:" << nodeTau->getIndex() << ", level:" << nodeTau->getLevel() << ", |cnps|:"<< nodeTau->getNumCNPs() << ", idFZ:" << fzTauID << "), \n";
+            outputLog << "\t(id:" << nodeTau.getIndex() << ", level:" << nodeTau.getLevel() << ", |cnps|:"<< nodeTau.getNumCNPs() << ", repFZ:" << repFZTau << "), \n";
         }
         outputLog << "]"<< std::endl;
         if(tree->isMaxtree())
             outputLog << "Intervalo: [" << grayTauStar << ", " << newGrayLevel << "]" << std::endl;
         else
             outputLog << "Intervalo: [" << newGrayLevel << ", " << grayTauStar << "]" << std::endl;
-        outputLog << "nodeTauStar: Id:" << nodeTauStar->getIndex() << "; level:" << nodeTauStar->getLevel() <<"; |cnps|:" << nodeTauStar->getNumCNPs() << std::endl;
+        outputLog << "nodeTauStar: Id:" << nodeTauStar.getIndex() << "; level:" << nodeTauStar.getLevel() <<"; |cnps|:" << nodeTauStar.getNumCNPs() << std::endl;
     }    
 
 
     
-    this->buildMergedAndNestedCollections(tree,  unionNodeTauSubtree.getFlatzonesID(), pixelUpperBound, newGrayLevel, isMaxtree);
+    ComponentTreeAdjustment::buildMergedAndNestedCollections(tree,  properPartsCollector.getRepsFZ(), pixelUpperBound, newGrayLevel, isMaxtree);
 
     if(PRINT_LOG){
         outputLog << "F_λ = { ";
         for(int lambda=newGrayLevel; lambda != grayTauStar; ){
-            std::vector<NodeFZPtr>& F_lambda = F.getMergedNodes(lambda);
+            std::vector<NodeId>& F_lambda = F.getMergedNodes(lambda);
             if(!F_lambda.empty()){
                 outputLog << lambda << ":[ ";
-                for(NodeFZPtr node: F_lambda){
-                    outputLog << "Id:" << node->getIndex() << " ";
+                for(NodeId node: F_lambda){
+                    outputLog << "Id:" << node << " ";
                 }
                 outputLog << "] ";
             }
             if(tree->isMaxtree()) lambda--; else lambda++;       
         }
         outputLog << "}\nF_{λ>b} = {";
-        for (NodeFZPtr node : Fb) {
-            outputLog << " Id:" << node->getIndex() << " ";
+        for (NodeId node : F.getFb()) {
+            outputLog << " Id:" << node << " ";
         }
         outputLog << "}\n" << std::endl;
+        
     }    
 
 
     // Ordenação dos lambdas (crescente para Min-Tree, decrescente para Max-Tree)
     int lambda = F.firstLambda();
-    NodeFZPtr nodeUnion = nullptr;
-    NodeFZPtr nodeUnionPrevious = nullptr;
-    NodeFZPtr nodeTauParentSubtree = nullptr;
+    NodeFZ nodeUnion;
+    NodeFZ nodeUnionPrevious;
+    NodeFZ nodeTauParentSubtree;
     
     // Definição da direção do loop
     while ((isMaxtree && lambda > grayTauStar) || (!isMaxtree && lambda < grayTauStar)) {
-        std::vector<NodeFZPtr>& F_lambda = F.getMergedNodes(lambda);
+        std::vector<NodeId>& F_lambda = F.getMergedNodes(lambda);
         
         // Encontrar um nodeUnion que NÃO esteja em nodesToBeRemoved
-        nodeUnion = nullptr;
-        for (NodeFZPtr node : F_lambda) {
-            if (!unionNodeTauSubtree.isRemoved(node)) { 
-                nodeUnion = node;
+        nodeUnion = NodeFZ();
+        for (NodeId nodeId : F_lambda) {
+            if (!properPartsCollector.isRemoved(nodeId)) { 
+                nodeUnion = tree->proxy(nodeId);;
                 break; 
             }
         }
         // Se não encontrou nenhum node válido, continua para a próxima iteração
         if (!nodeUnion) {
-            for (NodeFZPtr node : F_lambda) {
-                mergedParentAndChildren(node->getParent(), node);
-                disconnect(node, true);
-                tree->setNumNodes(tree->getNumNodes() - 1);
+            for (NodeId nodeId : F_lambda) {
+                mergedParentAndChildren(tree, tree->getParentById(nodeId), nodeId);
+                disconnect(tree, nodeId, true);
+                //tree->releaseNode(nodeId);
             }
             lambda = F.nextLambda();  
             nodeUnion = nodeUnionPrevious;
@@ -137,53 +106,51 @@ void ComponentTreeAdjustmentBySubtree::updateTree(ComponentTreeFZPtr tree, NodeF
         }
         if(PRINT_LOG){
             outputLog << "F_{" << lambda << "} = \n";
-            outputLog << "\t(Id:" << nodeUnion->getIndex() << "; level:" << nodeUnion->getLevel() <<"; |cnps|:" << nodeUnion->getNumCNPs() << ") " << std::endl;
+            outputLog << "\t(Id:" << nodeUnion.getIndex() << "; level:" << nodeUnion.getLevel() <<"; |cnps|:" << nodeUnion.getNumCNPs() << ") " << std::endl;
         }
 
-        disconnect(nodeUnion);
+        disconnect(tree, nodeUnion, false);
 
-        for (NodeFZPtr n : F_lambda) {
-            
-            if (n != nodeUnion) {
+        for (NodeId nodeId : F_lambda) {
+            if (nodeId != nodeUnion) {
                 if(PRINT_LOG){
-                    outputLog << "\t(Id:" << n->getIndex() << "; level:" << n->getLevel() <<"; |cnps|:" << n->getNumCNPs() << ") " << std::endl;
+                    outputLog << "\t(Id:" << nodeId << "; level:" << tree->getLevelById(nodeId) <<"; |cnps|:" << tree->getNumCNPsById(nodeId) << ") " << std::endl;
                 }
 
-                if(!unionNodeTauSubtree.isRemoved(n)){ //node não foi removido
-                    nodeUnion->addCNPsOfDisjointFlatzones(n->moveCNPsByFlatZone(), tree);    
+                if(!properPartsCollector.isRemoved(nodeId)){ //node não foi removido
+                    nodeUnion.addCNPsOfDisjointFlatzones(tree->getRepCNPsById(nodeId), tree);    
                 }else{
                     if(PRINT_LOG)
                         outputLog << "\t\twas removed" << std::endl;
                 }
                     
-                mergedParentAndChildren(nodeUnion, n);
-                disconnect(n, true);
-                tree->setNumNodes(tree->getNumNodes() - 1);
+                mergedParentAndChildren(tree, nodeUnion, nodeId);
+                disconnect(tree, nodeId, true);
+                //tree->releaseNode(nodeId);
             }
         }
         if (lambda == newGrayLevel) {
-            unionNodeTauSubtree.addCNPsToConnectedFlatzone(nodeUnion, tree); // Os mapeamentos são atualizados
+            properPartsCollector.addCNPsToConnectedFlatzone(nodeUnion, tree); // Os mapeamentos são atualizados
             
             if(PRINT_LOG){
-                outputLog << "\t\tAfter add CNPs of S: (Id:" << nodeUnion->getIndex() << "; level:" << nodeUnion->getLevel() <<"; |cnps|:" << nodeUnion->getNumCNPs() << ") " << std::endl;
+                outputLog << "\t\tAfter add CNPs of S: (Id:" << nodeUnion.getIndex() << "; level:" << nodeUnion.getLevel() <<"; |cnps|:" << nodeUnion.getNumCNPs() << ") " << std::endl;
             }
-            for (NodeFZPtr n : Fb) {
-                disconnect(n);
-                nodeUnion->addChild(n);
-                n->setParent(nodeUnion);
+            for (NodeId nodeId : F.getFb()) {
+                disconnect(tree, nodeId, false);
+                tree->addChildById(nodeUnion, nodeId);
             }
             nodeTauParentSubtree = nodeUnion;
             
             if(PRINT_LOG){
-                auto nodesToBeRemoved = unionNodeTauSubtree.getNodesToBeRemoved(); 
+                auto nodesToBeRemoved = properPartsCollector.getNodesToBeRemoved(); 
                 if(!nodesToBeRemoved.empty()){
                     outputLog << "\tNodes to be removed from tree: ";
-                    for(NodeFZPtr node: nodesToBeRemoved){
+                    for(NodeId nodeId: nodesToBeRemoved){
                         outputLog << 
-                            "(id:" << node->getIndex() << 
-                            ", level: " << node->getLevel() << 
-                            ", |cnps|: " << node->getNumCNPs() <<  
-                            ", |children|: " << node->getChildren().size() << "), ";
+                            "(id:" << nodeId << 
+                            ", level: " << tree->getLevelById(nodeId) << 
+                            ", |cnps|: " << tree->getNumCNPsById(nodeId) <<  
+                            ", |children|: " << tree->getNumChildrenById(nodeId) << "), ";
                     }
                     outputLog << std::endl;
                 }
@@ -191,90 +158,93 @@ void ComponentTreeAdjustmentBySubtree::updateTree(ComponentTreeFZPtr tree, NodeF
         }
 
         
-        if (nodeUnionPrevious != nullptr) {
-            nodeUnionPrevious->setParent(nodeUnion);
-            nodeUnion->addChild(nodeUnionPrevious);
+        if (nodeUnionPrevious) {
+            nodeUnionPrevious.setParent(nodeUnion);
+            nodeUnion.addChild(nodeUnionPrevious);
         }
 
         // Atualiza atributo de área
-        nodeUnion->setArea(nodeUnion->getNumCNPs());
-        for (NodeFZPtr n : nodeUnion->getChildren()) {
-            nodeUnion->setArea(nodeUnion->getArea() + n->getArea());
+        nodeUnion.setArea(nodeUnion.getNumCNPs());
+        for(NodeId nodeId: tree->getChildrenById(nodeUnion)){
+            nodeUnion.setArea(nodeUnion.getArea() + tree->getAreaById(nodeId));
         }
         if(PRINT_LOG)
             outputLog << "\tnodeUnion = union(F_{" << lambda << "}) = " << 
-                " id:" << nodeUnion->getIndex() << 
-                ", level: " << nodeUnion->getLevel() << 
-                ", |cnps|: " << nodeUnion->getNumCNPs() <<  
-                ", |children|: " << nodeUnion->getChildren().size() << std::endl;
+                " id:" << nodeUnion.getIndex() << 
+                ", level: " << nodeUnion.getLevel() << 
+                ", |cnps|: " << nodeUnion.getNumCNPs() <<  
+                ", |children|: " << nodeUnion.getNumChildren() << std::endl;
             
         nodeUnionPrevious = nodeUnion;
         lambda = F.nextLambda();  
     }
     
 
-    if (unionNodeTauSubtree.isRemoved(nodeTauStar)) { //nodeTauStar foi removido
-        NodeFZPtr parentNodeTauStar = nodeTauStar->getParent();
-        nodeUnion->setParent(parentNodeTauStar);
+    if (properPartsCollector.isRemoved(nodeTauStar)) { //nodeTauStar foi removido
+        NodeFZ parentNodeTauStar = nodeTauStar.getParent();
+        nodeUnion.setParent(parentNodeTauStar);
 
-        if (parentNodeTauStar != nullptr) {
-            parentNodeTauStar->addChild(nodeUnion);
-            for (NodeFZPtr n : nodeTauStar->getChildren()) {
-                if (n != nodeUnion && !nodeUnion->isChild(n)) {
-                    nodeUnion->getChildren().push_back(n);
-                    nodeUnion->setArea(nodeUnion->getArea() + n->getArea());
-                    n->setParent(nodeUnion);
+        if (parentNodeTauStar) {
+            parentNodeTauStar.addChild(nodeUnion);
+            for(NodeId n: tree->getChildrenById(nodeTauStar)){
+                if (n != nodeUnion && !tree->hasChildById(nodeUnion, n)) {
+                    tree->addChildById(nodeUnion, n);
+                    nodeUnion.setArea(nodeUnion.getArea() + tree->getAreaById(n));
                 }
             }
-        } else {  // Novo root
-            NodeFZPtr newRoot = nodeUnion;
-            if (!nodeTauStar->getChildren().empty()) {
-                for (NodeFZPtr n : nodeTauStar->getChildren()) {
-                    if ((isMaxtree && n->getLevel() < newRoot->getLevel()) || (!isMaxtree && n->getLevel() > newRoot->getLevel())) {
+            disconnect(tree, nodeTauStar, true);
+        } 
+        else {  // Novo root
+            NodeId newRoot = nodeUnion;
+            if (nodeTauStar.getNumChildren() > 0) {
+                for(NodeId n: tree->getChildrenById(nodeTauStar)){
+                    if ( (isMaxtree && tree->getLevelById(n) < tree->getLevelById(newRoot)) || (!isMaxtree && tree->getLevelById(n) > tree->getLevelById(newRoot))) {
                         newRoot = n;
                     }
                 }
                 if (newRoot != nodeUnion) {
-                    newRoot->addChild(nodeUnion);
-                    nodeUnion->setParent(newRoot);
+                    tree->addChildById(newRoot, nodeUnion);
                 }
-                for (NodeFZPtr n : nodeTauStar->getChildren()) {
-                    if (n != newRoot && !nodeUnion->isChild(n)) {
-                        newRoot->addChild(n);
-                        n->setParent(newRoot);
+                for(NodeId n: tree->getChildrenById(nodeTauStar)){
+                    if (n != newRoot && !tree->hasChildById(nodeUnion, n)) {
+                        tree->addChildById(newRoot, n);
                     }
                 }
             }
-            
-            newRoot->setArea(nodeTauStar->getArea());
-            newRoot->setParent(nullptr);
-            tree->setRoot(nodeUnion);
-            
+            tree->setAreaById(newRoot, nodeTauStar.getArea());
+            tree->setRootById(newRoot);
+            tree->releaseNode(nodeTauStar);
         }
-        tree->setNumNodes( tree->getNumNodes() -1 );  
-        disconnect(nodeTauStar, true);
+        
     } else {
         if (nodeUnion != nodeTauStar) {
-            nodeUnion->setParent(nodeTauStar);
-            nodeTauStar->addChild(nodeUnion);
+            nodeUnion.setParent(nodeTauStar);
+            nodeTauStar.addChild(nodeUnion);
         }   
     }
 }
 
 
-void ComponentTreeAdjustmentBySubtree::adjustMinTree(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree, std::vector<NodeFZPtr>& nodesToPruning) {
-    for (NodeFZPtr rSubtree : nodesToPruning) {  	
+void ComponentTreeAdjustmentBySubtree::adjustMinTree(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree, std::vector<NodeId>& nodesToPruning) {
+    for (NodeId rSubtreeId : nodesToPruning) {  	
+        NodeFZ rSubtree = maxtree->proxy(rSubtreeId);	
         assert(rSubtree != maxtree->getRoot() && "rSubtree is root");
+        if (!rSubtree) {
+            continue; //rSubtree é root, não pode ser ajustado
+        }
         updateTree(mintree, rSubtree); 
-        maxtree->prunning(rSubtree);
+        prunning(maxtree, rSubtree);
     }
 }
 
-void ComponentTreeAdjustmentBySubtree::adjustMaxTree(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree, std::vector<NodeFZPtr>& nodesToPruning) {
-    for (NodeFZPtr rSubtree : nodesToPruning) {  
+void ComponentTreeAdjustmentBySubtree::adjustMaxTree(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree, std::vector<NodeId>& nodesToPruning) {
+    for (NodeId rSubtreeId : nodesToPruning) {  
+        NodeFZ rSubtree = mintree->proxy(rSubtreeId);	
         assert(rSubtree != mintree->getRoot() && "rSubtree is root");
-
+        if (!rSubtree) {
+            continue; //rSubtree é root, não pode ser ajustado
+        }
         updateTree(maxtree, rSubtree);   
-        mintree->prunning(rSubtree);
+        prunning(mintree, rSubtree);
     }
 }

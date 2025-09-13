@@ -32,7 +32,7 @@ ImageUInt8Ptr computerCASF_naive(ImageUInt8Ptr img, double radioAdj, const std::
         }
         
         ComponentTreePPtr maxtree = std::make_shared<ComponentTreeP>(imgOut, true, adj);
-	    for(NodePPtr node: maxtree->getNodesThreshold(threshold)) {
+	    for(NodeId node: ComponentTreeP::getNodesThreshold(maxtree, threshold)) {
 	        maxtree->prunning(node);    
 	    }
         
@@ -43,7 +43,7 @@ ImageUInt8Ptr computerCASF_naive(ImageUInt8Ptr img, double radioAdj, const std::
             start = std::chrono::high_resolution_clock::now();
         }
 	    ComponentTreePPtr mintree = std::make_shared<ComponentTreeP>(imgOut, false, adj);
-	    for(NodePPtr node: mintree->getNodesThreshold(threshold)) {
+	    for(NodeId node: ComponentTreeP::getNodesThreshold(mintree, threshold)) {
 	        mintree->prunning(node);    
 	    }
 
@@ -79,7 +79,7 @@ ImageUInt8Ptr computerCASF_hybrid(ImageUInt8Ptr img, double radioAdj, const std:
         }
         
         ComponentTreePPtr maxtree = std::make_shared<ComponentTreeP>(imgOut, true, adj);
-	    for(NodePPtr node: maxtree->getNodesThreshold(threshold)) {
+	    for(NodeId node: ComponentTreeP::getNodesThreshold(maxtree, threshold)) {
 	        maxtree->prunning(node);    
 	    }
         
@@ -91,7 +91,7 @@ ImageUInt8Ptr computerCASF_hybrid(ImageUInt8Ptr img, double radioAdj, const std:
             start = std::chrono::high_resolution_clock::now();
         }
 	    ComponentTreePPtr mintree = std::make_shared<ComponentTreeP>(imgOut, false, adj);
-	    for(NodePPtr node: mintree->getNodesThreshold(threshold)) {
+	    for(NodeId node: ComponentTreeP::getNodesThreshold(mintree, threshold)) {
 	        mintree->prunning(node);    
 	    }
 
@@ -107,8 +107,8 @@ ImageUInt8Ptr computerCASF_hybrid(ImageUInt8Ptr img, double radioAdj, const std:
 
     start = std::chrono::high_resolution_clock::now();
     std::shared_ptr<FlatZonesGraph> graph = std::make_shared<FlatZonesGraph>(imgOut, adj);
-    ComponentTreeFZPtr maxtree = std::make_shared<ComponentTreeFZ>(imgOut, true, adj, graph);
-    ComponentTreeFZPtr mintree = std::make_shared<ComponentTreeFZ>(imgOut, false, adj, graph);
+    ComponentTreeFZPtr maxtree = std::make_shared<ComponentTreeFZ>(graph, true);
+    ComponentTreeFZPtr mintree = std::make_shared<ComponentTreeFZ>(graph, false);
 
     ComponentTreeAdjustmentByLeaf adjust(mintree, maxtree);
     
@@ -124,7 +124,7 @@ ImageUInt8Ptr computerCASF_hybrid(ImageUInt8Ptr img, double radioAdj, const std:
             start_all = std::chrono::high_resolution_clock::now();
             start = std::chrono::high_resolution_clock::now();
         }
-        auto nodesToPruning = maxtree->getNodesThreshold(threshold);
+        auto nodesToPruning = ComponentTreeFZ::getNodesThreshold(maxtree, threshold);
         adjust.adjustMinTree(mintree, maxtree, nodesToPruning);
         
         if(PRINT_LOG){
@@ -132,7 +132,7 @@ ImageUInt8Ptr computerCASF_hybrid(ImageUInt8Ptr img, double radioAdj, const std:
             std::cout << "\t- Time (update mintree and pruning maxtree) hybrid: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
             start = std::chrono::high_resolution_clock::now();
         }
-        nodesToPruning = mintree->getNodesThreshold(threshold);
+        nodesToPruning = ComponentTreeFZ::getNodesThreshold(mintree, threshold);
         adjust.adjustMaxTree(maxtree, mintree, nodesToPruning); 
 
         if(PRINT_LOG){
@@ -158,8 +158,8 @@ ImageUInt8Ptr computerCASF(ImageUInt8Ptr img, double radioAdj, const std::vector
     std::shared_ptr<FlatZonesGraph> graph = std::make_shared<FlatZonesGraph>(img, adj);
     
 
-    ComponentTreeFZPtr maxtree = std::make_shared<ComponentTreeFZ>(img, true, adj, graph);
-    ComponentTreeFZPtr mintree = std::make_shared<ComponentTreeFZ>(img, false, adj, graph);
+    ComponentTreeFZPtr maxtree = std::make_shared<ComponentTreeFZ>(graph, true);
+    ComponentTreeFZPtr mintree = std::make_shared<ComponentTreeFZ>(graph, false);
     
     ComponentTreeAdjustmentByLeaf adjust(mintree, maxtree);
     
@@ -176,7 +176,7 @@ ImageUInt8Ptr computerCASF(ImageUInt8Ptr img, double radioAdj, const std::vector
             start_all = std::chrono::high_resolution_clock::now();
             start = std::chrono::high_resolution_clock::now();
         }
-        auto nodesToPruning = maxtree->getNodesThreshold(threshold);
+        auto nodesToPruning = ComponentTreeFZ::getNodesThreshold(maxtree, threshold);
         adjust.adjustMinTree(mintree, maxtree, nodesToPruning);
         end = std::chrono::high_resolution_clock::now();
         
@@ -184,7 +184,7 @@ ImageUInt8Ptr computerCASF(ImageUInt8Ptr img, double radioAdj, const std::vector
             std::cout << "\t- Time (update mintree and pruning maxtree): " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
             start = std::chrono::high_resolution_clock::now();
         }
-        nodesToPruning = mintree->getNodesThreshold(threshold);
+        nodesToPruning = ComponentTreeFZ::getNodesThreshold(mintree, threshold);
         adjust.adjustMaxTree(maxtree, mintree, nodesToPruning); 
         
         if(PRINT_LOG){
@@ -218,7 +218,7 @@ ImageUInt8Ptr computerCASF_hybridSubtree(ImageUInt8Ptr img, double radioAdj, con
         }
         
         ComponentTreePPtr maxtree = std::make_shared<ComponentTreeP>(imgOut, true, adj);
-	    for(NodePPtr node: maxtree->getNodesThreshold(threshold)) {
+	    for(NodeId node: ComponentTreeP::getNodesThreshold(maxtree, threshold)) {
 	        maxtree->prunning(node);    
 	    }
         
@@ -230,7 +230,7 @@ ImageUInt8Ptr computerCASF_hybridSubtree(ImageUInt8Ptr img, double radioAdj, con
             start = std::chrono::high_resolution_clock::now();
         }
 	    ComponentTreePPtr mintree = std::make_shared<ComponentTreeP>(imgOut, false, adj);
-	    for(NodePPtr node: mintree->getNodesThreshold(threshold)) {
+	    for(NodeId node: ComponentTreeP::getNodesThreshold(mintree, threshold)) {
 	        mintree->prunning(node);    
 	    }
 
@@ -246,8 +246,8 @@ ImageUInt8Ptr computerCASF_hybridSubtree(ImageUInt8Ptr img, double radioAdj, con
 
     start = std::chrono::high_resolution_clock::now();
     std::shared_ptr<FlatZonesGraph> graph = std::make_shared<FlatZonesGraph>(imgOut, adj);
-    ComponentTreeFZPtr maxtree = std::make_shared<ComponentTreeFZ>(imgOut, true, adj, graph);
-    ComponentTreeFZPtr mintree = std::make_shared<ComponentTreeFZ>(imgOut, false, adj, graph);
+    ComponentTreeFZPtr maxtree = std::make_shared<ComponentTreeFZ>(graph, true);
+    ComponentTreeFZPtr mintree = std::make_shared<ComponentTreeFZ>(graph, false);
 
     ComponentTreeAdjustmentBySubtree adjust(mintree, maxtree);
     
@@ -263,7 +263,7 @@ ImageUInt8Ptr computerCASF_hybridSubtree(ImageUInt8Ptr img, double radioAdj, con
             start_all = std::chrono::high_resolution_clock::now();
             start = std::chrono::high_resolution_clock::now();
         }
-        auto nodesToPruning = maxtree->getNodesThreshold(threshold);
+        auto nodesToPruning = ComponentTreeFZ::getNodesThreshold(maxtree, threshold);
         adjust.adjustMinTree(mintree, maxtree, nodesToPruning);
         
         if(PRINT_LOG){
@@ -271,7 +271,7 @@ ImageUInt8Ptr computerCASF_hybridSubtree(ImageUInt8Ptr img, double radioAdj, con
             std::cout << "\t- Time (update mintree and pruning maxtree) hybrid: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
             start = std::chrono::high_resolution_clock::now();
         }
-        nodesToPruning = mintree->getNodesThreshold(threshold);
+        nodesToPruning = ComponentTreeFZ::getNodesThreshold(mintree, threshold);
         adjust.adjustMaxTree(maxtree, mintree, nodesToPruning); 
 
         if(PRINT_LOG){
@@ -297,8 +297,8 @@ ImageUInt8Ptr computerCASF_subtree(ImageUInt8Ptr img, double radioAdj, const std
     std::shared_ptr<FlatZonesGraph> graph = std::make_shared<FlatZonesGraph>(img, adj);
 
 
-    ComponentTreeFZPtr maxtree = std::make_shared<ComponentTreeFZ>(img, true, adj, graph);
-    ComponentTreeFZPtr mintree = std::make_shared<ComponentTreeFZ>(img, false, adj, graph);
+    ComponentTreeFZPtr maxtree = std::make_shared<ComponentTreeFZ>(graph, true);
+    ComponentTreeFZPtr mintree = std::make_shared<ComponentTreeFZ>(graph, false);
     
     ComponentTreeAdjustmentBySubtree adjust(mintree, maxtree);
     
@@ -315,7 +315,7 @@ ImageUInt8Ptr computerCASF_subtree(ImageUInt8Ptr img, double radioAdj, const std
             start_all = std::chrono::high_resolution_clock::now();
             start = std::chrono::high_resolution_clock::now();
         }
-        auto nodesToPruning = maxtree->getNodesThreshold(threshold);
+        auto nodesToPruning = ComponentTreeFZ::getNodesThreshold(maxtree, threshold);
         adjust.adjustMinTree(mintree, maxtree, nodesToPruning);
         end = std::chrono::high_resolution_clock::now();
         
@@ -324,7 +324,7 @@ ImageUInt8Ptr computerCASF_subtree(ImageUInt8Ptr img, double radioAdj, const std
 
             start = std::chrono::high_resolution_clock::now();
         }
-        nodesToPruning = mintree->getNodesThreshold(threshold);
+        nodesToPruning = ComponentTreeFZ::getNodesThreshold(mintree, threshold);
         adjust.adjustMaxTree(maxtree, mintree, nodesToPruning); 
         if(PRINT_LOG){
             end = std::chrono::high_resolution_clock::now();
@@ -374,7 +374,7 @@ int main(int argc, char* argv[]) {
     std::cout << "Time our approach:   " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
 
     start = std::chrono::high_resolution_clock::now();
-    auto imgOut3 = computerCASF_hybrid(img, radioAdj, thresholds, 4);
+    auto imgOut3 = computerCASF_hybrid(img, radioAdj, thresholds, 2);
     end = std::chrono::high_resolution_clock::now();
     std::cout << "Time our approach_hybrid: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
     
@@ -384,7 +384,7 @@ int main(int argc, char* argv[]) {
     std::cout << "Time our approach (subtree): " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
     
     start = std::chrono::high_resolution_clock::now();
-    auto imgOut5 = computerCASF_hybridSubtree(img,radioAdj, thresholds, 2);
+    auto imgOut5 = computerCASF_hybridSubtree(img,radioAdj, thresholds, 1);
     end = std::chrono::high_resolution_clock::now();
     std::cout << "Time our approach_hybrid (subtree): " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms\n";
     

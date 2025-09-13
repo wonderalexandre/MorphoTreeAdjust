@@ -7,114 +7,222 @@
 #include <functional> 
 #include <optional>
 #include <stdexcept>
+#include <type_traits>
 #include "../include/Common.hpp"
+#include "../include/ComponentTree.hpp"
 
 #ifndef NODECT_H
 #define NODECT_H
 
+
+/**
+ * @brief Handle (proxy leve) para nós da Component Tree com acesso O(1) via NodeArena.
+ *
+ * `NodeCT<CNPsType>` é um *wrapper* leve que referencia um nó da árvore de componentes
+ * (identificado por `id`) e delega leituras/escritas para a `NodeArena` da
+ * árvore dona (`ComponentTree<CNPsType>* tree`). Não possui propriedade do nó nem
+ * alocação própria — serve como *view* handle seguro e barato de copiar.
+ *
+ * ## Principais capacidades
+ * - **Acesso O(1)** aos atributos do nó (nível, área, representante, CNPs).
+ * - **Relações estruturais**: `getParent()`, `addChild()`, `removeChild()`,
+ *   `spliceChildren()` e as variantes por `Id` otimizadas (operam só na arena).
+ * - **Ranges/Iteradores** para percursos:
+ *   - `getChildren()` → range de filhos (por *proxy* `NodeCT`).
+ *   - `getNodesOfPathToRoot()` → caminho até a raiz.
+ *   - `getIteratorPostOrderTraversal()` → pós-ordem.
+ *   - `getIteratorBreadthFirstTraversal()` → largura (BFS).
+ *   - `getRepsOfCC()` → itera representantes (CNPs) em BFS na subárvore.
+ * - **Métricas**: `computerNumDescendants()` e `computerNumFlatzoneDescendants()`.
+ *
+ * ## Semântica de tipo (CNPsType)
+ * - `Pixels` (alias para `int`): cada nó guarda um único representante; métodos
+ *   como `addRepCNPs(int)` substituem o valor.
+ * - `FlatZones` (ex.: `std::vector<int>`): cada nó pode armazenar vários reps;
+ *   há métodos especializados (habilitados por SFINAE) para adicionar/remover
+ *   e consultar contagens de flat-zones.
+ *
+ * ## Invariantes
+ * - Este handle é válido se e somente se `tree != nullptr` e `id >= 0`.
+ * - As operações que alteram a estrutura (ex.: `addChild`, `setParent`) são
+ *   encaminhadas à `ComponentTree`, que mantém a coerência dos vetores da arena.
+ *
+ * ## Complexidade (típica)
+ * - Acesso/atribuição de campo: O(1).
+ * - Inserção/remoção de relação pai↔filho (arena-based): O(1).
+ * - Iteração por ranges/iteradores: O(k) no número de nós/itens visitados.
+ *
+ * ## Exemplo mínimo
+ * @code
+ * ComponentTree<Pixels> T = ... ;
+ * NodeCT<Pixels> n = T.proxy(rootId);
+ * if (n) {
+ *     int lvl = n.getLevel();
+ *     for (auto c : n.getChildren()) {
+ *         // processa filhos por proxy
+ *     }
+ *     for (int rep : n.getRepsOfCC()) {
+ *         // reps em BFS da subárvore de n
+ *     }
+ * }
+ * @endcode
+ *
+ * @tparam CNPsType Tipo das CNPs armazenadas por nó (ex.: `Pixels=int`, `FlatZones=std::vector<int>`).
+ */
 template <typename CNPsType>
-class ComponentTree;  //Forward declaration
+class NodeCT{
+private:
+    template <typename> friend class ComponentTree;
 
-
-template <typename CNPsType>
-class NodeCT : public std::enable_shared_from_this<NodeCT<CNPsType>> {
-    private:
-	int index=-1; 
-    int threshold2; //for maxtree: maximal threshold, same that "level"
-	int threshold1;  //for maxtree: minimal threshold
-	long int areaCC;
-    //long int numCNPs = -1;
-	
-	NodeCTPtr<CNPsType> parent;
-	std::list<NodeCTPtr<CNPsType>> children;
-    CNPsType cnps; //pixels of the proper part 
-
+    NodeId id = -1;
+    ComponentTree<CNPsType>* tree = nullptr;  // árvore dona
+    
 public:
-	
-    NodeCT();
-    NodeCT(int index, NodeCTPtr<CNPsType> parent, int threshold1, int threshold2);
-	~NodeCT() {
-        parent = nullptr;
-    }
     
+    // Construtor padrão
+    NodeCT() = default;
+    NodeCT(ComponentTree<CNPsType>* owner, NodeId i) : id(i), tree(owner) {}
+
+    //id >= 0 é o operador booleno
+    explicit operator bool() const noexcept { return tree != nullptr && id >= 0; }
+
+    //id é o operador == e !=
+    bool operator==(const NodeCT& other) const noexcept { return tree == other.tree && id == other.id; }
+    bool operator!=(const NodeCT& other) const noexcept { return !(*this == other); }
     
+    //id é o operador int
+    operator int() const noexcept { return id; }
+
+    //acesso aos dados da arena
+    inline CNPsType& getRepCNPs() noexcept { return tree->arena.repCNPs[id]; }
+    inline const CNPsType& getRepCNPs() const noexcept{ return tree->arena.repCNPs[id]; }
+    inline NodeArena<CNPsType>::RepsOfCCRangeById getRepCNPsOfCC() const { return tree->arena.getRepsOfCC(id); } //iterador
+    inline int getRepNode() const noexcept{ return tree->arena.repNode[id]; }
+    inline int getIndex() const noexcept{ return id; }
+    //inline int getThreshold1() const noexcept{ return tree->arena.threshold1[id]; }
+    //inline int getThreshold2() const noexcept{ return tree->arena.threshold2[id]; }
+    inline int getLevel() const noexcept{ return tree->arena.threshold2[id]; }
+    inline int32_t getArea() const noexcept{ return tree->arena.areaCC[id]; }
+    inline int getNumChildren() const noexcept{ return tree->arena.childCount[id]; }
+    inline void setArea(int32_t a) noexcept { tree->arena.areaCC[id] = a; }
+    inline void setLevel(int lv) noexcept { tree->arena.threshold2[id] = lv; }
+    inline void setRepCNPs(const CNPsType& reps) noexcept { tree->arena.repCNPs[id] = reps; }
+    
+    //propaga para versão por id 
+    inline auto getPixelsOfCC() const { return tree->getPixelsOfCCById(id); } //iterador
+    inline auto getCNPs() const { return tree->getCNPsById(id); } //iterador 
+    inline int getNumFlatzone() const { return tree->getNumFlatzoneById(id); }
+    inline int getNumCNPs() const { return tree->getNumCNPsById(id);} 
+    inline bool isChild(NodeCT<CNPsType> node) const noexcept { return tree && node && hasChildById(id, node.getIndex()); }
+    inline  NodeCT<CNPsType> getParent() { if (!tree || tree->arena.parentId[id] < 0) return {}; return NodeCT<CNPsType>(tree, tree->arena.parentId[id]);}
+    inline  void setParent(NodeCT<CNPsType> node) { if (!tree) return;  tree->setParentById(id, node.getIndex()); }
+    inline void addChild(NodeCT<CNPsType> child) { if (!tree || !child) return; tree->addChildById(id, child.getIndex()); }
+    inline void removeChild(NodeCT<CNPsType> child, bool releaseNode) { if (!tree || !child) return; tree->removeChildById(id, child.getIndex(), releaseNode); }
+    inline void spliceChildren(NodeCT<CNPsType> from) { if (!tree || !from || from.getIndex() == id) return; tree->spliceChildrenById(id, from.getIndex()); }
+    inline void addRepCNPs(int rep) { if(!tree) return; tree->addRepCNPsById(id, rep);}
+    inline bool isLeaf() const { return tree->isLeaf(id); }
+
+
     ///Métodos disponíveis SOMENTE para `FlatZones`
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    CNPsType moveCNPsByFlatZone();
+    void addCNPsOfDisjointFlatzones(std::vector<int>& repsFlatZones, ComponentTreeFZPtr tree);
 
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    CNPsType& getCNPsByFlatZone();
+    void addCNPsToConnectedFlatzone(int repFlatZone, ComponentTreeFZPtr tree);
 
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    FlatZone& getFlatZone(int idFlatZone);
-
-    //template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    int getNumFlatzone();
-
-    template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    void addCNPsOfDisjointFlatzone(FlatZone&& flatZone, ComponentTreeFZPtr tree = nullptr, int capacity = -1);
-    
-
-    template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    void addCNPsOfDisjointFlatzones(CNPsType&& flatZones, ComponentTreeFZPtr tree);
-
-    template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    void addCNPsToConnectedFlatzone(FlatZone&& flatZone, ComponentTreeFZPtr tree);
+    void addCNPsToConnectedFlatzone(const std::vector<int>& repsBase, int repWinner, ComponentTreeFZPtr tree);
 
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
     void removeFlatzone(int idFlatZone);
+          
+    // Conta descendentes (exclui o próprio nó)
+    int computerNumDescendants() {
+        if (!tree) return 0;
+        int cont = 0;
+        // Empilha apenas os filhos diretos; não conta o próprio nó
+        FastQueue<int> st;
+        for(int c: tree->arena.children(id)) st.push(c);
+        while (!st.empty()) {
+            int u = st.pop();
+            ++cont; // conta nó u
+            // empilha filhos de u
+            for(int v: tree->arena.children(u)) st.push(v);
+        }
+        return cont;
+    }
 
-    ///Métodos disponíveis SOMENTE para `Pixels`
-    template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, Pixels>::value, int> = 0>
-    void addCNPs(int p);
+    // Soma de "flat-zones" nos descendentes (exclui o próprio nó)
+    // (usa n->getNumFlatzone(), que você já especializa por CNPsType)
+    int computerNumFlatzoneDescendants() {
+        if (!tree) return 0;
+        int acc = 0;
+        FastQueue<int> st;
+        for (NodeId c : tree->arena.children(id)) 
+            st.push(c);
+        while (!st.empty()) {
+            NodeId u = st.pop();
+            if constexpr (std::is_same_v<CNPsType, Pixels>) {
+                // Para Pixels (CNPsType == int), cada nó contribui com 1 flat-zone
+                acc += 1;
+            } else {
+                // Para FlatZones (CNPsType == std::vector<int>), soma a quantidade de reps no nó
+                acc += static_cast<int>(tree->arena.repCNPs[u].size());
+            }
+            for (NodeId v : tree->arena.children(u)) 
+                st.push(v);
+        }
+        return acc;
+    }
 
-    void setArea(long int area);
-	long int getArea() const;
-    void addChild(NodeCTPtr<CNPsType> child);
-    int getIndex() const;
-	int getThreshold1() const;
-	int getThreshold2() const;
-    int getNumCNPs() ;
-	int getLevel() const;
-	void setLevel(int level);
-	bool isChild(NodeCTPtr<CNPsType> node) const;
-    bool isLeaf() const;
-	NodeCTPtr<CNPsType> getParent();
-	void setParent(NodeCTPtr<CNPsType> parent);
-	std::list<NodeCTPtr<CNPsType>>& getChildren();
-	int getNumSiblings() const;
-    int computerNumDescendants();
-    
 
+    // Ranges existentes que devolvem filhos (por ponteiro lógico) continuam,
+    // mas internamente usam `tree->proxy(id)` (que agora devolve handle)
+    class ChildIdRange {
+        int cur; ComponentTree<CNPsType>* T;
+    public:
+        struct It {
+            int id; ComponentTree<CNPsType>* T;
+            bool operator!=(const It& o) const { return id != o.id; }
+            void operator++() { id = (id == -1) ? -1 : T->arena.nextSiblingId[id]; }
+            NodeCT<CNPsType> operator*() const { return T->proxy(id); }
+        };
+        It begin() const { return {cur, T}; }
+        It end()   const { return {-1,  T}; }
+        ChildIdRange(int first, ComponentTree<CNPsType>* t) : cur(first), T(t) {}
+    };
+    auto getChildren() const {
+        return ChildIdRange(tree ? tree->arena.firstChildId[id] : -1, tree);
+    }
 
-//============= Iterator para iterar os nodes do caminho até o root==============//
-class InternalIteratorNodesOfPathToRoot {
+    //============= Iterator para iterar os nodes do caminho até o root==============//
+    class InternalIteratorNodesOfPathToRoot {
     private:
-        NodeCTPtr<CNPsType> currentNode;
+        NodeCT<CNPsType> currentNode;
     
     public:
         using iterator_category = std::input_iterator_tag;
-        using value_type = NodeCTPtr<CNPsType>;
+        using value_type = NodeCT<CNPsType>;
         using difference_type = std::ptrdiff_t;
-        using pointer = NodeCTPtr<CNPsType>*;
-        using reference = NodeCTPtr<CNPsType>&;
+        using pointer = NodeCT<CNPsType>*;
+        using reference = NodeCT<CNPsType>&;
     
-        InternalIteratorNodesOfPathToRoot(NodeCTPtr<CNPsType> obj) : currentNode(obj) {}
+        InternalIteratorNodesOfPathToRoot(NodeCT<CNPsType> obj) : currentNode(obj) {}
     
         InternalIteratorNodesOfPathToRoot& operator++() {
             if (currentNode) {
-                currentNode = currentNode->getParent();  // Retorna outro shared_ptr
+                currentNode = currentNode.getParent();  // Retorna outro shared_ptr
             }
             return *this;
         }
-    
+            
         bool operator==(const InternalIteratorNodesOfPathToRoot& other) const {
-            return currentNode == other.currentNode;
+            const bool aEnd = !currentNode;
+            const bool bEnd = !other.currentNode;
+            if (aEnd || bEnd) return aEnd == bEnd;
+            return currentNode.getIndex() == other.currentNode.getIndex();
         }
-    
-        bool operator!=(const InternalIteratorNodesOfPathToRoot& other) const {
-            return !(*this == other);
-        }
+        bool operator!=(const InternalIteratorNodesOfPathToRoot& other) const { return !(*this == other); }
     
         reference operator*() {
             return currentNode;
@@ -123,18 +231,20 @@ class InternalIteratorNodesOfPathToRoot {
     
     class IteratorNodesOfPathToRoot {
     private:
-        NodeCTPtr<CNPsType> instance;
+        NodeCT<CNPsType> instance;
     
     public:
-        explicit IteratorNodesOfPathToRoot(NodeCTPtr<CNPsType> obj) : instance(obj) {}
+        explicit IteratorNodesOfPathToRoot(NodeCT<CNPsType> obj) : instance(obj) {}
     
         InternalIteratorNodesOfPathToRoot begin() const { return InternalIteratorNodesOfPathToRoot(instance); }
-        InternalIteratorNodesOfPathToRoot end() const { return InternalIteratorNodesOfPathToRoot(nullptr); }
+        InternalIteratorNodesOfPathToRoot end() const {
+            return InternalIteratorNodesOfPathToRoot(NodeCT<CNPsType>()); 
+        }
     };
     
     // Chamador usa this como shared_ptr:
     IteratorNodesOfPathToRoot getNodesOfPathToRoot() {
-        return IteratorNodesOfPathToRoot(this->shared_from_this());
+        return IteratorNodesOfPathToRoot(NodeCT<CNPsType>(tree, id));
     }
     
 
@@ -143,21 +253,21 @@ class InternalIteratorNodesOfPathToRoot {
 // Classe do Iterador Pós-Ordem por Ramos
 class InternalIteratorBranchPostOrderTraversal {
     private:
-        std::stack<NodeCTPtr<CNPsType>> processingStack;
-        std::stack<NodeCTPtr<CNPsType>> postOrderStack;
-        std::list<std::list<NodeCTPtr<CNPsType>>> branches;
-        typename std::list<std::list<NodeCTPtr<CNPsType>>>::iterator branchIterator;
+        std::stack<NodeCT<CNPsType>> processingStack;
+        std::stack<NodeCT<CNPsType>> postOrderStack;
+        std::list<std::list<NodeCT<CNPsType>>> branches;
+        typename std::list<std::list<NodeCT<CNPsType>>>::iterator branchIterator;
     
     public:
         using iterator_category = std::input_iterator_tag;
-        using value_type = std::list<NodeCTPtr<CNPsType>>;
-        using pointer = std::list<NodeCTPtr<CNPsType>>*;
-        using reference = std::list<NodeCTPtr<CNPsType>>&;
+        using value_type = std::list<NodeCT<CNPsType>>;
+        using pointer = std::list<NodeCT<CNPsType>>*;
+        using reference = std::list<NodeCT<CNPsType>>&;
     
-        InternalIteratorBranchPostOrderTraversal(NodeCTPtr<CNPsType> root) {
+        InternalIteratorBranchPostOrderTraversal(NodeCT<CNPsType> root) {
             if (!root) return;
     
-            std::stack<NodeCTPtr<CNPsType>> tempStack;
+            std::stack<NodeCT<CNPsType>> tempStack;
             tempStack.push(root);
     
             while (!tempStack.empty()) {
@@ -165,21 +275,29 @@ class InternalIteratorBranchPostOrderTraversal {
                 tempStack.pop();
                 postOrderStack.push(current);
     
-                for (auto& child : current->getChildren()) {
+                for (auto& child : current.getChildren()) {
                     tempStack.push(child);
                 }
             }
     
-            std::list<NodeCTPtr<CNPsType>> currentBranch;
+            std::list<NodeCT<CNPsType>> currentBranch;
             while (!postOrderStack.empty()) {
                 auto node = postOrderStack.top();
                 postOrderStack.pop();
     
                 if (!currentBranch.empty()) {
                     auto lastNode = currentBranch.back();
-                    if (lastNode->getParent() && lastNode->getParent()->getChildren().back() != lastNode) {
-                        branches.push_back(currentBranch);
-                        currentBranch.clear();
+                    auto parent   = lastNode.getParent();
+                    if (parent) {
+                        int last = -1;
+                        for (int c = parent.getFirstChildId(); c != -1; c = parent.tree->arena.nextSiblingId[c]) {
+                            last = c;
+                        }
+                        const bool lastIsLastChild = (lastNode.getIndex() == last);
+                        if (!lastIsLastChild) {
+                            branches.push_back(currentBranch);
+                            currentBranch.clear();
+                        }
                     }
                 }
     
@@ -216,389 +334,169 @@ class InternalIteratorBranchPostOrderTraversal {
     // Classe externa
     class IteratorBranchPostOrderTraversal {
     private:
-        NodeCTPtr<CNPsType> root;
+        NodeCT<CNPsType> root;
     public:
-        explicit IteratorBranchPostOrderTraversal(NodeCTPtr<CNPsType> root) : root(root) {}
+        explicit IteratorBranchPostOrderTraversal(NodeCT<CNPsType> root) : root(root) {}
     
         InternalIteratorBranchPostOrderTraversal begin() { return InternalIteratorBranchPostOrderTraversal(root); }
-        InternalIteratorBranchPostOrderTraversal end() { return InternalIteratorBranchPostOrderTraversal(nullptr); }
+        InternalIteratorBranchPostOrderTraversal end() {
+            return InternalIteratorBranchPostOrderTraversal(NodeCT<CNPsType>()); // default-vazio
+        }
     };
     
     // Método da classe
     IteratorBranchPostOrderTraversal getIteratorBranchPostOrderTraversal() {
-        return IteratorBranchPostOrderTraversal(this->shared_from_this());
+        return IteratorBranchPostOrderTraversal(NodeCT<CNPsType>(tree, id));
     }
     
 
 
-//============= Iterator para iterar os nodes de um percuso em pos-ordem ==============//
-	class InternalIteratorPostOrderTraversal {
+    //============= Iterator para iterar os nodes de um percuso em pos-ordem ==============//
+    class InternalIteratorPostOrderTraversal {
     private:
-        std::stack<NodeCTPtr<CNPsType>> nodeStack;
-        std::stack<NodeCTPtr<CNPsType>> outputStack;
+        struct Item { int id; bool expanded; };
+
+        ComponentTree<CNPsType>* T_ = nullptr;
+        FastStack<Item> st_;
+        NodeId current_ = -1;
+
+        inline void settle_() noexcept {
+            while (!st_.empty()) {
+                Item &top = st_.top();
+                if (!top.expanded) {
+                    top.expanded = true;
+                    // empilha filhos (direita→esquerda na prática; inverta se quiser L→R)
+                    for (int c = T_->arena.firstChildId[top.id]; c != -1; c = T_->arena.nextSiblingId[c]) {
+                        st_.push(Item{c, false});
+                    }
+                } else {
+                    current_ = st_.top().id;  // todos os filhos já emitidos
+                    return;
+                }
+            }
+            current_ = -1; // fim
+        }
+
     public:
         using iterator_category = std::input_iterator_tag;
-        using value_type = NodeCTPtr<CNPsType>;
-        using difference_type = std::ptrdiff_t;
-        using pointer = NodeCTPtr<CNPsType>*;
-        using reference = NodeCTPtr<CNPsType>&; 
+        using value_type        = NodeCT<CNPsType>;
+        using difference_type   = std::ptrdiff_t;
+        using pointer           = NodeCT<CNPsType>*;     // apenas para conformidade
+        using reference         = NodeCT<CNPsType>;      // retornaremos por valor (handle leve)
 
-        InternalIteratorPostOrderTraversal(NodeCTPtr<CNPsType> root) {
+        InternalIteratorPostOrderTraversal(NodeCT<CNPsType> root) noexcept {
             if (root) {
-                nodeStack.push(root);
-                while (!nodeStack.empty()) {
-                    NodeCTPtr<CNPsType> current = nodeStack.top();nodeStack.pop();
-                    outputStack.push(current);
-                    for (NodeCTPtr<CNPsType> child : current->getChildren()) {
-                        nodeStack.push(child);
-                    }
-                }
+                T_ = root.tree;
+                st_.push({root.getIndex(), false});
+                settle_();
+            } else {
+                current_ = -1;
             }
         }
 
-        InternalIteratorPostOrderTraversal& operator++() {
-            if (!outputStack.empty()) {
-                outputStack.pop();
-            }
+        inline InternalIteratorPostOrderTraversal& operator++() noexcept {
+            if (!st_.empty()) st_.pop();  // consome o atual
+            settle_();                    // posiciona no próximo
             return *this;
         }
 
-        reference operator*() {  
-            return outputStack.top();  // Retorna ponteiro!
+        // devolve o PROXY (handle leve) para o nó atual
+        inline value_type operator*() const noexcept {
+            return (current_ >= 0) ? NodeCT<CNPsType>(T_, current_) : NodeCT<CNPsType>();
         }
 
-        bool operator==(const InternalIteratorPostOrderTraversal& other) const {
-            return (outputStack.empty() == other.outputStack.empty());
+        inline bool operator==(const InternalIteratorPostOrderTraversal& other) const noexcept {
+            const bool aEnd = (current_ == -1);
+            const bool bEnd = (other.current_ == -1);
+            if (aEnd || bEnd) return aEnd == bEnd;
+            // fora do fim, basta comparar o id atual
+            return current_ == other.current_;
         }
-
-        bool operator!=(const InternalIteratorPostOrderTraversal& other) const {
+        inline bool operator!=(const InternalIteratorPostOrderTraversal& other) const noexcept {
             return !(*this == other);
         }
     };
 
-	class IteratorPostOrderTraversal {
-    private:
-        NodeCTPtr<CNPsType> root;
+    class IteratorPostOrderTraversal {
+        NodeCT<CNPsType> root_;
     public:
-        explicit IteratorPostOrderTraversal(NodeCTPtr<CNPsType> root) : root(root) {}
-
-        InternalIteratorPostOrderTraversal begin() { return InternalIteratorPostOrderTraversal(root); }
-        InternalIteratorPostOrderTraversal end() { return InternalIteratorPostOrderTraversal(nullptr); }
+        explicit IteratorPostOrderTraversal(NodeCT<CNPsType> root) : root_(root) {}
+        InternalIteratorPostOrderTraversal begin() const { return InternalIteratorPostOrderTraversal(root_); }
+        InternalIteratorPostOrderTraversal end()   const { return InternalIteratorPostOrderTraversal(NodeCT<CNPsType>()); }
     };
 
-    IteratorPostOrderTraversal getIteratorPostOrderTraversal() { return IteratorPostOrderTraversal(this->shared_from_this()); }
+    IteratorPostOrderTraversal getIteratorPostOrderTraversal() {
+        return IteratorPostOrderTraversal(NodeCT<CNPsType>(tree, id));
+    }
 
 
 
-//============= Iterator para iterar os nodes de um percuso em largura ==============//
+    //============= Iterator para iterar os nodes de um percuso em largura ==============//
     class InternalIteratorBreadthFirstTraversal {
     private:
-        std::queue<NodeCTPtr<CNPsType>> nodeQueue;
+        ComponentTree<CNPsType>* T_ = nullptr; // apenas leitura/encaminhamento
+        FastQueue<int> q_;                     // guarda somente NodeIds
 
     public:
         using iterator_category = std::input_iterator_tag;
-        using value_type = NodeCTPtr<CNPsType>;
-        using difference_type = std::ptrdiff_t;
-        using pointer = NodeCTPtr<CNPsType>*;
-        using reference = NodeCTPtr<CNPsType>&; // Retorna ponteiro!
+        using value_type        = NodeCT<CNPsType>;    // devolvemos PROXY
+        using difference_type   = std::ptrdiff_t;
+        using pointer           = void;               // não expomos ponteiro real
+        using reference         = NodeCT<CNPsType>;   // retornamos por valor (handle leve)
 
-        InternalIteratorBreadthFirstTraversal(NodeCTPtr<CNPsType> root) {
+        // Constrói a partir de um proxy raiz. Enfileira apenas o id da raiz.
+        explicit InternalIteratorBreadthFirstTraversal(NodeCT<CNPsType> root) noexcept {
             if (root) {
-                nodeQueue.push(root);
+                T_ = root.tree;
+                q_.push(root.getIndex());
             }
         }
 
-        InternalIteratorBreadthFirstTraversal& operator++() {
-            if (!nodeQueue.empty()) {
-                NodeCTPtr<CNPsType> current = nodeQueue.front();
-                nodeQueue.pop();
-                for (NodeCTPtr<CNPsType> child : current->getChildren()) {
-                    nodeQueue.push(child);
-                }
+        // Pré-incremento: consome o nó da frente e enfileira seus filhos por ID
+        InternalIteratorBreadthFirstTraversal& operator++() noexcept {
+            if (!q_.empty()) {
+                int u = q_.front();
+                q_.pop();
+                for(int c: T_->arena.children(u))
+                    q_.push(c);
             }
             return *this;
         }
 
-        reference operator*() {
-            return nodeQueue.front();
+        // Desreferencia: devolve um PROXY (NodeCT) para o nó atual (frente da fila)
+        value_type operator*() const noexcept {
+            return q_.empty() ? NodeCT<CNPsType>() : NodeCT<CNPsType>(T_, q_.front());
         }
 
-        bool operator==(const InternalIteratorBreadthFirstTraversal& other) const {
-            return nodeQueue.empty() == other.nodeQueue.empty();
+        bool operator==(const InternalIteratorBreadthFirstTraversal& other) const noexcept {
+            return q_.empty() == other.q_.empty();
         }
-
-        bool operator!=(const InternalIteratorBreadthFirstTraversal& other) const {
+        bool operator!=(const InternalIteratorBreadthFirstTraversal& other) const noexcept {
             return !(*this == other);
         }
     };
 
     class IteratorBreadthFirstTraversal {
     private:
-    NodeCTPtr<CNPsType> root;
+        NodeCT<CNPsType> root_;
 
     public:
-        explicit IteratorBreadthFirstTraversal(NodeCTPtr<CNPsType> root) : root(root) {}
+        explicit IteratorBreadthFirstTraversal(NodeCT<CNPsType> root) : root_(root) {}
 
-        InternalIteratorBreadthFirstTraversal begin() { return InternalIteratorBreadthFirstTraversal(root); }
-        InternalIteratorBreadthFirstTraversal end() { return InternalIteratorBreadthFirstTraversal(nullptr); }
+        InternalIteratorBreadthFirstTraversal begin() const { return InternalIteratorBreadthFirstTraversal(root_); }
+        InternalIteratorBreadthFirstTraversal end()   const { return InternalIteratorBreadthFirstTraversal(NodeCT<CNPsType>()); }
     };
 
     // Método para expor o iterador na classe NodeCT
-    IteratorBreadthFirstTraversal getIteratorBreadthFirstTraversal() { 
-        return IteratorBreadthFirstTraversal(this->shared_from_this()); 
+    IteratorBreadthFirstTraversal getIteratorBreadthFirstTraversal() {
+        return IteratorBreadthFirstTraversal(NodeCT<CNPsType>(tree, id));
     }
-
-
-//////////////////    
-
-
-//============= Iterator para iterar os pixels compactos (CNPs) ==============//
-    class InternalIteratorCNPs {
-    private:
-        using FlatzoneIterator = FlatZones::iterator;
-        using CNPsIterator = std::list<int>::iterator;
-        
-        FlatzoneIterator flatzoneIt, flatzoneEnd;
-        CNPsIterator cnpsIt;
-        
-        void advance() {
-            while (flatzoneIt != flatzoneEnd && cnpsIt == flatzoneIt->second.end()) {
-                ++flatzoneIt;
-                if (flatzoneIt != flatzoneEnd) {
-                    cnpsIt = flatzoneIt->second.begin();
-                }
-            }
-        }
-        
-    public:
-        using iterator_category = std::input_iterator_tag;
-        using value_type = int;
-        using difference_type = std::ptrdiff_t;
-        using pointer = int*;
-        using reference = int&;
-        
-        InternalIteratorCNPs(FlatzoneIterator flatzoneBegin, FlatzoneIterator flatzoneEnd) : flatzoneIt(flatzoneBegin), flatzoneEnd(flatzoneEnd) {
-            if (flatzoneIt != flatzoneEnd) {
-                cnpsIt = flatzoneIt->second.begin();
-                advance();
-            }
-        }
-        
-        reference operator*() {
-            return *cnpsIt;
-        }
-        
-        InternalIteratorCNPs& operator++() {
-            ++cnpsIt;
-            advance();
-            return *this;
-        }
-        
-        bool operator==(const InternalIteratorCNPs& other) const {
-            return flatzoneIt == other.flatzoneIt && (flatzoneIt == flatzoneEnd || cnpsIt == other.cnpsIt);
-        }
-        
-        bool operator!=(const InternalIteratorCNPs& other) const {
-            return !(*this == other);
-        }
-    };
-
-    class IteratorCNPs {
-    private:
-        FlatZones* cnpsByFlatzone;
-
-    public:
-        explicit IteratorCNPs(NodeCTPtr<CNPsType> node) : cnpsByFlatzone(&node->cnps) {}
-        explicit IteratorCNPs(FlatZones* cnpsByFlatzone) 
-            : cnpsByFlatzone(cnpsByFlatzone) {}
-
-        InternalIteratorCNPs begin() { 
-            return InternalIteratorCNPs(cnpsByFlatzone->begin(), cnpsByFlatzone->end()); 
-        }
-
-        InternalIteratorCNPs end() { 
-            return InternalIteratorCNPs(cnpsByFlatzone->end(), cnpsByFlatzone->end()); 
-        }
-
-        int front() const { return cnpsByFlatzone->begin()->second.front(); }
-
-    };
-   
-    
-    
-    // Método getCNPs() quando CNPsType == FlatZones
-    template<typename T = CNPsType>
-    std::enable_if_t<std::is_same<T, FlatZones>::value, IteratorCNPs> getCNPs() {
-        return IteratorCNPs(this->shared_from_this());
-    }
-
-    // Método getCNPs() quando CNPsType == Pixels
-    template<typename T = CNPsType>
-    std::enable_if_t<std::is_same<T, Pixels>::value, std::list<int>&> getCNPs() {
-        return cnps;
-    }
-
-
-
-
-//============= Iterator para iterar os pixels de um CC==============//
-
-// ================== Iterador para Pixels ==================
-template <typename T = CNPsType, typename std::enable_if_t<std::is_same_v<T, Pixels>, int> = 0>
-class InternalIteratorPixelsOfCC_Pixels{
-    private:
-        NodeCTPtr<CNPsType> currentNode;
-        std::stack<NodeCTPtr<CNPsType>> s;
-
-        std::list<int>::iterator iter;
-        int countArea;
-        using iterator_category = std::input_iterator_tag;
-        using value_type = int; 
-    public:
-        InternalIteratorPixelsOfCC_Pixels(NodeCTPtr<CNPsType> obj, int area)  {
-            this->currentNode = obj;
-            this->countArea =area;
-            this->iter = this->currentNode->cnps.begin();
-            for (NodeCTPtr<CNPsType> child: this->currentNode->getChildren()){
-                s.push(child);
-            }	
-        }
-        InternalIteratorPixelsOfCC_Pixels& operator++() { 
-            this->iter++; 
-            if(this->iter == this->currentNode->cnps.end()){
-                if(!s.empty()){
-                    this->currentNode = s.top(); s.pop();
-                    this->iter = this->currentNode->cnps.begin();
-                    for (NodeCTPtr<CNPsType> child: currentNode->getChildren()){
-                        s.push(child);
-                    }
-                }
-            }
-            this->countArea++;
-            return *this; 
-        }
-        bool operator==(InternalIteratorPixelsOfCC_Pixels other) const { 
-            return this->countArea == other.countArea; 
-        }
-        bool operator!=(InternalIteratorPixelsOfCC_Pixels other) const { 
-            return !(*this == other);
-        }
-        int operator*() const { 
-            return (*this->iter); 
-        }  
-};
-// ================== Iterador para FlatZones ==================
-template <typename T = CNPsType, typename std::enable_if_t<std::is_same_v<T, FlatZones>, int> = 0>
-class InternalIteratorPixelsOfCC_FlatZones {
-    private:
-    NodeCTPtr<CNPsType> currentNode;
-        std::stack<NodeCTPtr<CNPsType>> s;
-        typename std::unordered_map<int, std::list<int>>::iterator iterMap;  
-        typename std::unordered_map<int, std::list<int>>::iterator endIterMap;  
-        typename std::list<int>::iterator iterList;
-        typename std::list<int>::iterator endIterList;
-        int countArea;
-
-        using iterator_category = std::input_iterator_tag;
-        using value_type = int;
-
-    public:
-     InternalIteratorPixelsOfCC_FlatZones(NodeCTPtr<CNPsType> obj, int area) : currentNode(obj), countArea(area) {
-            //if (area > 0) {
-                iterMap = this->currentNode->cnps.begin();
-                endIterMap = this->currentNode->cnps.end();
-
-                iterList = iterMap->second.begin(); 
-                endIterList = iterMap->second.end(); 
-                
-                for (NodeCTPtr<CNPsType> child : this->currentNode->getChildren()) {
-                    s.push(child);
-                }
-           // }
-
-            
-        }
-
-        InternalIteratorPixelsOfCC_FlatZones& operator++() {
-                ++iterList;  // Ir para o próximo elemento do mapa
-                if(iterList == endIterList){
-                    ++iterMap;
-                    if(iterMap != endIterMap){
-                        iterList = iterMap->second.begin(); 
-                        endIterList = iterMap->second.end(); 
-                    }
-                }
-            
-            // Se acabar os elementos, ir para o próximo nó na árvore
-            if (iterMap == endIterMap && !s.empty()) {
-                this->currentNode = s.top(); s.pop();
-
-                iterMap = this->currentNode->cnps.begin();
-                endIterMap = this->currentNode->cnps.end();
-                iterList = iterMap->second.begin(); 
-                endIterList = iterMap->second.end(); 
-                
-                for (NodeCTPtr<CNPsType> child : this->currentNode->getChildren()) {
-                    s.push(child);
-                }
-            }
-
-            this->countArea++;
-            return *this;
-        }
-
-        bool operator==(const InternalIteratorPixelsOfCC_FlatZones& other) const {
-            return this->countArea == other.countArea;
-        }
-
-        bool operator!=(const InternalIteratorPixelsOfCC_FlatZones& other) const {
-            return !(*this == other);
-        }
-
-        int operator*() const {
-            return *iterList;  // Retorna um pixel dentro da `std::list<int>`
-        }
-    };
-
-    class IteratorPixelsOfCC {
-    private:
-        NodeCTPtr<CNPsType> instance;
-        int area;
-    public:
-        explicit IteratorPixelsOfCC(NodeCTPtr<CNPsType> obj, int _area) : instance(obj), area(_area) {}
-
-        auto begin() {
-            if constexpr (std::is_same_v<CNPsType, Pixels>) {
-                return InternalIteratorPixelsOfCC_Pixels<CNPsType>(instance, 0);
-            } else {
-                return InternalIteratorPixelsOfCC_FlatZones<CNPsType>(instance, 0);
-            }
-        }
-
-        auto end() {
-            if constexpr (std::is_same_v<CNPsType, Pixels>) {
-                return InternalIteratorPixelsOfCC_Pixels<CNPsType>(instance, area);
-            } else {
-                return InternalIteratorPixelsOfCC_FlatZones<CNPsType>(instance, area);
-            }
-        }
-
-        int front() const {
-            return instance->getRepresentativeCNPs();
-        }
-    };
-    IteratorPixelsOfCC getPixelsOfCC() {
-        return IteratorPixelsOfCC(this->shared_from_this(), this->areaCC);
-    }
-
-
-
-
     
 };
 
 
 #include "../include/NodeCT.tpp"
 
-
 #endif
+
+
