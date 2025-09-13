@@ -13,7 +13,7 @@ py::tuple PyBindComponentTreeAdjustmentByFlatzone::buildCollections(PyBindCompon
     auto &collectionF = this->F.getCollectionF();
     std::map<int, std::vector<NodeFZ>> mapCollectionF;
     for (int i = 0; i < 256; ++i) {
-        if (!collectionF[i].empty()) {
+        if (!collectionF[i].empty()) { 
             std::vector<NodeFZ> nodes;
             nodes.reserve(collectionF[i].size());
             for (NodeId nid : collectionF[i]) nodes.push_back(tree->proxy(nid));

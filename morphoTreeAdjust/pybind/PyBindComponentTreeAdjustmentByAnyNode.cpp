@@ -15,7 +15,7 @@ py::tuple PyBindComponentTreeAdjustmentByAnyNode::buildCollections(PyBindCompone
     FlatZone* flatzoneTauL = &tree->getFlatzoneByID(idLeaf); 
     
     ComponentTreeAdjustmentByAnyNode::buildMergedAndNestedCollections(tree, flatzoneTauL->front(), pixelUpperBound, newGrayLevel, tree->isMaxtree());
-
+ 
     std::array<std::vector<NodeFZPtr>, 256>& collectionF = this->F.getCollectionF();
     std::map<int, std::vector<NodeFZPtr>> mapCollectionF;
     for (int i = 0; i < 256; ++i) {

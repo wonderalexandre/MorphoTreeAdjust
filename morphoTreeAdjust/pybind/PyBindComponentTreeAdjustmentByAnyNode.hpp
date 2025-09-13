@@ -14,7 +14,7 @@
 #define PYBIND_COMPONENT_TREE_ADJUSTMENT_ANY_NODE_H
 
 namespace py = pybind11;
-
+ 
 using PyBindComponentTreeFZ = PyBindComponentTree<FlatZones>;
 using PyBindComponentTreeFZPtr = std::shared_ptr<PyBindComponentTreeFZ>;
 

@@ -13,7 +13,7 @@
 #ifndef COMPONENT_TREE_ADJUSTMENT_FLATZONE_H
 #define COMPONENT_TREE_ADJUSTMENT_FLATZONE_H
 
-/**
+/** 
  * @brief Ajuste de árvores guiado por um representante de flat-zone.
  *
  * Atualiza a árvore complementar (min ↔ max) quando a flat-zone identificada por

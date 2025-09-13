@@ -8,7 +8,7 @@
 #include <utility>
 
 
-
+ 
 
 void ComponentTreeAdjustmentByAnyNode::updateTree(ComponentTreeFZPtr tree, NodeFZ node) {
     long int areaFZsRemovedTmp = 0;

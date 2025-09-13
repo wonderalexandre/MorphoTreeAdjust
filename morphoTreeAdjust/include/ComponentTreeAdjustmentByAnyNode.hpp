@@ -14,7 +14,7 @@
 #ifndef COMPONENT_TREE_ADJUSTMENT_ANY_NODE_H
 #define COMPONENT_TREE_ADJUSTMENT_ANY_NODE_H
 
-/**
+/** 
  * @brief Ajuste de árvores de componentes a partir de qualquer nó (não apenas folhas).
  *
  * Esta classe especializa a atualização quando um nó arbitrário (com uma ou mais

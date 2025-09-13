@@ -11,3 +11,6 @@ Pipfile
 /tests/dat/icdar_val
 /tests/dat/icdar_resized
 /tests/dat/icdar
+/notebooks/.ipynb_checkpoints
+/notebooks/.ipynb_checkpoints
+/notebooks/.virtual_documents

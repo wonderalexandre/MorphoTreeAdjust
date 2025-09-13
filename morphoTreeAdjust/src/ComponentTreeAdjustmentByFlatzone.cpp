@@ -8,7 +8,7 @@
 #include <utility>
 
 
-
+ 
 void ComponentTreeAdjustmentByFlatzone::updateTree(ComponentTreeFZPtr tree, int repFZ) {
     bool isMaxtree = tree->isMaxtree();
     ComponentTreeFZPtr otherTree = getOtherTree(isMaxtree);

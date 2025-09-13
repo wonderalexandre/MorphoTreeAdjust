@@ -50,7 +50,7 @@ add_executable(jmiv2025 jmiv2025.cpp
     ../morphoTreeAdjust/src/ComponentTreeAdjustmentBySubtree.cpp
     ./external/stb/stb_image.cpp
 )
-
+ 
 add_executable(testePruningLeaf testePruningLeaf.cpp
     ../morphoTreeAdjust/src/AdjacencyRelation.cpp
     ../morphoTreeAdjust/src/ComponentTreeAdjustmentByLeaf.cpp

@@ -165,7 +165,7 @@ void init_ComponentTreeAdjustment(py::module &m) {
         .def("buildCollections", &PyBindComponentTreeAdjustmentByFlatzone::buildCollections)
         .def("log", &PyBindComponentTreeAdjustmentByFlatzone::getOutputLog);
 
-    py::class_<PyBindComponentTreeAdjustmentByAnyNode>(m, "ComponentTreeAdjustmentByAnyNode")
+    py::class_<PyBindComponentTreeAdjustmentByAnyNode>(m, "ComponentTreeAdjustmentByAnyNode") 
         .def(py::init<std::shared_ptr<PyBindTree>, std::shared_ptr<PyBindTree>>())
         .def("updateTree", [](PyBindComponentTreeAdjustmentByAnyNode &self, PyBindComponentTreeFZPtr tree, NodeCT<FlatZones> node) {
             self.updateTree(tree, node);
