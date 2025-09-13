@@ -113,13 +113,15 @@ public:
     inline auto getCNPs() const { return tree->getCNPsById(id); } //iterador 
     inline int getNumFlatzone() const { return tree->getNumFlatzoneById(id); }
     inline int getNumCNPs() const { return tree->getNumCNPsById(id);} 
-    inline bool isChild(NodeCT<CNPsType> node) const noexcept { return tree && node.id >= 0 && tree->arena.parentId[node.id] == id; }
+    inline bool isChild(NodeCT<CNPsType> node) const noexcept { return tree && node && hasChildById(id, node.getIndex()); }
     inline  NodeCT<CNPsType> getParent() { if (!tree || tree->arena.parentId[id] < 0) return {}; return NodeCT<CNPsType>(tree, tree->arena.parentId[id]);}
     inline  void setParent(NodeCT<CNPsType> node) { if (!tree) return;  tree->setParentById(id, node.getIndex()); }
     inline void addChild(NodeCT<CNPsType> child) { if (!tree || !child) return; tree->addChildById(id, child.getIndex()); }
-    inline void removeChild(NodeCT<CNPsType> child) { if (!tree || !child) return; tree->removeChildById(id, child.getIndex()); }
+    inline void removeChild(NodeCT<CNPsType> child, bool releaseNode) { if (!tree || !child) return; tree->removeChildById(id, child.getIndex(), releaseNode); }
     inline void spliceChildren(NodeCT<CNPsType> from) { if (!tree || !from || from.getIndex() == id) return; tree->spliceChildrenById(id, from.getIndex()); }
     inline void addRepCNPs(int rep) { if(!tree) return; tree->addRepCNPsById(id, rep);}
+    inline bool isLeaf() const { return tree->isLeaf(id); }
+
 
     ///Métodos disponíveis SOMENTE para `FlatZones`
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>

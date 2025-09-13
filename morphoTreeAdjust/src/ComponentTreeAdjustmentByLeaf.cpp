@@ -10,7 +10,7 @@
 
 
 void ComponentTreeAdjustmentByLeaf::updateTree(ComponentTreeFZPtr tree, NodeFZ leaf) {
-    assert(leaf != nullptr && "L_leaf is nullptr"); 
+    assert(leaf && "L_leaf is nullptr"); 
     assert(leaf.isLeaf() && "L_leaf is not leaf"); 
     assert(leaf.getParent() && "L_leaf is root"); 
     
@@ -19,14 +19,12 @@ void ComponentTreeAdjustmentByLeaf::updateTree(ComponentTreeFZPtr tree, NodeFZ l
     bool isMaxtree = tree->isMaxtree();
     int newGrayLevel = leaf.getParent().getLevel();  // b = g(p)
     int oldGrayLevel = leaf.getLevel();  // a = f(p)
-    int idLeaf = leaf.getRepCNPs().front(); //pixel (id) of flatzone 
-    NodeFZ nodeTauL = tree->getSC(idLeaf); //node of correspondence flatzone in other treee
+    int repLeaf = leaf.getRepCNPs().front(); //pixel (id) of flatzone 
+    NodeFZ nodeTauL = tree->getSC(repLeaf); //node of correspondence flatzone in other treee
     
     bool nodeTauCNPsIsEqualL = nodeTauL.getNumFlatzone() == 1;
-    int idFlatzoneTauL = idLeaf;//flatzoneTauL.front();
+    int idFlatzoneTauL = repLeaf;
     
-    assert(leaf.getNumCNPs(tree->getFlatZonesGraph()) == flatzoneTauL && "O número de CNPs de L_leaf é diferente do número de pixels da flatzone de tauL");
-
     ComponentTreeAdjustment::buildMergedAndNestedCollections(tree, idFlatzoneTauL, newGrayLevel, isMaxtree);
 
     int lambda = F.firstLambda(); //start with b = newGrayLevel
@@ -38,26 +36,24 @@ void ComponentTreeAdjustmentByLeaf::updateTree(ComponentTreeFZPtr tree, NodeFZ l
         std::vector<NodeId>& F_lambda = F.getMergedNodes(lambda);
 
         nodeUnion = tree->proxy(F_lambda.front());    
-        disconnect(tree, nodeUnion);
+        disconnect(tree, nodeUnion, false);
 
         for (NodeId nodeId : F_lambda) {
             if (nodeId != nodeUnion) {
                 nodeUnion.addCNPsOfDisjointFlatzones(tree->getRepCNPsById(nodeId), tree);
                 mergedParentAndChildren(tree, nodeUnion, nodeId);
-                disconnect(tree, nodeId);
-                //tree->setNumNodes(tree->getNumNodes() - 1);
-                tree->releaseNode(nodeId);
+                disconnect(tree, nodeId, true);
             }
         }
         if (lambda == newGrayLevel) {
             nodeUnion.addCNPsToConnectedFlatzone(idFlatzoneTauL, tree); 
             nodeTauL.removeFlatzone(idFlatzoneTauL);
             for (NodeId nodeId : F.getFb()) {
-                disconnect(tree, nodeId);
+                disconnect(tree, nodeId, false);
                 tree->addChildById(nodeUnion, nodeId);
             }
         }
-        if (nodeUnionPrevious) {
+        if (nodeUnionPrevious) {                
             nodeUnionPrevious.setParent(nodeUnion);
             nodeUnion.addChild(nodeUnionPrevious);
         }
@@ -92,6 +88,7 @@ void ComponentTreeAdjustmentByLeaf::updateTree(ComponentTreeFZPtr tree, NodeFZ l
                     nodeUnion.setArea(nodeUnion.getArea() + tree->getAreaById(n));
                 }
             }
+            disconnect(tree, nodeTauL, true);
         } 
         else {  // Novo root
             NodeId newRoot = nodeUnion;
@@ -112,12 +109,10 @@ void ComponentTreeAdjustmentByLeaf::updateTree(ComponentTreeFZPtr tree, NodeFZ l
             }
             tree->setAreaById(newRoot, nodeTauL.getArea());
             tree->setRootById(newRoot);
+            tree->releaseNode(nodeTauL);
             
         }
         
-        disconnect(tree, nodeTauL);
-        //tree->setNumNodes(tree->getNumNodes() - 1);
-        tree->releaseNode(nodeTauL);
     } else {
         if (nodeUnion != nodeTauL) {
             nodeUnion.setParent(nodeTauL);

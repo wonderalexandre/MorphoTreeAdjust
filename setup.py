@@ -6,8 +6,8 @@ import platform
 import subprocess
 
 from pathlib import Path 
-from distutils.version import LooseVersion
-from setuptools import setup, Extension
+from packaging.version import Version
+from setuptools import setup, Extension, find_packages
 from setuptools.command.build_ext import build_ext
 import setuptools
 
@@ -26,8 +26,8 @@ class CMakeBuild(build_ext):
             raise RuntimeError("CMake must be installed to build the following extension: "
                                + ", ".join(e.name for e in self.extensions))
 
-        cmake_version = LooseVersion(re.search(r"version\s*([\d.]+)", out.decode()).group(1))
-        if platform.system() == "Windows" and cmake_version < "3.14":
+        cmake_version = Version(re.search(r"version\s*([\d.]+)", out.decode()).group(1))
+        if platform.system() == "Windows" and cmake_version < Version("3.14"):
             raise RuntimeError("CMake >= 3.14 is required on Windows")
 
         for ext in self.extensions:
@@ -109,7 +109,7 @@ else:
 
 setup(
     name="morphoTreeAdjust",
-    version="0.1.8",
+    version="0.1.10",
     description="MorphoTreeAdjust is a C++/Python implementation for adjusting the morpholofical trees.",
     long_description="",
     author="Wonder Alexandre Luz Alves",
@@ -125,10 +125,16 @@ setup(
         "Programming Language :: C++",
     ],
     # Certificar-se de que as dependências necessárias estão instaladas
-    setup_requires=["setuptools", "wheel", "cmake>=3.14"],
-    ext_modules=[CMakeExtension('morphoTreeAdjust')],
+    # PEP 517/518: declare as build-system in pyproject.toml
+    packages=find_packages(where="python", include=["morphoTreeAdjust", "morphoTreeAdjust.*"]),
+    package_dir={"": "python"},
+    ext_modules=[CMakeExtension('morphoTreeAdjust.morphoTreeAdjust')],
     cmdclass=dict(build_ext=CMakeBuild),
     zip_safe=False,
+    include_package_data=True,
+    extras_require={
+        "viz": ["numpy", "matplotlib"],
+    }
     #packages=["maf"],  # Definindo o pacote maf
     #package_dir={"maf": "python"},  # Atribuindo o diretório "python" ao pacote "maf"
     #package_data={

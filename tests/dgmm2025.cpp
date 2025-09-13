@@ -52,9 +52,6 @@ ImageUInt8Ptr computerCASF_naive(ImageUInt8Ptr img, double radioAdj, const std::
        // if(i==0) std::cout << "\t- Time build trees: " << std::chrono::duration_cast<std::chrono::milliseconds>(timeTmp1+timeTmp2).count() << " ms\n";
 
 	    for(NodeId node: ComponentTreeP::getNodesThreshold(mintree, threshold)) {
-            if(i == thresholds.size()-1) {
-                ;
-            }
 	        mintree->prunning(node);    
 	    }
 
@@ -66,10 +63,9 @@ ImageUInt8Ptr computerCASF_naive(ImageUInt8Ptr img, double radioAdj, const std::
             end_all = std::chrono::high_resolution_clock::now();
             std::cout << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end_all - start_all).count() << " ms\n\n";
         }
-        if(i == thresholds.size()-1) 
-            printTree(mintree->getRoot(), "naive");
+        
 	}
-    printImage(imgOut);
+    
     return imgOut;
 }
 
@@ -217,8 +213,6 @@ ImageUInt8Ptr computerCASF(ImageUInt8Ptr img, double radioAdj, const std::vector
        
 	}
     auto imgOut = mintree->reconstructionImage();
-    printTree(mintree->getRoot(), "our");
-    printImage(imgOut);
     return imgOut;
 }
 

@@ -49,7 +49,7 @@ void ComponentTreeAdjustmentByFlatzone::updateTree(ComponentTreeFZPtr tree, int 
         //anexa Fb no newNode
         for (NodeId nodeId : F.getFb()) {
             newNode.setArea(newNode.getArea() + tree->getAreaById(nodeId)); //atualiza a area do newNode            
-            disconnect(tree, nodeId);
+            disconnect(tree, nodeId, false);
             tree->addChildById(newNode, nodeId);
         }
     }
@@ -63,14 +63,14 @@ void ComponentTreeAdjustmentByFlatzone::updateTree(ComponentTreeFZPtr tree, int 
         std::vector<NodeId>& F_lambda = F.getMergedNodes(lambda);
 
         nodeUnion = tree->proxy(F_lambda.front());
-        disconnect(tree, nodeUnion);
+        disconnect(tree, nodeUnion, false);
     
         for (NodeId nodeId : F_lambda) {
             if (nodeId != nodeUnion && nodeId != newNode) {
                 nodeUnion.addCNPsOfDisjointFlatzones(tree->getRepCNPsById(nodeId), tree);
                 mergedParentAndChildren(tree, nodeUnion, nodeId);
-                disconnect(tree, nodeId);
-                tree->releaseNode(nodeId);
+                disconnect(tree, nodeId, true);
+                //tree->releaseNode(nodeId);
             }
         }
         
@@ -81,11 +81,11 @@ void ComponentTreeAdjustmentByFlatzone::updateTree(ComponentTreeFZPtr tree, int 
             else {
                 nodeUnion.addRepCNPs(repFZ);
             }
-            //disconnect(tree, newNode);
+            //disconnect(tree, newNode, true);
             //tree->releaseNode(newNode);
             nodeTauL.removeFlatzone(repFZ); 
             for (NodeId nodeId : F.getFb()) {
-                disconnect(tree, nodeId);
+                disconnect(tree, nodeId, false);
                 tree->addChildById(nodeUnion, nodeId);
             }
         }
@@ -126,6 +126,7 @@ void ComponentTreeAdjustmentByFlatzone::updateTree(ComponentTreeFZPtr tree, int 
                     nodeUnion.setArea(nodeUnion.getArea() + tree->getAreaById(n));
                 }
             }
+            disconnect(tree, nodeTauL, true);
         } 
         else {  // Novo root
             NodeId newRoot = nodeUnion;
@@ -148,10 +149,9 @@ void ComponentTreeAdjustmentByFlatzone::updateTree(ComponentTreeFZPtr tree, int 
             
             tree->setAreaById(newRoot, nodeTauL.getArea());
             tree->setRootById(newRoot);
+            tree->releaseNode(nodeTauL);
         }
-        //tree->setNumNodes(tree->getNumNodes() - 1);
-        disconnect(tree, nodeTauL);
-        tree->releaseNode(nodeTauL);
+        
     } else {
         if (nodeUnion != nodeTauL) {
             nodeUnion.setParent(nodeTauL);

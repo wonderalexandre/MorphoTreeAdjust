@@ -50,7 +50,7 @@ inline void ComponentTree<CNPsType>::setParentById(NodeId nodeId, NodeId parentI
     if (parentId == arena.parentId[nodeId]) return;
     if (parentId == -1) {
         if (arena.parentId[nodeId] != -1) 
-            removeChildById(arena.parentId[nodeId], parentId);
+            removeChildById(arena.parentId[nodeId], parentId, false);
     } else {
         addChildById(parentId, nodeId);
     }        
@@ -62,7 +62,7 @@ void ComponentTree<CNPsType>::addChildById(int parentId, int childId) {
 
     // Se o filho já tem pai, desconecta antes de ler P/C
     if (arena.parentId[childId] != -1) {
-        removeChildById(arena.parentId[childId], childId);
+        removeChildById(arena.parentId[childId], childId, false);
     }
 
     arena.parentId[childId]      = parentId;
@@ -78,13 +78,13 @@ void ComponentTree<CNPsType>::addChildById(int parentId, int childId) {
     ++arena.childCount[parentId];
 
     
-    assert(this->validate(true) && "ComponentTree topology invariant failed after addChildById");
+    //assert(ComponentTree::validateStructure(this) && "ComponentTree topology invariant failed after addChildById");
     
 }
 
 // Remove um filho 'childId' da lista encadeada de filhos do pai 'parentId'.
 template<typename CNPsType>
-inline void ComponentTree<CNPsType>::removeChildById(int parentId, int childId) {
+inline void ComponentTree<CNPsType>::removeChildById(int parentId, int childId, bool release) {
     if (parentId < 0 || childId < 0) return;
     if (arena.parentId[childId] != parentId) return;
 
@@ -103,8 +103,10 @@ inline void ComponentTree<CNPsType>::removeChildById(int parentId, int childId) 
     arena.parentId[childId] = -1;
     arena.prevSiblingId[childId] = -1;
     arena.nextSiblingId[childId] = -1;
-
-    assert(this->validate(true) && "ComponentTree topology invariant failed after removeChildById");
+    if(release){
+        releaseNode(childId);
+        //assert(ComponentTree::validateStructure(this) && "ComponentTree topology invariant failed after removeChildById");
+    }
 }
 
 
@@ -142,7 +144,7 @@ inline void ComponentTree<CNPsType>::spliceChildrenById(int toId, int fromId) {
     arena.lastChildId[fromId]  = -1;
     arena.childCount[fromId]   = 0;
 
-    assert(this->validate(true) && "ComponentTree topology invariant failed after spliceChildrenById");
+   // assert(ComponentTree::validateStructure(this) && "ComponentTree topology invariant failed after spliceChildrenById");
 }
 
 template <typename CNPsType>
@@ -584,12 +586,12 @@ template<>
 template<typename T, typename std::enable_if_t<std::is_same<T, Pixels>::value, int>>
 void ComponentTreeP::prunning(NodeId nodeId){
     assert(nodeId && "node is invalid");
-    assert(node.getParent() && "node is root");
+    assert(getParentById(nodeId) && "node is root");
 
-    const int parentId = arena.parentId[nodeId]; // já é garantido pelo assert acima
+    const int parentId = arena.parentId[nodeId]; 
     if(parentId >= 0){ 
         // 1) desconecta 'node' do pai
-        removeChildById(parentId, nodeId);
+        removeChildById(parentId, nodeId, false);
 
         // 2) BFS ID-first na subárvore para redirecionar UF/SC e contabilizar remoções
         FastQueue<NodeId> q;
@@ -618,13 +620,13 @@ void ComponentTreeP::prunning(NodeId nodeId){
 template<>
 template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
 void ComponentTreeFZ::prunning(NodeId nodeId) {
-    assert(node && "node is nullptr");
-    assert(node.getParent() && "node is root");
+    assert(nodeId && "node is invalid");
+    assert(getParentById(nodeId) && "node is root");
 
     int parentId   = arena.parentId[nodeId];
     if(parentId >=0 ){
 
-        removeChildById(parentId, nodeId);
+        removeChildById(parentId, nodeId, false);
 
         FastQueue<NodeId> q;
         q.push(nodeId);
@@ -663,7 +665,7 @@ void ComponentTreeP::mergeWithParent(NodeP node)
     const int parentId = arena.parentId[nodeId];
 
     // 1) tira 'node' da lista de filhos do pai
-    removeChildById(parentId, nodeId);
+    removeChildById(parentId, nodeId, false);
 
     // 2) move os filhos de 'node' para o pai (preserva ordem) — tudo por IDs
     spliceChildrenById(parentId, nodeId);

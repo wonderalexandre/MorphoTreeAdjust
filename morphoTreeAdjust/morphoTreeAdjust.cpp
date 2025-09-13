@@ -38,19 +38,26 @@ void init_NodeCT(py::module &m) {
                 << ", area=" << node.getArea() << ")";
             return oss.str();
         })
-        .def_property_readonly("repCnps", [](NodeFZ &node) {
-                py::list out;
-                for (int r : node.getRepCNPs()) 
-                    out.append(r);
-                return out;
-            })
+        .def_property_readonly("repCNPs", [](NodeFZ &node) {
+            py::list out;
+            for (int r : node.getRepCNPs()) 
+                out.append(r);
+            return out;
+        })
         .def_property_readonly("cnps", [](NodeFZ &node) {
-                py::list out;
-                for (int r : node.getCNPs()) 
-                    out.append(r);
-                return out;
-            })
+            py::list out;
+            for (int r : node.getCNPs()) 
+                out.append(r);
+            return out;
+        })
+        .def_property_readonly("pixelsOfCC", [](NodeFZ &n){
+            py::list out;
+            for (int p : n.getPixelsOfCC()) 
+                out.append(p);
+            return out;
+        })
         .def_property_readonly("level", &NodeFZ::getLevel)
+        .def_property_readonly("repNode", &NodeFZ::getRepNode)
         .def_property_readonly("parent", &NodeFZ::getParent)
         .def_property_readonly("numCNPs", &NodeFZ::getNumCNPs)
         .def_property_readonly("numFlatzones", &NodeFZ::getNumFlatzone)
@@ -61,7 +68,7 @@ void init_NodeCT(py::module &m) {
             return ch;
         })
         .def("__bool__", [](const NodeFZ& n){ return static_cast<bool>(n); })
-        .def("pixelsOfCC", &NodeFZ::getPixelsOfCC)
+
         .def("nodesOfPathToRoot", [](NodeFZ &n){
             py::list out;
             for (auto x : n.getNodesOfPathToRoot()) out.append(x);
@@ -90,9 +97,10 @@ void init_ComponentTree(py::module &m) {
         .def("getSC", [](PyBindTree &self, int p) -> NodeCT<FlatZones> {
             return self.getSC(p);
         }, "Obtém o nó SC correspondente ao índice p")
+        /*
         .def("prunning", [](PyBindTree &self, NodeCT<FlatZones> node) {
             self.prunning(node.getIndex());
-        })
+        })*/
         .def("getNodesThreshold", &PyBindTree::getNodesThreshold)
         .def("leaves", [](PyBindTree &self){
             py::list out;
@@ -105,7 +113,7 @@ void init_ComponentTree(py::module &m) {
                 out.append(p);
             return out;
         })
-        .def("nodes", &PyBindTree::getNodes)
+        .def_property_readonly("nodes", &PyBindTree::getNodes)
         .def_property_readonly("numNodes", &PyBindTree::getNumNodes)
         .def_property_readonly("root", &PyBindTree::getRoot)
         .def_property_readonly("isMaxtree", [](const PyBindTree& self){ return self.isMaxtree(); })
@@ -123,6 +131,9 @@ void init_ComponentTreeAdjustment(py::module &m) {
         .def("mergeWithParent", [](PyBindComponentTreeAdjustmentByLeaf &self, PyBindComponentTreeFZPtr tree, NodeCT<FlatZones> node) {
             self.mergeWithParent(tree, node);
         })
+        .def("prunning", [](PyBindComponentTreeAdjustmentByLeaf &self, PyBindComponentTreeFZPtr tree, NodeCT<FlatZones> node) {
+            self.prunning(tree, node);
+        })
         .def("buildCollections", &PyBindComponentTreeAdjustmentByLeaf::buildCollections)
         .def("log", &PyBindComponentTreeAdjustmentByLeaf::getOutputLog);
 
@@ -133,6 +144,9 @@ void init_ComponentTreeAdjustment(py::module &m) {
         })
         .def("mergeWithParent", [](PyBindComponentTreeAdjustmentBySubtree &self, PyBindComponentTreeFZPtr tree, NodeCT<FlatZones> node) {
             self.mergeWithParent(tree, node);
+        })
+        .def("prunning", [](PyBindComponentTreeAdjustmentBySubtree &self, PyBindComponentTreeFZPtr tree, NodeCT<FlatZones> node) {
+            self.prunning(tree, node);
         })
         .def("buildCollections", &PyBindComponentTreeAdjustmentBySubtree::buildCollections)
         .def("log", &PyBindComponentTreeAdjustmentBySubtree::getOutputLog);
@@ -145,6 +159,9 @@ void init_ComponentTreeAdjustment(py::module &m) {
         .def("mergeWithParent", [](PyBindComponentTreeAdjustmentByFlatzone &self, PyBindComponentTreeFZPtr tree, int repFlatzone) {
             self.mergeWithParent(tree, repFlatzone);
         })
+        .def("prunning", [](PyBindComponentTreeAdjustmentByFlatzone &self, PyBindComponentTreeFZPtr tree, NodeCT<FlatZones> node) {
+            self.prunning(tree, node);
+        })
         .def("buildCollections", &PyBindComponentTreeAdjustmentByFlatzone::buildCollections)
         .def("log", &PyBindComponentTreeAdjustmentByFlatzone::getOutputLog);
 
@@ -152,6 +169,9 @@ void init_ComponentTreeAdjustment(py::module &m) {
         .def(py::init<std::shared_ptr<PyBindTree>, std::shared_ptr<PyBindTree>>())
         .def("updateTree", [](PyBindComponentTreeAdjustmentByAnyNode &self, PyBindComponentTreeFZPtr tree, NodeCT<FlatZones> node) {
             self.updateTree(tree, node);
+        })
+        .def("prunning", [](PyBindComponentTreeAdjustmentByAnyNode &self, PyBindComponentTreeFZPtr tree, NodeCT<FlatZones> node) {
+            self.prunning(tree, node);
         })
         .def("mergeWithParent", [](PyBindComponentTreeAdjustmentByAnyNode &self, PyBindComponentTreeFZPtr tree, NodeCT<FlatZones> node) {
             self.mergeWithParent(tree, node);
@@ -166,6 +186,13 @@ void init_AdjacencyRelation(py::module &m) {
         .def_property_readonly("size", &AdjacencyRelation::getSize)
         .def("getAdjPixels", py::overload_cast<int, int>(&AdjacencyRelation::getAdjPixels), py::return_value_policy::reference)
         .def("getAdjPixels", py::overload_cast<int>(&AdjacencyRelation::getAdjPixels), py::return_value_policy::reference)
+        .def("getOffsets", [](AdjacencyRelation &self){
+            py::list out;
+            for (int i = 0; i < self.getSize(); ++i) {
+                out.append(py::make_tuple(self.getOffsetRow(i), self.getOffsetCol(i)));
+            }
+            return out;
+        })
         .def("__iter__", [](AdjacencyRelation* adj) {
             return py::make_iterator(adj->begin(), adj->end());
         }, py::keep_alive<0, 1>());

@@ -90,6 +90,13 @@ public:
      * @brief Retorna o raio em uso.
      */
     double getRadius();
+
+    int getOffsetRow(int index){
+        return offsetRow[index];
+    }
+    int getOffsetCol(int index){
+        return offsetCol[index];
+    }
     
     /**
      * @brief Iterador leve para percorrer vizinhos já configurados via `get*`.

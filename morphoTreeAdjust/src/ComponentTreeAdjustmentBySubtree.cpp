@@ -97,9 +97,8 @@ void ComponentTreeAdjustmentBySubtree::updateTree(ComponentTreeFZPtr tree, NodeF
         if (!nodeUnion) {
             for (NodeId nodeId : F_lambda) {
                 mergedParentAndChildren(tree, tree->getParentById(nodeId), nodeId);
-                disconnect(tree, nodeId);
-                //tree->setNumNodes(tree->getNumNodes() - 1);
-                tree->releaseNode(nodeId);
+                disconnect(tree, nodeId, true);
+                //tree->releaseNode(nodeId);
             }
             lambda = F.nextLambda();  
             nodeUnion = nodeUnionPrevious;
@@ -110,7 +109,7 @@ void ComponentTreeAdjustmentBySubtree::updateTree(ComponentTreeFZPtr tree, NodeF
             outputLog << "\t(Id:" << nodeUnion.getIndex() << "; level:" << nodeUnion.getLevel() <<"; |cnps|:" << nodeUnion.getNumCNPs() << ") " << std::endl;
         }
 
-        disconnect(tree, nodeUnion);
+        disconnect(tree, nodeUnion, false);
 
         for (NodeId nodeId : F_lambda) {
             if (nodeId != nodeUnion) {
@@ -126,9 +125,8 @@ void ComponentTreeAdjustmentBySubtree::updateTree(ComponentTreeFZPtr tree, NodeF
                 }
                     
                 mergedParentAndChildren(tree, nodeUnion, nodeId);
-                disconnect(tree, nodeId);
-                //tree->setNumNodes(tree->getNumNodes() - 1);
-                tree->releaseNode(nodeId);
+                disconnect(tree, nodeId, true);
+                //tree->releaseNode(nodeId);
             }
         }
         if (lambda == newGrayLevel) {
@@ -138,7 +136,7 @@ void ComponentTreeAdjustmentBySubtree::updateTree(ComponentTreeFZPtr tree, NodeF
                 outputLog << "\t\tAfter add CNPs of S: (Id:" << nodeUnion.getIndex() << "; level:" << nodeUnion.getLevel() <<"; |cnps|:" << nodeUnion.getNumCNPs() << ") " << std::endl;
             }
             for (NodeId nodeId : F.getFb()) {
-                disconnect(tree, nodeId);
+                disconnect(tree, nodeId, false);
                 tree->addChildById(nodeUnion, nodeId);
             }
             nodeTauParentSubtree = nodeUnion;
@@ -194,8 +192,9 @@ void ComponentTreeAdjustmentBySubtree::updateTree(ComponentTreeFZPtr tree, NodeF
                     nodeUnion.setArea(nodeUnion.getArea() + tree->getAreaById(n));
                 }
             }
-
-        } else {  // Novo root
+            disconnect(tree, nodeTauStar, true);
+        } 
+        else {  // Novo root
             NodeId newRoot = nodeUnion;
             if (nodeTauStar.getNumChildren() > 0) {
                 for(NodeId n: tree->getChildrenById(nodeTauStar)){
@@ -214,11 +213,9 @@ void ComponentTreeAdjustmentBySubtree::updateTree(ComponentTreeFZPtr tree, NodeF
             }
             tree->setAreaById(newRoot, nodeTauStar.getArea());
             tree->setRootById(newRoot);
-            
+            tree->releaseNode(nodeTauStar);
         }
-        //tree->setNumNodes( tree->getNumNodes() -1 );  
-        disconnect(tree, nodeTauStar);
-        tree->releaseNode(nodeTauStar);
+        
     } else {
         if (nodeUnion != nodeTauStar) {
             nodeUnion.setParent(nodeTauStar);

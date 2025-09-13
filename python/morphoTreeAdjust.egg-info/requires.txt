@@ -1,0 +1,4 @@
+
+[viz]
+numpy
+matplotlib

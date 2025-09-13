@@ -25,6 +25,11 @@ py::tuple PyBindComponentTreeAdjustmentByLeaf::buildCollections(PyBindComponentT
             mapCollectionF[i] = std::move(nodes);
         }
     }
+    
+    std::vector<NodeFZ> Fb;
+    for(NodeId nid : this->F.getFb()){
+        Fb.push_back(tree->proxy(nid));
+    }
 
-    return py::make_tuple(mapCollectionF, this->F.getFb());
+    return py::make_tuple(mapCollectionF, Fb);
 }

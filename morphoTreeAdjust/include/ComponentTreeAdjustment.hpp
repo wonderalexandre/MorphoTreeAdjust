@@ -204,9 +204,10 @@ protected:
     std::ostringstream outputLog;
     long int areaFZsRemoved;
     
-    void disconnect(ComponentTreeFZPtr tree, NodeId nodeId) {
+    void disconnect(ComponentTreeFZPtr tree, NodeId nodeId, bool releaseNode) {
         NodeId parentId = tree->getParentById(nodeId);
-        tree->removeChildById(parentId, nodeId);
+        tree->removeChildById(parentId, nodeId, releaseNode);
+        
     }
 
     void mergedParentAndChildren(ComponentTreeFZPtr tree, NodeId nodeUnion, NodeId n){
@@ -348,8 +349,8 @@ public:
                     //Adiciona o vencedor 1x no final
                     repsParent.push_back(winner);
                 }
-                child.getParent().removeChild(child);
-                tree->releaseNode(child);
+                tree->removeChildById(child.getParent(), child, true);
+                //tree->releaseNode(child);
             }
 
         }
@@ -363,7 +364,7 @@ public:
         NodeFZ parent = node.getParent();
         
         // Retira 'node' da cadeia do pai e move todos os seus filhos para o pai
-        parent.removeChild(node);
+        parent.removeChild(node, false);
         parent.spliceChildren(node);   // reparenta todos os filhos de 'node' para 'parent'
         
         //tratamento dos representantes de flatzones que já foram fundidos 

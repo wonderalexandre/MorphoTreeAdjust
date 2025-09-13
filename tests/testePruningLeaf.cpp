@@ -72,7 +72,9 @@ int main()
         
         if(L_leaf.getIndex() == 11){
             std::cout << "===============================================\n";
-            printImage(tree1->reconstructionImage());
+            testComponentTreeFZ(tree2, "tree (pruning)", tree2->reconstructionImage());
+            printImage(tree2->reconstructionImage());
+            printTree(tree2->getRoot());    
             std::cout << "===============================================\n";
 
         }

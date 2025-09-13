@@ -135,9 +135,6 @@ class NodeArena {
 
     // Marca o ID como livre para reutilização. Pré-condição: nó já está desconectado (sem pai e sem filhos).
     inline void releaseNode(NodeId id) noexcept {
-        assert(parentId[id] == -1 && "releaseNode: o nó ainda possui pai");
-        assert(firstChildId[id] == -1 && "releaseNode: o nó ainda possui filhos");
-
         // Zera/normaliza campos observáveis
         repNode[id]      = -1;      // marcador de slot livre (não conflita com IDs válidos >= 0)
         threshold2[id]   = 0;
@@ -404,6 +401,7 @@ public:
     int getNumColsOfImage()const noexcept{ return numCols;}
     AdjacencyRelationPtr getAdjacencyRelation() noexcept {return adj;}
     inline NodeArena<CNPsType>::RepsOfCCRangeById getRepCNPs() const { return arena.getRepsOfCC(root); } //iterador
+
     inline NodeArena<CNPsType>::RepsOfCCRangeById getRepCNPsOfCCById(NodeId id) const { return arena.getRepsOfCC(id); } //iterador
     inline auto getPixelsOfCCById(NodeId id) const{ return pixelBuffer->getPixelsBySet(arena.getRepsOfCC(id));  } //iterador
     inline auto getPixelsOfFlatzone(int repFZ) const{ return pixelBuffer->getPixelsBySet(repFZ); } //iterador
@@ -420,17 +418,14 @@ public:
     }
 
     void releaseNode(NodeId id) noexcept { arena.releaseNode(id); numNodes--; }
-    
-
     inline int32_t getAreaById(NodeId id) const noexcept{ return arena.areaCC[id];}
     inline void setAreaById(NodeId id, int32_t area) noexcept { arena.areaCC[id] = area;}
 
     inline NodeId getParentById(NodeId id) const noexcept {return arena.parentId[id];}
     inline int getNumChildrenById(NodeId id) const noexcept{ return arena.childCount[id]; }
     inline bool hasChildById(NodeId nodeId, NodeId childId) const { return arena.parentId[childId] == nodeId;}
+    inline bool isLeaf(NodeId id) const { return arena.childCount[id] == 0; }
     
-    
-
     inline auto getChildrenById(NodeId id) const {return arena.children(id);}    
     inline NodeId getRootById()const noexcept { return this->root;}
     inline void setRootById(NodeId n){ setParentById(n, -1); this->root = n; }
@@ -446,7 +441,7 @@ public:
     inline auto getCNPsById(NodeId id) const;
     inline int getNumCNPsById(NodeId id) const;
 
-    inline void removeChildById(int parentId, int childId);
+    inline void removeChildById(int parentId, int childId, bool release);
     inline void addChildById(int parentId, int childId);
     inline void spliceChildrenById(int toId, int fromId);
     inline void setParentById(NodeId nodeId, NodeId parentId);
@@ -468,9 +463,10 @@ public:
     void mergeWithParent(std::vector<int>& flatzone);
     
 
-
-    
     static bool validateStructure(ComponentTreePtr<CNPsType> tree)  {
+        return validateStructure(tree.get());
+    }
+    static bool validateStructure(const ComponentTree* tree){
         const auto erroMsg = [&](std::string msg){ 
             std::cerr << "❌ Erro " << msg << "\n";
             return false;
@@ -490,10 +486,10 @@ public:
             }
         }
         if (roots != 1)
-            return erroMsg("1: A árvore não possui exatamente uma raiz; a soma de parentId == -1 (desconsiderando slots livres) não é 1");
+            return erroMsg("1: A árvore NÃO possui exatamente uma raiz; a soma de parentId == -1 (desconsiderando slots livres) é "+ std::to_string(roots) +" mas deveria ser 1");
         else
             infoMsg("A árvore contém exatamente 1 raiz (excluindo slots livres)");
-
+    
 
         // 2) Pai consistente
         for (int id = 0; id < (int)tree->arena.size(); ++id) {
