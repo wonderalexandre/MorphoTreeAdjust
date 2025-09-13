@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: morphoTreeAdjust
-Version: 0.1.10
+Version: 0.2
 Summary: MorphoTreeAdjust is a C++/Python implementation for adjusting the morpholofical trees.
 Home-page: https://github.com/wonderalexandre/ComponentTreeLearn
 Author: Wonder Alexandre Luz Alves

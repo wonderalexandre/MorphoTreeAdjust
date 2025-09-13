@@ -8,8 +8,6 @@
 #include <utility>
 
 
-#include "../../tests/Tests.hpp"
-
 
 void ComponentTreeAdjustmentByFlatzone::updateTree(ComponentTreeFZPtr tree, int repFZ) {
     bool isMaxtree = tree->isMaxtree();
