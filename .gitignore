@@ -12,3 +12,4 @@ Pipfile
 /tests/dat/icdar_resized
 /tests/dat/icdar
 /tests/dat/icdar_resized
+/python/morphoTreeAdjust.egg-info

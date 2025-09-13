@@ -3,8 +3,6 @@
 #include "include/AdjacencyRelation.hpp"
 #include "pybind/PyBindComponentTreeAdjustmentByLeaf.hpp"
 #include "pybind/PyBindComponentTreeAdjustmentBySubtree.hpp"
-#include "pybind/PyBindComponentTreeAdjustmentByAnyNode.hpp"
-#include "pybind/PyBindComponentTreeAdjustmentByFlatzone.hpp"
 #include "pybind/PyBindFlatZonesGraph.hpp"
 
 #include <iterator>
@@ -151,33 +149,7 @@ void init_ComponentTreeAdjustment(py::module &m) {
         .def("buildCollections", &PyBindComponentTreeAdjustmentBySubtree::buildCollections)
         .def("log", &PyBindComponentTreeAdjustmentBySubtree::getOutputLog);
 
-    py::class_<PyBindComponentTreeAdjustmentByFlatzone>(m, "ComponentTreeAdjustmentByFlatzone")
-        .def(py::init<std::shared_ptr<PyBindTree>, std::shared_ptr<PyBindTree>>())
-        .def("updateTree", [](PyBindComponentTreeAdjustmentByFlatzone &self, PyBindComponentTreeFZPtr tree, int repFlatzone) {
-            self.updateTree(tree, repFlatzone);
-        })
-        .def("mergeWithParent", [](PyBindComponentTreeAdjustmentByFlatzone &self, PyBindComponentTreeFZPtr tree, int repFlatzone) {
-            self.mergeWithParent(tree, repFlatzone);
-        })
-        .def("prunning", [](PyBindComponentTreeAdjustmentByFlatzone &self, PyBindComponentTreeFZPtr tree, NodeCT<FlatZones> node) {
-            self.prunning(tree, node);
-        })
-        .def("buildCollections", &PyBindComponentTreeAdjustmentByFlatzone::buildCollections)
-        .def("log", &PyBindComponentTreeAdjustmentByFlatzone::getOutputLog);
-
-    py::class_<PyBindComponentTreeAdjustmentByAnyNode>(m, "ComponentTreeAdjustmentByAnyNode")
-        .def(py::init<std::shared_ptr<PyBindTree>, std::shared_ptr<PyBindTree>>())
-        .def("updateTree", [](PyBindComponentTreeAdjustmentByAnyNode &self, PyBindComponentTreeFZPtr tree, NodeCT<FlatZones> node) {
-            self.updateTree(tree, node);
-        })
-        .def("prunning", [](PyBindComponentTreeAdjustmentByAnyNode &self, PyBindComponentTreeFZPtr tree, NodeCT<FlatZones> node) {
-            self.prunning(tree, node);
-        })
-        .def("mergeWithParent", [](PyBindComponentTreeAdjustmentByAnyNode &self, PyBindComponentTreeFZPtr tree, NodeCT<FlatZones> node) {
-            self.mergeWithParent(tree, node);
-        })
-        //.def("buildCollections", &PyBindComponentTreeAdjustmentByAnyNode::buildCollections)
-        .def("log", &PyBindComponentTreeAdjustmentByAnyNode::getOutputLog);
+    
 }
 
 void init_AdjacencyRelation(py::module &m) {
