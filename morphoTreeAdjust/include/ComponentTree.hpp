@@ -226,7 +226,7 @@ class NodeArena {
         }
         void loadBlockFromId(int nid) {
             if constexpr (std::is_same_v<CNPsType, Pixels>) {
-                singleBuf_ = arena_->repCNPs[nid];
+                singleBuf_ = arena_->repNode[nid];
                 curPtr_ = &singleBuf_;
                 curEnd_ = &singleBuf_ + 1;
             } else {
