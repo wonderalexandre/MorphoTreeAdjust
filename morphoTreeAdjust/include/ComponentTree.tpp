@@ -12,6 +12,7 @@
 #include "../include/ComponentTree.hpp"
 #include "../include/AdjacencyRelation.hpp"
 #include "../include/FlatZonesGraph.hpp"
+#include "../include/BuilderComponentTreeByUnionFind.hpp"
 
 template <typename CNPsType>
 NodeCT<CNPsType> ComponentTree<CNPsType>::proxy(NodeId id) const {
@@ -147,379 +148,6 @@ inline void ComponentTree<CNPsType>::spliceChildrenById(int toId, int fromId) {
    // assert(ComponentTree::validateStructure(this) && "ComponentTree topology invariant failed after spliceChildrenById");
 }
 
-template <typename CNPsType>
-std::vector<int> ComponentTree<CNPsType>::countingSort(ImageUInt8Ptr imgPtr){
-	int n = this->numRows * this->numCols;
-    auto img = imgPtr->rawData();
-	int maxvalue = img[0];
-	for (int i = 1; i < n; i++)
-		if(maxvalue < img[i]) maxvalue = img[i];
-			
-	std::vector<uint32_t> counter(maxvalue + 1, 0);  
-	std::vector<int> orderedPixels(n);
-    	
-	if(this->isMaxtree()){
-		for (int i = 0; i < n; i++)
-			counter[img[i]]++;
-
-		for (int i = 1; i < maxvalue; i++) 
-			counter[i] += counter[i - 1];
-		counter[maxvalue] += counter[maxvalue-1];
-		
-		for (int i = n - 1; i >= 0; --i)
-			orderedPixels[--counter[img[i]]] = i;	
-
-	}else{
-		for (int i = 0; i < n; i++)
-			counter[maxvalue - img[i]]++;
-
-		for (int i = 1; i < maxvalue; i++) 
-			counter[i] += counter[i - 1];
-		counter[maxvalue] += counter[maxvalue-1];
-
-		for (int i = n - 1; i >= 0; --i)
-			orderedPixels[--counter[maxvalue - img[i]]] = i;
-        
-	}
-	
-	return orderedPixels;
-}
-
-template <>
-template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
-std::vector<int> ComponentTreeFZ::countingSort() {
-    int numFZ = flatzoneGraph->getNumFlatZones();
-    auto img = flatzoneGraph->getImage()->rawData();
-    
-    // Passo 1: encontrar o valor máximo de nível de cinza entre as flat zones
-    uint8_t maxvalue = img[ pixelView.indexToPixel[0] ];
-    for (int i = 1; i < numFZ; ++i) {
-        int pixelID = pixelView.indexToPixel[i]; //flatzoneGraph->getPixelFromIndex(i);
-        uint8_t val = img[pixelID];
-        if (val > maxvalue) maxvalue = val;
-    }
-    std::vector<uint32_t> counter(maxvalue + 1);  
-	std::vector<int> orderedFlatzones(numFZ);
-    
-    if (this->isMaxtree()) {
-        // Passo 2: contar número de flat zones por nível de cinza
-        for (int i = 0; i < numFZ; ++i) {
-            int pixelID = pixelView.indexToPixel[i];//flatzoneGraph->getPixelFromIndex(i);
-            uint8_t gray = img[pixelID];
-            counter[gray]++;
-        }
-
-        // Passo 3: soma acumulada
-        for (int i = 1; i < maxvalue; ++i)
-            counter[i] += counter[i - 1];
-        counter[maxvalue] += counter[maxvalue - 1];
-
-        // Passo 4: ordenação dos representantes das flat zones
-        for (int i = numFZ - 1; i >= 0; --i) {
-            int pixelID = pixelView.indexToPixel[i];//flatzoneGraph->getPixelFromIndex(i);
-            uint8_t gray = img[pixelID];
-            orderedFlatzones[--counter[gray]] = pixelID;
-        }
-
-    } else { // min-tree
-        // Passo 2: contar número de flat zones por (maxvalue - gray)
-        for (int i = 0; i < numFZ; ++i) {
-            int pixelID = pixelView.indexToPixel[i];//flatzoneGraph->getPixelFromIndex(i);
-            uint8_t gray = img[pixelID];
-            counter[maxvalue - gray]++;
-        }
-
-        // Passo 3: soma acumulada
-        for (int i = 1; i < maxvalue; ++i)
-            counter[i] += counter[i - 1];
-        counter[maxvalue] += counter[maxvalue - 1];
-
-        // Passo 4: ordenação dos representantes das flat zones
-        for (int i = numFZ - 1; i >= 0; --i) {
-            int pixelID = pixelView.indexToPixel[i];//flatzoneGraph->getPixelFromIndex(i);
-            uint8_t gray = img[pixelID];
-            orderedFlatzones[--counter[maxvalue - gray]] = pixelID;
-        }
-    }
-
-    return orderedFlatzones;
-}
-
-
-
-
-template <>
-template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
-void ComponentTreeFZ::createTreeByUnionFind(std::vector<int>& orderedPixelFlatzones) {
-    int numFZ = flatzoneGraph->getNumFlatZones();
-    //parent.resize(numFZ);
-    std::vector<int> zPar(numFZ, -1); 
-    std::vector<int> parent(numFZ, -1); 
-    auto findRoot = [&](int p) {
-        while (zPar[p] != p) { zPar[p] = zPar[zPar[p]]; p = zPar[p]; }
-        return p;
-    };
-
-    //criando a arvore já canônizada
-	for(int i=numFZ-1; i >= 0; i--){
-		int p = orderedPixelFlatzones[i];
-        int idxP = pixelView.pixelToIndex[p];
-        zPar[idxP] = idxP;
-        parent[idxP] = idxP; 
-		for(int q: flatzoneGraph->getAdjacentFlatzonesFromPixel(p)){
-            int idxQ = pixelView.pixelToIndex[q];
-			if(zPar[idxQ] != -1){
-				int idxR = findRoot(idxQ);
-				if(idxP != idxR){
-					parent[idxR] = idxP;
-					zPar[idxR] = idxP;
-				}
-			}
-		}
-	}
-
-    
-    //int numFZ = flatzoneGraph->getNumFlatZones();
-    auto img = flatzoneGraph->getImage()->rawData();
-	for (int i = 0; i < numFZ; i++) {
-		int p = orderedPixelFlatzones[i];
-        int idxP = pixelView.pixelToIndex[p];// flatzoneGraph->getIndexFromPixel(p);
-        int idxPParent = parent[idxP];
-        int pParent = pixelView.indexToPixel[idxPParent];//flatzoneGraph->getPixelFromIndex(idxPParent);
-        
-		if (idxP == idxPParent) { //representante do node raiz
-			int threshold1 = this->isMaxtree()? 0 : 255;
-			int threshold2 = img[p];
-            this->pixelToNodeId[p] = this->root = makeNode(p, -1, threshold1, threshold2);
-		}
-		else if (img[p] != img[pParent]) { //representante de um node
-			int threshold1 = this->isMaxtree()? img[pParent]+1 : img[pParent]-1;
-			int threshold2 = img[p];
-            this->pixelToNodeId[p] = makeNode(p, this->pixelToNodeId[pParent], threshold1, threshold2);
-		}
-		else if (img[p] == img[pParent]) {
-			this->pixelToNodeId[p] = pixelToNodeId[pParent];
-		}else{
-			std::cerr << "\n\n\n\nOps...falhou geral\n\n\n\n";
-			break;
-		}
-	}
-			
-}
-
-template <>
-template<typename T, typename std::enable_if_t<std::is_same<T, Pixels>::value, int>>
-void ComponentTreeP::createTreeByUnionFind(std::vector<int>& orderedPixels, ImageUInt8Ptr imgPtr) {
-	int numPixels = numRows*numCols;
-    std::vector<int> zPar(numPixels, -1); 
-    std::vector<int> parent(numPixels, -1); 
-    auto findRoot = [&](int p) {
-        while (zPar[p] != p) { zPar[p] = zPar[zPar[p]]; p = zPar[p]; }
-        return p;
-    };
-	auto img = imgPtr->rawData();
-    
-    //criando a arvore
-	for(int i=numPixels-1; i >= 0; i--){
-		int p = orderedPixels[i];
-		parent[p] = p;
-		zPar[p] = p;
-		for (int q : this->adj->getNeighborPixels(p)) {
-			if(zPar[q] != -1){
-				int r = findRoot(q);
-				if(p != r){
-					parent[r] = p;
-					zPar[r] = p;
-				}
-			}
-		}
-	}
-    
-	// canonizacao da arvore
-    int numNodes = 0;
-	for (int i = 0; i < numPixels; i++) {
-		int p = orderedPixels[i];
-		int q = parent[p];
-				
-		if(img[parent[q]] == img[q]){
-			parent[p] = parent[q];
-		}
-        
-        if (parent[p] == p || img[parent[p]] != img[p]) 
-            ++numNodes;  // p é representante
-    }
-
-    reserveNodes(numNodes); 
-
-    for (int i = 0; i < numPixels; i++) {
-		int p = orderedPixels[i];
-		//int q = parent[p];
-		if (p == parent[p]) { //representante do node raiz
-			int threshold1 = this->isMaxtree()? 0 : 255;
-			int threshold2 = img[p];
-            this->pixelToNodeId[p] = this->root = makeNode(p, -1, threshold1, threshold2);
-		}
-		else if (img[p] != img[parent[p]]) { //representante de um novo node
-			int threshold1 = this->isMaxtree()? img[parent[p]]+1 : img[parent[p]]-1;
-			int threshold2 = img[p];
-            this->pixelToNodeId[p] = makeNode(p, this->pixelToNodeId[parent[p]], threshold1, threshold2);
-		}
-		else if (img[p] == img[parent[p]]) { 
-			this->pixelToNodeId[p] = pixelToNodeId[parent[p]];
-		}   
-	}
-
-    //colentando os pixels
-    pixelBuffer = std::make_shared<PixelSetManager>(numPixels, numNodes);
-    pixelView = pixelBuffer->view();
-    int indice = 0;
-    for (int i = 0; i < numPixels; i++) {
-		int p = orderedPixels[i];
-        
-        if (p == parent[p] || img[p] != img[parent[p]]){ //representante do set
-            pixelView.indexToPixel[indice] = p;
-            pixelView.pixelToIndex[p] = indice;
-            pixelView.sizeSets[indice] = 1;
-            pixelView.pixelsNext[p] = p;
-            indice++;
-        }
-        else if (img[p] == img[parent[p]]) { 
-            pixelView.pixelsNext[p] = pixelView.pixelsNext[parent[p]];
-            pixelView.pixelsNext[parent[p]] = p;
-            int idx = pixelView.pixelToIndex[ parent[p] ];
-            pixelView.sizeSets[idx]++;
-		}
-    } 
-      
-    
-    assert((indice == numNodes) && "Erro na contagem de sets");
-    	
-}
-
-template <>
-template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
-void ComponentTreeFZ::createTreeByUnionFind(std::vector<int>& orderedPixels, ImageUInt8Ptr imgPtr) {
-    int numPixels = numRows * numCols;
-    
-    
-    std::vector<int> zPar(numPixels, -1);
-    std::vector<int> parent(numPixels, -1);
-    auto findRoot = [&](int p) {
-        while (zPar[p] != p) { zPar[p] = zPar[zPar[p]]; p = zPar[p]; }
-        return p;
-    };
-    auto img = imgPtr->rawData();
-
-    // --- construção da árvore (como já estava) ---
-    for (int i = numPixels - 1; i >= 0; i--) {
-        int p = orderedPixels[i];
-        parent[p] = p;
-        zPar[p] = p;
-        for (int q : this->adj->getNeighborPixels(p)) {
-            if (zPar[q] != -1) {
-                int r = findRoot(q);
-                if (p != r) {
-                    parent[r] = p;
-                    zPar[r] = p;
-                }
-            }
-        }
-    }
-    
-    int numNodes = 0;
-    // --- canonização (como já estava) ---
-    for (int i = 0; i < numPixels; i++) {
-        int p = orderedPixels[i];
-        int q = parent[p];
-        if (img[parent[q]] == img[q]) {
-            parent[p] = parent[q];
-        }
-        if(p == parent[p] || img[p] != img[parent[p]])
-            ++numNodes;
-    
-    }
-
-    reserveNodes(numNodes); 
-
-    for (int i = 0; i < numPixels; i++) {
-        int p = orderedPixels[i];
-    
-		if (p == parent[p]) { //representante do node raiz
-			int threshold1 = this->isMaxtree()? 0 : 255;
-			int threshold2 = img[p];
-            this->pixelToNodeId[p] = this->root = makeNode(p, -1, threshold1, threshold2);
-		}
-		else if (img[p] != img[parent[p]]) { //representante de um novo node
-			int threshold1 = this->isMaxtree()? img[parent[p]]+1 : img[parent[p]]-1;
-			int threshold2 = img[p];
-			this->pixelToNodeId[p] = makeNode(p, this->pixelToNodeId[parent[p]], threshold1, threshold2);
-		}
-		else if (img[p] == img[parent[p]]) { 
-			this->pixelToNodeId[p] = pixelToNodeId[parent[p]];
-		}
-    }
-
-
-
-    // --- aloca no teto: numFZs <= numPixels ---
-    pixelBuffer = std::make_shared<PixelSetManager>(numPixels, numPixels);
-    pixelView   = pixelBuffer->view();
-
-    // Reuso de zPar como visited: marcar com -2 quando visitado
-    auto isVisited  = [&](int p) { return zPar[p] == -2; };
-    auto setVisited = [&](int p) { zPar[p] = -2; };
-    FastQueue<int> queue(numPixels/3);
-    int nextIdxFZ = 0; // quantas FZs realmente criadas
-
-    for (int p0 = 0; p0 < numPixels; ++p0) {
-        if (isVisited(p0)) continue;
-
-        // platô de p0 (após canonização)
-        int repNode = (parent[p0] == p0 || img[parent[p0]] != img[p0]) ? p0 : parent[p0];
-        int L = img[p0];
-
-        // head da FZ é p0 (o menor pixel da FZ, pela ordem do laço)
-        int headFZ = p0;
-
-        // cria idx para esta FZ
-        int idx = nextIdxFZ++;
-        pixelView.indexToPixel[idx] = headFZ;  // head
-        pixelView.sizeSets[idx]     = 0;       // vamos contar dentro da BFS
-        pixelView.pixelsNext[headFZ] = headFZ; // ciclo unitário inicial (será expandido no loop)
-
-        // BFS da FZ
-        setVisited(p0);
-        queue.push(p0);
-
-        while (!queue.empty()) {
-            int p = queue.pop();
-
-            // insere p após o head
-            pixelView.pixelsNext[p]      = pixelView.pixelsNext[headFZ];
-            pixelView.pixelsNext[headFZ] = p;
-            pixelView.pixelToIndex[p]    = idx;
-            pixelView.sizeSets[idx]++;
-
-            for (int q : this->adj->getNeighborPixels(p)) {
-                if (!isVisited(q) && img[q] == L) {
-                    int rq = (parent[q] == q || img[parent[q]] != img[q]) ? q : parent[q];
-                    if (rq == repNode) {
-                        setVisited(q);
-                        queue.push(q);
-                    }
-                }
-            }
-        }
-
-        // registra a FZ no nó correspondente ao representante do platô
-        arena.repCNPs[this->pixelToNodeId[repNode]].push_back(headFZ);
-    }
-
-    // encolhe vetores de sets para o número real de FZs encontradas
-    pixelBuffer->shrinkToNumSets(nextIdxFZ);
-	pixelView = pixelBuffer->view();  // reobter spans após o resize
-}
-
 
 template <typename CNPsType>
 ComponentTree<CNPsType>::ComponentTree(ImageUInt8Ptr img, bool isMaxtree, AdjacencyRelationPtr adj) : numRows(img->getNumRows()), numCols(img->getNumCols()), maxtreeTreeType(isMaxtree), adj(adj), numNodes(0){   
@@ -541,15 +169,15 @@ ComponentTreeFZ::ComponentTree(std::shared_ptr<FlatZonesGraph> graph, bool isMax
     build();    
 }
 
-    
+ 
 template <typename CNPsType>
-void ComponentTree<CNPsType>::build(){ 
-    
+void ComponentTree<CNPsType>::build(){     
     if(flatzoneGraph)
         reserveNodes(flatzoneGraph->getNumFlatZones());
 
-    std::vector<int> orderedFlatzones = countingSort();
-	createTreeByUnionFind(orderedFlatzones);
+    //std::vector<int> orderedFlatzones = countingSort();
+    BuilderComponentTreeByUnionFind<CNPsType> buildUF(this);
+	buildUF.createTreeByUnionFind();
     
     //atribui os representantes das FZ nos respectivos nodes
     for(int rep : pixelBuffer->getFlatzoneRepresentatives()) {
@@ -558,18 +186,18 @@ void ComponentTree<CNPsType>::build(){
     }
 
 	computerArea(this->root); //computer area
-    
 }
 
 
 template <typename CNPsType>
 void ComponentTree<CNPsType>::build(ImageUInt8Ptr imgPtr){ 
-	std::vector<int> orderedPixels = countingSort(imgPtr);
-    createTreeByUnionFind(orderedPixels, imgPtr);
+    //std::vector<int> orderedPixels = countingSort(imgPtr);
+    BuilderComponentTreeByUnionFind<CNPsType> buildUF(this);
+    buildUF.createTreeByUnionFind(imgPtr);
+
 	computerArea(this->root); //computer area
 }
-
-
+    
 
 
 template <typename CNPsType>
@@ -827,8 +455,6 @@ template <>
 inline int ComponentTreeP::getNumCNPsById(NodeId id) const {
     return this->pixelBuffer->numPixelsInSet(arena.repNode[id]);
 }
-
-
 
 
 

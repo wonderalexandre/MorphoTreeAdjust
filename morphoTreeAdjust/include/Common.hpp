@@ -28,10 +28,9 @@ class NodeCT;
 
 using NodeId = int; 
 
-// Definição de tipos para CNPs
-using Pixels = int;                 // representante do cnps do node => Esse representante serve para acessar os CNPs em PixelSetManager. É o mesmo que repNode
+// Definição de tipos para representantes dos CNPs
 using FlatZones = std::vector<int>; //Lista de representantes das flatzones => Esses representante servem para acessar os pixels da FZ em PixelSetManager
-
+struct Pixels {};                 // Não é usado, pois não armazena representante por flatzones somente por nó (o representante do nó é repNode)
 
 using ComponentTreeFZ = ComponentTree<FlatZones>; //representa uma component tree por flatzones
 using ComponentTreeP = ComponentTree<Pixels>; //representa uma component tree sem tratamento de flatzones

@@ -16,6 +16,10 @@
 #ifndef COMPONENT_TREE_H
 #define COMPONENT_TREE_H
 
+// Forward declaration do builder externo (template)
+template <typename CNPsType>
+class BuilderComponentTreeByUnionFind;
+
 
 /**
  * @brief Arena de nós para Component Trees com armazenamento contíguo e acesso rápido.
@@ -66,6 +70,7 @@ class NodeArena {
     private:
     template<typename T> friend class ComponentTree; 
     template<typename T> friend class NodeCT; 
+    template<typename T> friend class BuilderComponentTreeByUnionFind; 
     
     std::vector<int>      repNode;       // representante do UF
     std::vector<int>      threshold2;    // level (max threshold)
@@ -96,9 +101,7 @@ class NodeArena {
             threshold2[id]   = thr2;             // level
             (void)thr1; //threshold1[id] = thr1;
             areaCC[id]       = 0;
-            if constexpr (std::is_same_v<CNPsType, Pixels>) {
-                repCNPs[id] = 0;
-            } else {
+            if constexpr (std::is_same_v<CNPsType, FlatZones>) {
                 repCNPs[id].clear();
             }
 
@@ -139,9 +142,7 @@ class NodeArena {
         repNode[id]      = -1;      // marcador de slot livre (não conflita com IDs válidos >= 0)
         threshold2[id]   = 0;
         areaCC[id]       = 0;
-        if constexpr (std::is_same_v<CNPsType, Pixels>) {
-            repCNPs[id] = 0;
-        } else {
+        if constexpr (std::is_same_v<CNPsType, FlatZones>) {
             repCNPs[id].clear();
         }
         parentId[id]     = -1;
@@ -226,7 +227,7 @@ class NodeArena {
         }
         void loadBlockFromId(int nid) {
             if constexpr (std::is_same_v<CNPsType, Pixels>) {
-                singleBuf_ = arena_->repCNPs[nid];
+                singleBuf_ = arena_->repNode[nid];
                 curPtr_ = &singleBuf_;
                 curEnd_ = &singleBuf_ + 1;
             } else {
@@ -338,6 +339,9 @@ class NodeArena {
  */
 template <typename CNPsType>
 class ComponentTree : public std::enable_shared_from_this<ComponentTree<CNPsType>> {
+
+    template<typename T> friend class BuilderComponentTreeByUnionFind; 
+
 protected:
     template<typename T> friend class NodeCT; 
     NodeId root;
@@ -360,23 +364,11 @@ protected:
         std::monostate>;
     FlatzoneGraphType flatzoneGraph;
 
-    std::vector<int> countingSort(ImageUInt8Ptr img);
-    
-    template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    std::vector<int> countingSort();
-
-    template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    void createTreeByUnionFind(std::vector<int>& orderedPixels, ImageUInt8Ptr img);
-
-    template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    void createTreeByUnionFind(std::vector<int>& orderedFlatzones);
-
-    template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, Pixels>::value, int> = 0>
-    void createTreeByUnionFind(std::vector<int>& orderedPixels, ImageUInt8Ptr img);
-
     void reconstruction(NodeId node, uint8_t* data);
     void build(ImageUInt8Ptr img);
     void build();
+
+
 
 public:
 
@@ -769,6 +761,76 @@ public:
 
     IteratorNodesOfPathToRootId getNodesOfPathToRootById(NodeId id) noexcept {
         return IteratorNodesOfPathToRootId(this, id);
+    }
+
+    // ================== Iterador de descendentes por ID (sem proxy) ================== //
+    /**
+     * @brief Iterador em largura (BFS) sobre os descendentes de um nó.
+     *
+     * Percorre todos os nós descendentes do nó informado, excluindo o
+     * próprio nó raiz do percurso. A ordem é em largura (BFS).
+     * Uso típico:
+     *   for (NodeId u : tree->getNodesDescendantsById(id)) { ... }
+     */
+    class InternalIteratorNodesDescendantsId {
+    private:
+        ComponentTree<CNPsType>* T_ = nullptr;
+        FastQueue<int> q_;
+
+    public:
+        using iterator_category = std::input_iterator_tag;
+        using value_type        = NodeId;
+        using difference_type   = std::ptrdiff_t;
+        using pointer           = const NodeId*;
+        using reference         = const NodeId&;
+
+        explicit InternalIteratorNodesDescendantsId(ComponentTree<CNPsType>* T, NodeId rootId) noexcept : T_(T) {
+            if (T_ && rootId >= 0) {
+                // Descendentes EXCLUEM o próprio nó: inicia com os filhos diretos
+                for (int c : T_->arena.children(rootId)) q_.push(c);
+            }
+        }
+
+        InternalIteratorNodesDescendantsId& operator++() noexcept {
+            if (!q_.empty()) {
+                int u = q_.pop();
+                for (int v : T_->arena.children(u)) q_.push(v);
+            }
+            return *this;
+        }
+
+        NodeId operator*() const noexcept { return q_.front(); }
+
+        bool operator==(const InternalIteratorNodesDescendantsId& other) const noexcept {
+            return q_.empty() == other.q_.empty();
+        }
+        bool operator!=(const InternalIteratorNodesDescendantsId& other) const noexcept {
+            return !(*this == other);
+        }
+    };
+
+    /**
+     * @brief Range leve para iterar os descendentes de `id` via range-for.
+     */
+    class IteratorNodesDescendantsId {
+    private:
+        ComponentTree<CNPsType>* T_ = nullptr;
+        NodeId rootId_ = -1;
+
+    public:
+        explicit IteratorNodesDescendantsId(ComponentTree<CNPsType>* T, NodeId rootId) noexcept : T_(T), rootId_(rootId) {}
+
+        InternalIteratorNodesDescendantsId begin() const noexcept { return InternalIteratorNodesDescendantsId(T_, rootId_); }
+        InternalIteratorNodesDescendantsId end()   const noexcept { return InternalIteratorNodesDescendantsId(nullptr, -1); }
+    };
+
+    /**
+     * @brief Retorna um range para iterar os descendentes (exclui o próprio nó).
+     * @param id Nó base do qual se deseja percorrer os descendentes.
+     * @return Range compatível com range-for de `NodeId`.
+     */
+    IteratorNodesDescendantsId getNodesDescendantsById(NodeId id) noexcept {
+        return IteratorNodesDescendantsId(this, id);
     }
 };
 

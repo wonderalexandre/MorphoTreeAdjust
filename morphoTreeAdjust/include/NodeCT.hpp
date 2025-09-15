@@ -113,7 +113,7 @@ public:
     inline auto getCNPs() const { return tree->getCNPsById(id); } //iterador 
     inline int getNumFlatzone() const { return tree->getNumFlatzoneById(id); }
     inline int getNumCNPs() const { return tree->getNumCNPsById(id);} 
-    inline bool isChild(NodeCT<CNPsType> node) const noexcept { return tree && node && hasChildById(id, node.getIndex()); }
+    inline bool isChild(NodeCT<CNPsType> node) const noexcept { return tree && node && tree->hasChildById(id, node.getIndex()); }
     inline  NodeCT<CNPsType> getParent() { if (!tree || tree->arena.parentId[id] < 0) return {}; return NodeCT<CNPsType>(tree, tree->arena.parentId[id]);}
     inline  void setParent(NodeCT<CNPsType> node) { if (!tree) return;  tree->setParentById(id, node.getIndex()); }
     inline void addChild(NodeCT<CNPsType> child) { if (!tree || !child) return; tree->addChildById(id, child.getIndex()); }
