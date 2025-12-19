@@ -164,8 +164,13 @@ public:
     /// @brief Retorna o primeiro valor lambda disponível na coleção.
     int firstLambda(int a, int b) {
         lambdaList.clear();
-        if(a > b) std::swap(a, b);
-        for (int i = a; i <= b; ++i) {
+        int min=a;
+        int max=b;
+        if(a > b) {
+            min = b;
+            max = a;
+        }
+        for (int i = min; i <= max; ++i) {
             if (!collectionF[i].empty()) {
                 lambdaList.push_back(i);
             }
