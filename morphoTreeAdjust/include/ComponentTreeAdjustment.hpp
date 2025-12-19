@@ -8,6 +8,7 @@
 #include "../include/NodeCT.hpp"
 #include "../include/ComponentTree.hpp"
 #include "../include/Common.hpp"
+#include "../include/AttributeComputer.hpp"
 
 #ifndef COMPONENT_TREE_ADJUSTMENT_H
 #define COMPONENT_TREE_ADJUSTMENT_H
@@ -15,6 +16,7 @@
 #include <array>
 #include <vector>
 #include <unordered_set>
+#include <span>
 
 /**
  * @brief Estrutura auxiliar para gerenciar coleções de nós mesclados e adjacentes em árvores de componentes.
@@ -46,6 +48,7 @@ public:
         return collectionF[level]; 
     }
 
+    /*
     /// @brief Adiciona um nó mesclado (versão NodeFZ).
     void addMergedNode(NodeFZ nodeNL) {
         //if(!visited.isMarked(nodeNL->getIndex())) {
@@ -60,7 +63,7 @@ public:
             collectionF[tree->getLevelById(nodeId)].push_back(nodeId);
             visited.mark(nodeId);
         //}
-    }
+    }*/
 
     /// @brief Computa e armazena nós adjacentes a uma lista de flat-zones.
     void computerAdjacentNodes(ComponentTreeFZPtr tree, const std::vector<int>& flatZonesID) {
@@ -159,9 +162,10 @@ public:
     }
     
     /// @brief Retorna o primeiro valor lambda disponível na coleção.
-    int firstLambda() {
+    int firstLambda(int a, int b) {
         lambdaList.clear();
-        for (int i = 0; i < 256; ++i) {
+        if(a > b) std::swap(a, b);
+        for (int i = a; i <= b; ++i) {
             if (!collectionF[i].empty()) {
                 lambdaList.push_back(i);
             }
@@ -185,6 +189,12 @@ public:
     }
 };
 
+// Alias padrão para o computador de atributos trabalhando com FlatZones.
+using DefaultAttributeComputer = AttributeComputer<
+    FlatZones,
+    typename AreaComputer<FlatZones>::Functions,
+    AreaComputer<FlatZones>>;
+
 /**
  * @brief Algoritmos de ajuste em árvores de componentes (min-tree e max-tree).
  *
@@ -192,7 +202,10 @@ public:
  * e construção de coleções aninhadas/mescladas em árvores de componentes
  * baseadas em flat-zones. É utilizada em algoritmos de ajuste e atualização
  * entre max-tree e min-tree.
+ *
+ * @tparam Computer Tipo concreto de AttributeComputer a ser utilizado (ex.: AreaComputer<FlatZones>).
  */
+template<typename Computer = DefaultAttributeComputer>
 class ComponentTreeAdjustment {
 
 protected: 
@@ -203,6 +216,11 @@ protected:
     MergedNodesCollection F;
     std::ostringstream outputLog;
     long int areaFZsRemoved;
+    
+    Computer* attrComputerMin = nullptr;
+    Computer* attrComputerMax = nullptr;
+    std::span<float> bufferMin;
+    std::span<float> bufferMax;
     
     void disconnect(ComponentTreeFZPtr tree, NodeId nodeId, bool releaseNode) {
         NodeId parentId = tree->getParentById(nodeId);
@@ -235,11 +253,22 @@ public:
     }
 
     /// @brief Construtor principal a partir de min-tree e max-tree.
-    ComponentTreeAdjustment(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree): mintree(mintree), maxtree(maxtree), maxIndex(maxtree->getFlatZonesGraph()->getNumFlatZones()), F(maxIndex)  { }
+    ComponentTreeAdjustment(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree)
+        : mintree(mintree), maxtree(maxtree), maxIndex(maxtree->getFlatZonesGraph()->getNumFlatZones()), F(maxIndex)  { }
 
     ComponentTreeAdjustment() = delete; 
 
     virtual ~ComponentTreeAdjustment() = default;
+
+    /**
+     * @brief Registra um AttributeComputer concreto e dimensiona o buffer interno.
+     */
+    void setAttributeComputer(Computer& computerMin, Computer& computerMax, std::span<float> bufMin, std::span<float> bufMax) {
+        attrComputerMin = &computerMin;
+        attrComputerMax = &computerMax;
+        bufferMin = bufMin;
+        bufferMax = bufMax;
+    }
     
     /// @brief Constrói coleções mescladas e aninhadas a partir de uma lista de flat-zones.
     void buildMergedAndNestedCollections(ComponentTreeFZPtr tree, std::vector<int>& flatZonesID,  int pixelUpperBound, int newGrayLevel, bool isMaxtree){

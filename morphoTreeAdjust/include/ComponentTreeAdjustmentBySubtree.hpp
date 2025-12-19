@@ -160,7 +160,8 @@ public:
  * as coleções F_λ/F_{λ>b} e executa as fusões/reatamentos conforme o intervalo
  * [g(p), f(τ⋆)]. Opera simetricamente para min-tree e max-tree.
  */
-class ComponentTreeAdjustmentBySubtree: public ComponentTreeAdjustment {
+template<typename Computer = DefaultAttributeComputer>
+class ComponentTreeAdjustmentBySubtree: public ComponentTreeAdjustment<Computer> {
 
 protected:
     ProperPartsMergeCollector properPartsCollector;
@@ -171,7 +172,8 @@ public:
      * @param mintree Ponteiro para a min-tree.
      * @param maxtree Ponteiro para a max-tree.
      */
-    ComponentTreeAdjustmentBySubtree(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree) : ComponentTreeAdjustment(mintree, maxtree), properPartsCollector(maxtree->isMaxtree(), std::max(mintree->getNumNodes(), maxtree->getNumNodes())) { }
+    ComponentTreeAdjustmentBySubtree(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree)
+        : ComponentTreeAdjustment<Computer>(mintree, maxtree), properPartsCollector(maxtree->isMaxtree(), std::max(mintree->getNumNodes(), maxtree->getNumNodes())) { }
       
     /**
      * @brief Atualiza a árvore `tree` a partir da subárvore enraizada em `rootSubtree` na outra árvore.

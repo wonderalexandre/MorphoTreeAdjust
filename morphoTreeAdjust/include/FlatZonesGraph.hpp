@@ -250,7 +250,7 @@ public:
                 }
             }
         }
-        // espelha as areasta para outro direção
+        // espelha as areasta para outra direção
         AdjacentFlatZonesSet::mirrorAndFinalize(listOfAdjacentFlatZones, pixelView);        
         
     }

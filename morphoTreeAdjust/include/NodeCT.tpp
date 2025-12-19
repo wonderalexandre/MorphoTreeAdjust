@@ -32,10 +32,10 @@ void NodeFZ::removeFlatzone(int repFlatZone) {
     std::erase(reps, repFlatZone);
 }
 
-// --- FlatZones: conecta reps adicionais à FZ base (uma base)
+// --- FlatZones: conecta reps adicionais à FZ base (uma base) 
 template <>
 template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
-void NodeFZ::addCNPsToConnectedFlatzone(int repFlatZone, ComponentTreeFZPtr tree) {
+void NodeFZ::addCNPsToConnectedFlatzone(int repFlatZone, ComponentTreeFZPtr tree) { //usado na versão ByLeaf
     auto& reps = this->getRepCNPs();
     assert(!reps.empty() && "Erro: conjunto de FZs do nó está vazio!");
     
@@ -47,7 +47,7 @@ void NodeFZ::addCNPsToConnectedFlatzone(int repFlatZone, ComponentTreeFZPtr tree
 // --- FlatZones: conecta reps adicionais à FZ base (várias bases)
 template <>
 template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
-void NodeFZ::addCNPsToConnectedFlatzone(const std::vector<int>& repBases, int repBaseWinner, ComponentTreeFZPtr tree) {
+void NodeFZ::addCNPsToConnectedFlatzone(const std::vector<int>& repBases, int repBaseWinner, ComponentTreeFZPtr tree) { //usado na versão BySubtree
     auto& reps = this->getRepCNPs();
     assert(!reps.empty() && "Erro: conjunto de FZs do nó está vazio!");
     FlatZonesGraphPtr& graph = tree->getFlatZonesGraph();

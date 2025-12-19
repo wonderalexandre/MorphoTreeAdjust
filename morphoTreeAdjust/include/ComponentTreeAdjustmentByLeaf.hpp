@@ -21,7 +21,8 @@
  * fundidos por níveis (F_λ) e reata conexões de subárvores conforme a
  * mudança de nível do elemento folha na árvore complementar.
  */
-class ComponentTreeAdjustmentByLeaf: public ComponentTreeAdjustment {
+template<typename Computer = DefaultAttributeComputer>
+class ComponentTreeAdjustmentByLeaf: public ComponentTreeAdjustment<Computer> {
     
 public:
     /**
@@ -29,7 +30,8 @@ public:
      * @param mintree Ponteiro para a min-tree.
      * @param maxtree Ponteiro para a max-tree.
      */
-    ComponentTreeAdjustmentByLeaf(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree) : ComponentTreeAdjustment(mintree, maxtree) { }
+    ComponentTreeAdjustmentByLeaf(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree)
+        : ComponentTreeAdjustment<Computer>(mintree, maxtree) { }
     
     /**
      * @brief Atualiza a árvore `tree` após a remoção/mescla da folha `L_leaf` na outra árvore.
@@ -59,6 +61,5 @@ public:
     void adjustMaxTree(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree, std::vector<NodeId>& nodesToPruning) ;
   
 };
-
 
 #endif

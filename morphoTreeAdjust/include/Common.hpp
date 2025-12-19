@@ -27,6 +27,9 @@ class NodeCT;
 
 
 using NodeId = int; 
+constexpr NodeId InvalidNode = -1; //-1 indica nó inválido
+inline bool isValidNode(NodeId id) noexcept { return id != InvalidNode;}
+inline bool isInvalid(NodeId id) noexcept { return id == InvalidNode; }
 
 // Definição de tipos para CNPs
 using Pixels = int;                 // representante do cnps do node => Esse representante serve para acessar os CNPs em PixelSetManager. É o mesmo que repNode

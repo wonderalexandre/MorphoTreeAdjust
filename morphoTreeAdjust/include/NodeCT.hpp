@@ -121,6 +121,8 @@ public:
     inline void spliceChildren(NodeCT<CNPsType> from) { if (!tree || !from || from.getIndex() == id) return; tree->spliceChildrenById(id, from.getIndex()); }
     inline void addRepCNPs(int rep) { if(!tree) return; tree->addRepCNPsById(id, rep);}
     inline bool isLeaf() const { return tree->isLeaf(id); }
+    inline int computerNumDescendants() { return tree->computerNumDescendants(id); }
+    inline int computerNumFlatzoneDescendants() { return tree->computerNumFlatzoneDescendants(id);}
 
 
     ///Métodos disponíveis SOMENTE para `FlatZones`
@@ -136,45 +138,8 @@ public:
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
     void removeFlatzone(int idFlatZone);
           
-    // Conta descendentes (exclui o próprio nó)
-    int computerNumDescendants() {
-        if (!tree) return 0;
-        int cont = 0;
-        // Empilha apenas os filhos diretos; não conta o próprio nó
-        FastQueue<int> st;
-        for(int c: tree->arena.children(id)) st.push(c);
-        while (!st.empty()) {
-            int u = st.pop();
-            ++cont; // conta nó u
-            // empilha filhos de u
-            for(int v: tree->arena.children(u)) st.push(v);
-        }
-        return cont;
-    }
-
-    // Soma de "flat-zones" nos descendentes (exclui o próprio nó)
-    // (usa n->getNumFlatzone(), que você já especializa por CNPsType)
-    int computerNumFlatzoneDescendants() {
-        if (!tree) return 0;
-        int acc = 0;
-        FastQueue<int> st;
-        for (NodeId c : tree->arena.children(id)) 
-            st.push(c);
-        while (!st.empty()) {
-            NodeId u = st.pop();
-            if constexpr (std::is_same_v<CNPsType, Pixels>) {
-                // Para Pixels (CNPsType == int), cada nó contribui com 1 flat-zone
-                acc += 1;
-            } else {
-                // Para FlatZones (CNPsType == std::vector<int>), soma a quantidade de reps no nó
-                acc += static_cast<int>(tree->arena.repCNPs[u].size());
-            }
-            for (NodeId v : tree->arena.children(u)) 
-                st.push(v);
-        }
-        return acc;
-    }
-
+    
+    
 
     // Ranges existentes que devolvem filhos (por ponteiro lógico) continuam,
     // mas internamente usam `tree->proxy(id)` (que agora devolve handle)

@@ -462,6 +462,43 @@ public:
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, Pixels>::value, int> = 0>
     void mergeWithParent(std::vector<int>& flatzone);
     
+    // Soma de "flat-zones" nos descendentes (exclui o próprio nó)
+    // (usa n->getNumFlatzone(), que você já especializa por CNPsType)
+    int computerNumFlatzoneDescendants(NodeId id) {
+        int acc = 0;
+        FastQueue<int> st;
+        for (NodeId c : this->arena.children(id)) 
+            st.push(c);
+        while (!st.empty()) {
+            NodeId u = st.pop();
+            if constexpr (std::is_same_v<CNPsType, Pixels>) {
+                // Para Pixels (CNPsType == int), cada nó contribui com 1 flat-zone
+                acc += 1;
+            } else {
+                // Para FlatZones (CNPsType == std::vector<int>), soma a quantidade de reps no nó
+                acc += static_cast<int>(this->arena.repCNPs[u].size());
+            }
+            for (NodeId v : this->arena.children(u)) 
+                st.push(v);
+        }
+        return acc;
+    }
+
+    // Conta descendentes (exclui o próprio nó)
+    int computerNumDescendants(NodeId id) {
+        int cont = 0;
+        // Empilha apenas os filhos diretos; não conta o próprio nó
+        FastQueue<int> st;
+        for(int c: this->arena.children(id)) st.push(c);
+        while (!st.empty()) {
+            int u = st.pop();
+            ++cont; // conta nó u
+            // empilha filhos de u
+            for(int v: this->arena.children(u)) st.push(v);
+        }
+        return cont;
+    }
+
 
     static bool validateStructure(ComponentTreePtr<CNPsType> tree)  {
         return validateStructure(tree.get());
@@ -534,7 +571,7 @@ public:
         return true;
     }
     
-    static std::vector<NodeId> getNodesThreshold(ComponentTreePtr<CNPsType> tree, int areaThreshold){
+    static std::vector<NodeId> getNodesThreshold(ComponentTreePtr<CNPsType> tree, int areaThreshold, bool ENABLE_LOG = false){
         std::vector<NodeId> lista;
         FastQueue<NodeId> queue;
         queue.push(tree->root);
@@ -549,7 +586,7 @@ public:
                     queue.push(c);
                 }
             } else {
-                if (PRINT_LOG) {
+                if (ENABLE_LOG) {
                     sumArea += tree->arena.areaCC[id];
                     // Para estatísticas abaixo, usamos os helpers já existentes no NodeCT (cria handle só aqui):
                     auto h = tree->proxy(id);
@@ -559,7 +596,7 @@ public:
                 lista.push_back(id);
             }
         }
-        if (PRINT_LOG) {
+        if (ENABLE_LOG) {
             int areaImage = tree->getNumColsOfImage() * tree->getNumRowsOfImage();
             std::cout << "\tArea threshold: " << areaThreshold
                     << ", #Nodes: " << numNodes
@@ -573,7 +610,73 @@ public:
         return lista;
     }
     
+    
     // ====================== Iteradores por ID (sem proxy) ====================== //
+
+
+    /**
+     * @brief Iterador interno que salta slots vazios e retorna IDs válidos.
+     */
+    class InternalIteratorValidNodeIds {
+    private:
+        const int* rep_;        // ponteiro p/ arena.repNode[0]
+        NodeId cur_;            // posição atual
+        NodeId end_;            // N = arena.repNode.size()
+
+        // avança cur_ até um id válido ou coloca cur_ = end_
+        inline void settle_() noexcept {
+            while (cur_ < end_ && rep_[cur_] == InvalidNode) ++cur_;
+        }
+
+    public:
+        using iterator_category = std::input_iterator_tag;
+        using value_type        = NodeId;
+        using difference_type   = std::ptrdiff_t;
+        using pointer           = const NodeId*;
+        using reference         = const NodeId&;
+
+        inline InternalIteratorValidNodeIds(ComponentTree<CNPsType>* T, NodeId start) noexcept
+        : rep_(T ? T->arena.repNode.data() : nullptr),
+        cur_(T ? start : 0),
+        end_(T ? static_cast<NodeId>(T->arena.repNode.size()) : 0) {
+            settle_();
+        }
+
+        inline InternalIteratorValidNodeIds& operator++() noexcept {
+            ++cur_;
+            settle_();
+            return *this;
+        }
+
+        inline NodeId operator*() const noexcept { return cur_; }
+
+        // iterador input: comparar só posição é suficiente
+        inline bool operator==(const InternalIteratorValidNodeIds& other) const noexcept { return cur_ == other.cur_; }
+        inline bool operator!=(const InternalIteratorValidNodeIds& other) const noexcept { return cur_ != other.cur_; }
+    };
+
+    /**
+     * @brief Range wrapper para percorrer todos os NodeId ativos da arena.
+     */
+    class IteratorValidNodeIds {
+    private:
+        ComponentTree<CNPsType>* T_ = nullptr;
+    public:
+        inline explicit IteratorValidNodeIds(ComponentTree<CNPsType>* T) noexcept : T_(T) {}
+
+        inline InternalIteratorValidNodeIds begin() const noexcept { return InternalIteratorValidNodeIds(T_, 0); }
+        inline InternalIteratorValidNodeIds end() const noexcept {
+            // end iterator shares the same end_ (size) as begin();
+            // if T_ is null, both begin/end will be empty
+            return InternalIteratorValidNodeIds(T_, T_ ? static_cast<NodeId>(T_->arena.repNode.size()) : 0);
+        }
+    };
+
+    /** Range para iterar NodeId válidos (exclui slots livres) */
+    inline IteratorValidNodeIds getNodeIds() noexcept { return IteratorValidNodeIds(this); }
+    inline IteratorValidNodeIds getNodeIds() const noexcept { return IteratorValidNodeIds(const_cast<ComponentTree<CNPsType>*>(this)); }
+
+
     // Pós-ordem (retorna NodeId)
     class InternalIteratorPostOrderTraversalId {
     private:
