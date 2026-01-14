@@ -30,7 +30,7 @@ public:
      * @param mintree Ponteiro para a min-tree.
      * @param maxtree Ponteiro para a max-tree.
      */
-    ComponentTreeAdjustmentByLeaf(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree)
+    ComponentTreeAdjustmentByLeaf(ComponentTreeFZ* mintree, ComponentTreeFZ* maxtree)
         : ComponentTreeAdjustment<Computer>(mintree, maxtree) { }
     
     /**
@@ -42,7 +42,7 @@ public:
      * @param tree Árvore (min ou max) a ser atualizada.
      * @param L_leaf Folha removida/mesclada na árvore complementar.
      */
-    void updateTree(ComponentTreeFZPtr tree, NodeFZ L_leaf);
+    void updateTree(ComponentTreeFZ* tree, NodeFZ L_leaf);
 
     /**
      * @brief Ajusta a min-tree após poda/mescla de folhas na max-tree.
@@ -50,7 +50,7 @@ public:
      * @param maxtree Árvore máxima onde folhas foram removidas/mescladas.
      * @param nodesToPruning Lista de NodeId na max-tree a percorrer (pós-ordem).
      */
-    void adjustMinTree(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree, std::vector<NodeId>& nodesToPruning) ;
+    void adjustMinTree(ComponentTreeFZ* mintree, ComponentTreeFZ* maxtree, std::vector<NodeId>& nodesToPruning) ;
     
     /**
      * @brief Ajusta a max-tree após poda/mescla de folhas na min-tree.
@@ -58,7 +58,7 @@ public:
      * @param mintree Árvore mínima onde folhas foram removidas/mescladas.
      * @param nodesToPruning Lista de NodeId na min-tree a percorrer (pós-ordem).
      */
-    void adjustMaxTree(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree, std::vector<NodeId>& nodesToPruning) ;
+    void adjustMaxTree(ComponentTreeFZ* maxtree, ComponentTreeFZ* mintree, std::vector<NodeId>& nodesToPruning) ;
   
 };
 

@@ -10,7 +10,7 @@
 
 
 template<typename Computer>
-void ComponentTreeAdjustmentByLeaf<Computer>::updateTree(ComponentTreeFZPtr tree, NodeFZ leaf) {
+void ComponentTreeAdjustmentByLeaf<Computer>::updateTree(ComponentTreeFZ* tree, NodeFZ leaf) {
     assert(leaf && "L_leaf is nullptr"); 
     assert(leaf.isLeaf() && "L_leaf is not leaf"); 
     assert(leaf.getParent() && "L_leaf is root"); 
@@ -41,13 +41,13 @@ void ComponentTreeAdjustmentByLeaf<Computer>::updateTree(ComponentTreeFZPtr tree
 
         for (NodeId nodeId : F_lambda) {
             if (nodeId != nodeUnion) {
-                nodeUnion.addCNPsOfDisjointFlatzones(tree->getRepCNPsById(nodeId), tree);
+                nodeUnion.addCNPsOfDisjointFlatzones(tree->getRepCNPsById(nodeId));
                 this->mergedParentAndChildren(tree, nodeUnion, nodeId);
                 this->disconnect(tree, nodeId, true);
             }
         }
         if (lambda == newGrayLevel) {
-            nodeUnion.addCNPsToConnectedFlatzone(idFlatzoneTauL, tree); 
+            nodeUnion.addCNPsToConnectedFlatzone(idFlatzoneTauL); 
             nodeTauL.removeFlatzone(idFlatzoneTauL);
             for (NodeId nodeId : this->F.getFb()) {
                 this->disconnect(tree, nodeId, false);
@@ -178,7 +178,7 @@ void ComponentTreeAdjustmentByLeaf<Computer>::updateTree(ComponentTreeFZPtr tree
 
 
 template<typename Computer>
-void ComponentTreeAdjustmentByLeaf<Computer>::adjustMinTree(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree, std::vector<NodeId>& nodesToPruning) {
+void ComponentTreeAdjustmentByLeaf<Computer>::adjustMinTree(ComponentTreeFZ* mintree, ComponentTreeFZ* maxtree, std::vector<NodeId>& nodesToPruning) {
     for (NodeId nodeId : nodesToPruning) {        
         NodeFZ node = maxtree->proxy(nodeId);
         for (NodeFZ Lmax : node.getIteratorPostOrderTraversal()) { 
@@ -195,7 +195,7 @@ void ComponentTreeAdjustmentByLeaf<Computer>::adjustMinTree(ComponentTreeFZPtr m
 }
 
 template<typename Computer>
-void ComponentTreeAdjustmentByLeaf<Computer>::adjustMaxTree(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree, std::vector<NodeId>& nodesToPruning) {
+void ComponentTreeAdjustmentByLeaf<Computer>::adjustMaxTree(ComponentTreeFZ* maxtree, ComponentTreeFZ* mintree, std::vector<NodeId>& nodesToPruning) {
     for (NodeId nodeId : nodesToPruning) {  
         NodeFZ node = mintree->proxy(nodeId);	
         for (NodeFZ Lmin : node.getIteratorPostOrderTraversal()) { 

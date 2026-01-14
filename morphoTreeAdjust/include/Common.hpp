@@ -13,6 +13,7 @@
 #include <cstdint>
 #include <algorithm>
 #include <span>
+#include <chrono>
 
 
 #define PRINT_LOG 0
@@ -205,17 +206,16 @@ using ImagePtr = std::shared_ptr<Image<T>>;
 struct GenerationStampSet {
     using gen_t = uint32_t;
 
-    std::unique_ptr<gen_t[]> stamp; // array de carimbos
-    size_t n{0};                    // tamanho
-    gen_t cur{1};                   // geração atual (0 = “limpo”)
+    std::vector<gen_t> stamp; // array de carimbos
+    size_t n{0};              // tamanho
+    gen_t cur{1};             // geração atual (0 = “limpo”)
 
     GenerationStampSet() = default;
     explicit GenerationStampSet(size_t n) { resize(n); }
 
     void resize(size_t newN) {
         n = newN;
-        stamp = std::make_unique<gen_t[]>(n);
-        std::fill_n(stamp.get(), n, 0);
+        stamp.assign(n, 0);
         cur = 1;
     }
 
@@ -230,14 +230,14 @@ struct GenerationStampSet {
     // reset lógico em O(1)
     void resetAll() {
         if (++cur == 0) {
-            std::fill_n(stamp.get(), n, 0);
+            std::fill(stamp.begin(), stamp.end(), 0);
             cur = 1;
         }
     }
 
     // limpeza forçada em O(N)
     void clearAll() {
-        std::fill_n(stamp.get(), n, 0);
+        std::fill(stamp.begin(), stamp.end(), 0);
         cur = 1;
     }
 
@@ -943,7 +943,20 @@ public:
     // tamanho/estado
     int  size()  const { return static_cast<int>(v_.size()); }
     bool empty() const { return v_.empty(); }
+    
+    bool isSorted() const noexcept { return sorted_; }
 
+    // Força operações em modo não-ordenado (evita shifts em vector::insert/erase).
+    // Mantém o Bloom (pode ter falsos positivos, mas nunca falsos negativos).
+    void markUnsorted() noexcept { sorted_ = false; }
+
+    // Reconstrói o Bloom a partir do conteúdo atual (ordem não importa).
+    void rebuildBloom() { bloom_.rebuild(v_); }
+    void clear() {
+        v_.clear();
+        sorted_ = false;
+        bloom_.clear();
+    }
     // iteração
     iterator begin() { return v_.begin(); }
     iterator end()   { return v_.end();   }
@@ -999,6 +1012,16 @@ public:
         v_.erase(std::unique(v_.begin(), v_.end()), v_.end());
         sorted_ = true;
         if (rebuildBloom) bloom_.rebuild(v_); 
+    }
+
+    // Ordena apenas quando o tamanho justifica; caso contrário só reconstrói Bloom.
+    void finalizeMaybeSorted(int sortThreshold, bool rebuildBloom = true) {
+        if ((int)v_.size() >= sortThreshold) {
+            finalize(rebuildBloom);
+            return;
+        }
+        sorted_ = false;
+        if (rebuildBloom) bloom_.rebuild(v_);
     }
 
     
@@ -1061,8 +1084,45 @@ public:
     }
 };
 
+using AdjacentFlatZones = AdjacentFlatZonesSet; //Tipo de dado que armazena as aresta do grafo
 
+
+
+
+class Stopwatch {
+public:
+    using clock = std::chrono::steady_clock;
+
+    void start() {
+        accumulated_ = clock::duration::zero();
+        running_ = true;
+        last_ = clock::now();
+    }
+
+    void pause() {
+        if (!running_) return;
+        accumulated_ += clock::now() - last_;
+        running_ = false;
+    }
+
+    void resume() {
+        if (running_) return;
+        running_ = true;
+        last_ = clock::now();
+    }
+
+    // tempo decorrido "ativo" até agora
+    clock::duration elapsed() const {
+        if (!running_) return accumulated_;
+        return accumulated_ + (clock::now() - last_);
+    }
+
+    bool running() const { return running_; }
+
+private:
+    clock::time_point last_{};
+    clock::duration accumulated_{clock::duration::zero()};
+    bool running_{false};
+};
 
 #endif 
-
-

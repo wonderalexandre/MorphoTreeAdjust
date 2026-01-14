@@ -446,6 +446,7 @@ public:
     inline void spliceChildrenById(int toId, int fromId);
     inline void setParentById(NodeId nodeId, NodeId parentId);
 
+
     void computerArea(NodeId node);
     ImageUInt8Ptr reconstructionImage();
     std::vector<NodeId> getLeaves();
@@ -483,6 +484,56 @@ public:
         }
         return acc;
     }
+    /*
+    long long countUniqueFlatZonesForThreshold(const std::vector<NodeId>& nodesToPruning) {
+        FlatZonesGraphPtr& graph = this->getFlatZonesGraph();
+        const int imgSize = this->getNumColsOfImage() * this->getNumRowsOfImage();
+
+        static thread_local std::vector<uint32_t> stamp;
+        static thread_local uint32_t token = 1;
+        if ((int)stamp.size() != imgSize) { stamp.assign(imgSize, 0); token = 1; }
+        if (++token == 0) { std::fill(stamp.begin(), stamp.end(), 0); token = 1; }
+        const uint32_t tok = token;
+
+        long long unique = 0;
+        // opcionais (se quiser imprimir)
+        long long occurrences = 0;
+        long long halfEdgesVisited = 0;
+
+        FastQueue<NodeId> q;
+
+        for (NodeId root : nodesToPruning)
+            q.push(root);
+
+        while (!q.empty()) {
+            NodeId u = q.pop();
+
+            const auto& reps = this->arena.repCNPs[u];
+            occurrences += (long long)reps.size();
+
+            for (int r : reps) {
+                int canon = graph->findRepresentative(r);
+                if ((unsigned)canon >= (unsigned)imgSize) continue;
+
+                if (stamp[canon] != tok) {
+                    stamp[canon] = tok;
+                    unique++;
+
+                    // opcional
+                    halfEdgesVisited += (long long)graph->getAdjacentFlatzonesFromPixel(canon).size();
+                }
+            }
+
+            for (NodeId v : this->arena.children(u))
+                q.push(v);
+        }
+
+        // Se quiser manter os prints:
+        std::cout << "    Total de ocorrências de flat-zones: " << occurrences << "\n";
+        std::cout << "    Total de half-edges visitadas (Σdeg): " << halfEdgesVisited << "\n";
+
+        return unique;
+    }*/
 
     // Conta descendentes (exclui o próprio nó)
     int computerNumDescendants(NodeId id) {
@@ -571,7 +622,7 @@ public:
         return true;
     }
     
-    static std::vector<NodeId> getNodesThreshold(ComponentTreePtr<CNPsType> tree, int areaThreshold, bool ENABLE_LOG = false){
+    static std::vector<NodeId> getNodesThreshold(ComponentTree<CNPsType>* tree, int areaThreshold, bool ENABLE_LOG = false){
         std::vector<NodeId> lista;
         FastQueue<NodeId> queue;
         queue.push(tree->root);

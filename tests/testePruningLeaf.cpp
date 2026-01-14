@@ -14,6 +14,7 @@
 #include "../morphoTreeAdjust/include/ComponentTree.hpp"
 #include "../morphoTreeAdjust/include/AdjacencyRelation.hpp"
 #include "../morphoTreeAdjust/include/ComponentTreeAdjustmentByLeaf.hpp"
+#include "../morphoTreeAdjust/include/AttributeComputer.hpp"
 
 #include "../tests/Tests.hpp"
 #include "./external/stb/stb_image.h"
@@ -37,33 +38,38 @@ int main()
     std::shared_ptr<FlatZonesGraph> graph = std::make_shared<FlatZonesGraph>(img, adj);
     
 
-    ComponentTreeFZPtr maxtree = std::make_shared<ComponentTreeFZ>(graph, true);
-    ComponentTreeFZPtr mintree = std::make_shared<ComponentTreeFZ>(graph, false);
+    ComponentTreeFZPtr maxtreePtr = std::make_shared<ComponentTreeFZ>(graph, true);
+    ComponentTreeFZPtr mintreePtr = std::make_shared<ComponentTreeFZ>(graph, false);
 
-    
-    
+    ComponentTreeFZ* maxtree = maxtreePtr.get();
+    ComponentTreeFZ* mintree = mintreePtr.get();
 
     std::cout <<"\nMintree:" << std::endl;
     printTree(mintree->getRoot());
-    testComponentTreeFZ(mintree, "min-tree", img);
+    testComponentTreeFZ(mintreePtr, "min-tree", img);
     //printMappingSC(mintree);
 
     std::cout <<"\n\nMaxtree:" << std::endl;
     printTree(maxtree->getRoot());
-    testComponentTreeFZ(maxtree, "max-tree", img);
+    testComponentTreeFZ(maxtreePtr, "max-tree", img);
    // printMappingSC(maxtree);
 
     ComponentTreeAdjustmentByLeaf adjust(mintree, maxtree);
+    AreaComputerFZ computerAttrMax(maxtree);
+    AreaComputerFZ computerAttrMin(mintree);
+    std::vector<float> attributeMax = computerAttrMax.compute();
+    std::vector<float> attributeMin = computerAttrMin.compute();
+    adjust.setAttributeComputer(computerAttrMin, computerAttrMax, attributeMin, attributeMax);
     ComponentTreeFZPtr tree1, tree2;
     tree1 = tree2 = nullptr;
     int numNodes = mintree->getNumNodes();
     for(int i=0; i < numNodes; i++){
         if(i % 2 == 0){
-            tree1 = mintree;
-            tree2 = maxtree;
+            tree1 = mintreePtr;
+            tree2 = maxtreePtr;
         }else{
-            tree1 = maxtree;
-            tree2 = mintree;
+            tree1 = maxtreePtr;
+            tree2 = mintreePtr;
         }
         
         NodeId L_leafId = tree1->getLeaves().front();   
@@ -81,9 +87,9 @@ int main()
 
         std::cout << "\n\n---Pruning (" << (tree1->isMaxtree()? "max-tree":"min-tree") << ") node:" << L_leaf.getIndex() << ", level:" << L_leaf.getLevel() << ", |cnps|:" << L_leaf.getNumCNPs() << ", idFlatzone:"<< L_leaf.getRepCNPs().front()  << std::endl;
         //graph->printUnionFind();
-        adjust.updateTree(tree2, L_leaf);
+        adjust.updateTree(tree2.get(), L_leaf);
         //graph->printUnionFind();
-        adjust.prunning(tree1, L_leaf);            
+        adjust.prunning(tree1.get(), L_leaf);            
         //checkRepresentatives(tree1, graph);
         //checkRepresentatives(tree2, graph);
         

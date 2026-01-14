@@ -9,28 +9,28 @@
 
 
 template<typename Computer>
-void ComponentTreeAdjustmentBySubtree<Computer>::updateTree(ComponentTreeFZPtr tree, NodeFZ rootSubtree) {
-    assert(rootSubtree && "rootSubtree is invalid"); 
-    ComponentTreeFZPtr otherTree = tree->isMaxtree()? this->mintree : this->maxtree;
-    
-    this->areaFZsRemoved = rootSubtree.getArea();
+void ComponentTreeAdjustmentBySubtree<Computer>::updateTree(ComponentTreeFZ* tree, NodeId rootIdSubtree) {
+    assert(rootIdSubtree!=InvalidNode && "rootSubtree is invalid"); 
     bool isMaxtree = tree->isMaxtree();
-    int newGrayLevel = rootSubtree.getParent().getLevel();  // g(p)
+
+    ComponentTreeFZ* otherTree = tree->isMaxtree()? this->mintree : this->maxtree;
+    this->areaFZsRemoved = otherTree->getAreaById(rootIdSubtree);
+    int newGrayLevel = otherTree->getLevelById( otherTree->getParentById(rootIdSubtree) );  // g(p)
     
     properPartsCollector.resetCollections(isMaxtree);
     
-    for (NodeId nSubtree : otherTree->getIteratorBreadthFirstTraversalById(rootSubtree)) {
+    for (NodeId nSubtree : otherTree->getIteratorBreadthFirstTraversalById(rootIdSubtree)) {
         for(int repFZ : otherTree->getRepCNPsById(nSubtree)) {
             properPartsCollector.addNode(tree, tree->getSCById(repFZ), repFZ); 
         }
     }
     
-    NodeFZ nodeTauStar = tree->proxy(properPartsCollector.getNodeTauStar());
+    NodeId nodeIdTauStar = properPartsCollector.getNodeTauStar();
     int pixelUpperBound = properPartsCollector.getRepFZTauStar();
-    int grayTauStar = nodeTauStar.getLevel();  // f(pixelUpperBound)
+    int grayTauStar = tree->getLevelById(nodeIdTauStar);
     if(PRINT_LOG){
         this->outputLog.clear();
-        this->outputLog << "Area(rSubtree)= " << rootSubtree.getArea() << ", level(rSubtree)= " << rootSubtree.getLevel() << ", level(parent(rSubtree))= " << rootSubtree.getParent().getLevel() << std::endl;
+        this->outputLog << "Area(rSubtree)= " << otherTree->getAreaById(rootIdSubtree) << ", level(rSubtree)= " << otherTree->getLevelById(rootIdSubtree) << ", level(parent(rSubtree))= " << otherTree->getLevelById(otherTree->getParentById(rootIdSubtree)) << std::endl;
         this->outputLog << "newGrayLevel: " << newGrayLevel  << std::endl; //g(p)
         this->outputLog << "Proper parts: (Tau_S): [";
         bool flagPrint = false;
@@ -47,7 +47,7 @@ void ComponentTreeAdjustmentBySubtree<Computer>::updateTree(ComponentTreeFZPtr t
             this->outputLog << "Intervalo: [" << grayTauStar << ", " << newGrayLevel << "]" << std::endl;
         else
             this->outputLog << "Intervalo: [" << newGrayLevel << ", " << grayTauStar << "]" << std::endl;
-        this->outputLog << "nodeTauStar: Id:" << nodeTauStar.getIndex() << "; level:" << nodeTauStar.getLevel() <<"; |cnps|:" << nodeTauStar.getNumCNPs() << std::endl;
+        this->outputLog << "nodeTauStar: Id:" << nodeIdTauStar << "; level:" << grayTauStar <<"; |cnps|:" << tree->getNumCNPsById(nodeIdTauStar) << std::endl;
     }    
 
 
@@ -78,28 +78,26 @@ void ComponentTreeAdjustmentBySubtree<Computer>::updateTree(ComponentTreeFZPtr t
 
     // Ordenação dos lambdas (crescente para Min-Tree, decrescente para Max-Tree)
     int lambda = this->F.firstLambda(grayTauStar, newGrayLevel);
-    NodeFZ nodeUnion;
-    NodeFZ nodeUnionPrevious;
-    NodeFZ nodeTauParentSubtree;
+    NodeId nodeUnion;
+    NodeId nodeUnionPrevious = InvalidNode;
     
     // Definição da direção do loop
     while ((isMaxtree && lambda > grayTauStar) || (!isMaxtree && lambda < grayTauStar)) {
         std::vector<NodeId>& F_lambda = this->F.getMergedNodes(lambda);
         
         // Encontrar um nodeUnion que NÃO esteja em nodesToBeRemoved
-        nodeUnion = NodeFZ();
+        nodeUnion = InvalidNode;
         for (NodeId nodeId : F_lambda) {
             if (!properPartsCollector.isRemoved(nodeId)) { 
-                nodeUnion = tree->proxy(nodeId);;
+                nodeUnion = nodeId;
                 break; 
             }
         }
         // Se não encontrou nenhum node válido, continua para a próxima iteração
-        if (!nodeUnion) {
+        if (nodeUnion == InvalidNode) {
             for (NodeId nodeId : F_lambda) {
                 this->mergedParentAndChildren(tree, tree->getParentById(nodeId), nodeId);
                 this->disconnect(tree, nodeId, true);
-                //tree->releaseNode(nodeId);
             }
             lambda = this->F.nextLambda();  
             nodeUnion = nodeUnionPrevious;
@@ -107,7 +105,7 @@ void ComponentTreeAdjustmentBySubtree<Computer>::updateTree(ComponentTreeFZPtr t
         }
         if(PRINT_LOG){
             this->outputLog << "F_{" << lambda << "} = \n";
-            this->outputLog << "\t(Id:" << nodeUnion.getIndex() << "; level:" << nodeUnion.getLevel() <<"; |cnps|:" << nodeUnion.getNumCNPs() << ") " << std::endl;
+            this->outputLog << "\t(Id:" << nodeUnion << "; level:" << tree->getLevelById(nodeUnion) <<"; |cnps|:" << tree->getNumCNPsById(nodeUnion) << ") " << std::endl;
         }
 
         this->disconnect(tree, nodeUnion, false);
@@ -119,7 +117,7 @@ void ComponentTreeAdjustmentBySubtree<Computer>::updateTree(ComponentTreeFZPtr t
                 }
 
                 if(!properPartsCollector.isRemoved(nodeId)){ //node não foi removido
-                    nodeUnion.addCNPsOfDisjointFlatzones(tree->getRepCNPsById(nodeId), tree);    
+                    NodeFZ::addCNPsOfDisjointFlatzones(tree->getRepCNPsById(nodeId), nodeUnion, tree);    
                 }else{
                     if(PRINT_LOG)
                         this->outputLog << "\t\twas removed" << std::endl;
@@ -127,20 +125,18 @@ void ComponentTreeAdjustmentBySubtree<Computer>::updateTree(ComponentTreeFZPtr t
                     
                 this->mergedParentAndChildren(tree, nodeUnion, nodeId);
                 this->disconnect(tree, nodeId, true);
-                //tree->releaseNode(nodeId);
             }
         }
         if (lambda == newGrayLevel) {
             properPartsCollector.addCNPsToConnectedFlatzone(nodeUnion, tree); // Os mapeamentos são atualizados
             
             if(PRINT_LOG){
-                this->outputLog << "\t\tAfter add CNPs of S: (Id:" << nodeUnion.getIndex() << "; level:" << nodeUnion.getLevel() <<"; |cnps|:" << nodeUnion.getNumCNPs() << ") " << std::endl;
+                this->outputLog << "\t\tAfter add CNPs of S: (Id:" << nodeUnion << "; level:" << tree->getLevelById(nodeUnion) <<"; |cnps|:" << tree->getNumCNPsById(nodeUnion) << ") " << std::endl;
             }
             for (NodeId nodeId : this->F.getFb()) {
                 this->disconnect(tree, nodeId, false);
                 tree->addChildById(nodeUnion, nodeId);
             }
-            nodeTauParentSubtree = nodeUnion;
             
             if(PRINT_LOG){
                 auto nodesToBeRemoved = properPartsCollector.getNodesToBeRemoved(); 
@@ -157,17 +153,15 @@ void ComponentTreeAdjustmentBySubtree<Computer>::updateTree(ComponentTreeFZPtr t
                 }
             }
         }
-
         
-        if (nodeUnionPrevious) {
-            nodeUnionPrevious.setParent(nodeUnion);
-            nodeUnion.addChild(nodeUnionPrevious);
+        if (nodeUnionPrevious != InvalidNode) {
+            tree->setParentById(nodeUnionPrevious, nodeUnion);
+            tree->addChildById(nodeUnion, nodeUnionPrevious);
         }
         
-        
-        nodeUnion.setArea(nodeUnion.getNumCNPs());
+        tree->setAreaById(nodeUnion, tree->getNumCNPsById(nodeUnion));
         for(NodeId nodeId: tree->getChildrenById(nodeUnion)){
-            nodeUnion.setArea(nodeUnion.getArea() + tree->getAreaById(nodeId));
+            tree->setAreaById(nodeUnion, tree->getAreaById(nodeUnion) + tree->getAreaById(nodeId));
         }
         /********************************************************
          **   Atualização inremental de atributos do nodeUnion **
@@ -189,26 +183,26 @@ void ComponentTreeAdjustmentBySubtree<Computer>::updateTree(ComponentTreeFZPtr t
         
         if(PRINT_LOG)
             this->outputLog << "\tnodeUnion = union(F_{" << lambda << "}) = " << 
-                " id:" << nodeUnion.getIndex() << 
-                ", level: " << nodeUnion.getLevel() << 
-                ", |cnps|: " << nodeUnion.getNumCNPs() <<  
-                ", |children|: " << nodeUnion.getNumChildren() << std::endl;
+                " id:" << nodeUnion << 
+                ", level: " << tree->getLevelById(nodeUnion) << 
+                ", |cnps|: " << tree->getNumCNPsById(nodeUnion) <<  
+                ", |children|: " << tree->getNumChildrenById(nodeUnion) << std::endl;
             
         nodeUnionPrevious = nodeUnion;
         lambda = this->F.nextLambda();  
     }
     
 
-    if (properPartsCollector.isRemoved(nodeTauStar)) { //nodeTauStar foi removido
-        NodeFZ parentNodeTauStar = nodeTauStar.getParent();
-        nodeUnion.setParent(parentNodeTauStar);
-
-        if (parentNodeTauStar) {
-            parentNodeTauStar.addChild(nodeUnion);
-            for(NodeId n: tree->getChildrenById(nodeTauStar)){
+    if (properPartsCollector.isRemoved(nodeIdTauStar)) { //nodeTauStar foi removido
+        NodeId parentIdNodeTauStar = tree->getParentById(nodeIdTauStar);
+        tree->setParentById(nodeUnion, parentIdNodeTauStar);
+        
+        if (parentIdNodeTauStar != InvalidNode) {
+            tree->addChildById(parentIdNodeTauStar, nodeUnion);
+            for(NodeId n: tree->getChildrenById(nodeIdTauStar)){
                 if (n != nodeUnion && !tree->hasChildById(nodeUnion, n)) {
                     tree->addChildById(nodeUnion, n);
-                    nodeUnion.setArea(nodeUnion.getArea() + tree->getAreaById(n));
+                    tree->setAreaById(nodeUnion, tree->getAreaById(nodeUnion) + tree->getAreaById(n));
                     /*****************************************************************
                      **  Atualização incremental de atributos do (ultimo) nodeUnion **
                     ******************************************************************/
@@ -220,12 +214,12 @@ void ComponentTreeAdjustmentBySubtree<Computer>::updateTree(ComponentTreeFZPtr t
                     /******************************************************************/
                 }
             }
-            this->disconnect(tree, nodeTauStar, true);
+            this->disconnect(tree, nodeIdTauStar, true);
         } 
         else {  // Novo root
             NodeId newRoot = nodeUnion;
-            if (nodeTauStar.getNumChildren() > 0) {
-                for(NodeId n: tree->getChildrenById(nodeTauStar)){
+            if (tree->getNumChildrenById(nodeIdTauStar) > 0) {
+                for(NodeId n: tree->getChildrenById(nodeIdTauStar)){
                     if ( (isMaxtree && tree->getLevelById(n) < tree->getLevelById(newRoot)) || (!isMaxtree && tree->getLevelById(n) > tree->getLevelById(newRoot))) {
                         newRoot = n;
                     }
@@ -233,7 +227,7 @@ void ComponentTreeAdjustmentBySubtree<Computer>::updateTree(ComponentTreeFZPtr t
                 if (newRoot != nodeUnion) {
                     tree->addChildById(newRoot, nodeUnion);
                 }
-                for(NodeId n: tree->getChildrenById(nodeTauStar)){
+                for(NodeId n: tree->getChildrenById(nodeIdTauStar)){
                     if (n != newRoot && !tree->hasChildById(nodeUnion, n)) {
                         tree->addChildById(newRoot, n);
                     }
@@ -257,44 +251,42 @@ void ComponentTreeAdjustmentBySubtree<Computer>::updateTree(ComponentTreeFZPtr t
                 this->attrComputerMin->postProcessing(newRoot, this->bufferMin);
             }
             /********************************************************/
-            
-            tree->setAreaById(newRoot, nodeTauStar.getArea());
+
+            tree->setAreaById(newRoot, tree->getAreaById(nodeIdTauStar));
             tree->setRootById(newRoot);
-            tree->releaseNode(nodeTauStar);
+            tree->releaseNode(nodeIdTauStar);
         }
         
     } else {
-        if (nodeUnion != nodeTauStar) {
-            nodeUnion.setParent(nodeTauStar);
-            nodeTauStar.addChild(nodeUnion);
+        if (nodeUnion != nodeIdTauStar) {
+            tree->setParentById(nodeUnion, nodeIdTauStar);
+            tree->addChildById(nodeIdTauStar, nodeUnion);
         }   
     }
 }
 
 
 template<typename Computer>
-void ComponentTreeAdjustmentBySubtree<Computer>::adjustMinTree(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree, std::vector<NodeId>& nodesToPruning) {
+void ComponentTreeAdjustmentBySubtree<Computer>::adjustMinTree(ComponentTreeFZ* mintree, ComponentTreeFZ* maxtree, std::vector<NodeId>& nodesToPruning) {
     for (NodeId rSubtreeId : nodesToPruning) {  	
-        NodeFZ rSubtree = maxtree->proxy(rSubtreeId);	
-        assert(rSubtree != maxtree->getRoot() && "rSubtree is root");
-        if (!rSubtree.getParent()) {
+        assert(rSubtreeId != maxtree->getRootById() && "rSubtree is root");
+        if (rSubtreeId == InvalidNode) {
             continue; //rSubtree é root, não pode ser ajustado
         }
-        updateTree(mintree, rSubtree); 
-        this->prunning(maxtree, rSubtree);
+        updateTree(mintree, rSubtreeId); 
+        this->prunning(maxtree, rSubtreeId);
     }
 }
 
 template<typename Computer>
-void ComponentTreeAdjustmentBySubtree<Computer>::adjustMaxTree(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree, std::vector<NodeId>& nodesToPruning) {
+void ComponentTreeAdjustmentBySubtree<Computer>::adjustMaxTree(ComponentTreeFZ* maxtree, ComponentTreeFZ* mintree, std::vector<NodeId>& nodesToPruning) {
     for (NodeId rSubtreeId : nodesToPruning) {  
-        NodeFZ rSubtree = mintree->proxy(rSubtreeId);	
-        assert(rSubtree != mintree->getRoot() && "rSubtree is root");
-        if (!rSubtree.getParent()) {
+        assert(rSubtreeId != mintree->getRootById() && "rSubtree is root");
+        if (rSubtreeId == InvalidNode) {
             continue; //rSubtree é root, não pode ser ajustado
         }
-        updateTree(maxtree, rSubtree);   
-        this->prunning(mintree, rSubtree);
+        updateTree(maxtree, rSubtreeId);   
+        this->prunning(mintree, rSubtreeId);
     }
 }
 

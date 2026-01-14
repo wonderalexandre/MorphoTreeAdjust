@@ -74,7 +74,7 @@ class NodeCT{
 private:
     template <typename> friend class ComponentTree;
 
-    NodeId id = -1;
+    NodeId id = InvalidNode;
     ComponentTree<CNPsType>* tree = nullptr;  // árvore dona
     
 public:
@@ -127,18 +127,63 @@ public:
 
     ///Métodos disponíveis SOMENTE para `FlatZones`
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    void addCNPsOfDisjointFlatzones(std::vector<int>& repsFlatZones, ComponentTreeFZPtr tree);
+    void addCNPsOfDisjointFlatzones(std::vector<int>& repsFlatZones);
 
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    void addCNPsToConnectedFlatzone(int repFlatZone, ComponentTreeFZPtr tree);
+    void addCNPsToConnectedFlatzone(int repFlatZone);
 
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    void addCNPsToConnectedFlatzone(const std::vector<int>& repsBase, int repWinner, ComponentTreeFZPtr tree);
+    void addCNPsToConnectedFlatzone(const std::vector<int>& repsBase, int repWinner);
 
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
     void removeFlatzone(int idFlatZone);
-          
     
+        
+
+
+    // --- FlatZones: adiciona reps de FZ disjuntas (versão estática)
+    template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
+    static void addCNPsOfDisjointFlatzones(std::vector<int>& repsFlatZones, NodeId nodeId, ComponentTreeFZ* tree) {
+        for (int rep: repsFlatZones) {
+            tree->setSCById(rep, nodeId);
+        }
+        auto& reps = tree->getRepCNPsById(nodeId);
+        reps.insert(reps.end(), repsFlatZones.begin(), repsFlatZones.end());
+    }
+
+
+    // --- FlatZones: remove uma FZ do nó (versão estática)
+    template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
+    static void removeFlatzone(int repFlatZone, NodeId nodeId, ComponentTreeFZ* nodeTree) {
+        auto& reps = nodeTree->getRepCNPsById(nodeId);
+        std::erase(reps, repFlatZone);
+    }
+
+
+    // --- FlatZones: conecta reps adicionais à FZ base (uma base) (versão estática)
+    template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
+    static void addCNPsToConnectedFlatzone(int repFlatZone, NodeId nodeId, ComponentTreeFZ* tree) { //usado na versão ByLeaf
+        auto& reps = tree->getRepCNPsById(nodeId);
+        assert(!reps.empty() && "Erro: conjunto de FZs do nó está vazio!");
+        
+        FlatZonesGraphPtr& graph = tree->getFlatZonesGraph();
+        int repWinner = graph->mergeAdjacentCandidatesInPlace(repFlatZone, reps);
+        tree->setSCById(repWinner, nodeId); // atualiza pixelToNode
+    }
+
+
+    // --- FlatZones: conecta reps adicionais à FZ base (várias bases) (versão estática)
+    template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
+    static void addCNPsToConnectedFlatzone(const std::vector<int>& repBases, int repBaseWinner, NodeId nodeId, ComponentTreeFZ* tree) { //usado na versão BySubtree
+        auto& reps = tree->getRepCNPsById(nodeId);
+        assert(!reps.empty() && "Erro: conjunto de FZs do nó está vazio!");
+        FlatZonesGraphPtr& graph = tree->getFlatZonesGraph();
+        int repWinner = graph->mergeBasesWithAdjacentCandidatesInPlace(repBases, reps, repBaseWinner);
+
+        tree->setSCById(repWinner, nodeId); // atualiza pixelToNode
+    }
+
+
     
 
     // Ranges existentes que devolvem filhos (por ponteiro lógico) continuam,
@@ -463,5 +508,4 @@ class InternalIteratorBranchPostOrderTraversal {
 #include "../include/NodeCT.tpp"
 
 #endif
-
 

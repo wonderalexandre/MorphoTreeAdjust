@@ -43,19 +43,21 @@ int test1() {
     std::unique_ptr<FlatZonesGraph> maxTreeFZGraph = std::make_unique<FlatZonesGraph>(*graph);
     std::unique_ptr<FlatZonesGraph> minTreeFZGraph = std::make_unique<FlatZonesGraph>(*graph);
 
-    ComponentTreeFZPtr maxtree = std::make_shared<ComponentTreeFZ>(std::move(maxTreeFZGraph), true);
-    ComponentTreeFZPtr mintree = std::make_shared<ComponentTreeFZ>(std::move(minTreeFZGraph), false);
+    ComponentTreeFZPtr maxtreePtr = std::make_shared<ComponentTreeFZ>(std::move(maxTreeFZGraph), true);
+    ComponentTreeFZPtr mintreePtr = std::make_shared<ComponentTreeFZ>(std::move(minTreeFZGraph), false);
+    ComponentTreeFZ* maxtree = maxtreePtr.get();
+    ComponentTreeFZ* mintree = mintreePtr.get();
 
     // Executar testes
-    testComponentTreeFZ(mintree, "Min-Tree", mintree->reconstructionImage());
-    testComponentTreeFZ(maxtree, "Max-Tree", maxtree->reconstructionImage());
+    testComponentTreeFZ(mintreePtr, "Min-Tree", mintree->reconstructionImage());
+    testComponentTreeFZ(maxtreePtr, "Max-Tree", maxtree->reconstructionImage());
 
 
     maxTreeFZGraph = std::make_unique<FlatZonesGraph>(*graph);
     minTreeFZGraph = std::make_unique<FlatZonesGraph>(*graph);
 
-    maxtree = std::make_shared<ComponentTreeFZ>(std::move(maxTreeFZGraph), true);
-    mintree = std::make_shared<ComponentTreeFZ>(std::move(minTreeFZGraph), false);
+    maxtreePtr = std::make_shared<ComponentTreeFZ>(std::move(maxTreeFZGraph), true);
+    mintreePtr = std::make_shared<ComponentTreeFZ>(std::move(minTreeFZGraph), false);
     ComponentTreeAdjustmentByLeaf adjust(mintree, maxtree);
 
     NodeId Lmin_leaf1Id = mintree->getLeaves().front();
@@ -74,8 +76,8 @@ int test1() {
         std::cout << "❌ Rec(maxtree) ≠ Rec(mintree)" << std::endl;
     }
 
-    testComponentTreeFZ(maxtree, "(1) Max-Tree after adjustment", imgMaxtree);
-    testComponentTreeFZ(mintree, "(1) Min-Tree after pruning", imgMintree);
+    testComponentTreeFZ(maxtreePtr, "(1) Max-Tree after adjustment", imgMaxtree);
+    testComponentTreeFZ(mintreePtr, "(1) Min-Tree after pruning", imgMintree);
 
     NodeId Lmax_leaf1Id = maxtree->getLeaves().front();
     NodeFZ Lmax_leaf1 = maxtree->proxy(Lmax_leaf1Id);
@@ -91,8 +93,8 @@ int test1() {
         std::cout << "❌ Rec(maxtree) ≠ Rec(mintree)" << std::endl;
     }
 
-    testComponentTreeFZ(mintree, "(1) Min-Tree after adjustment", imgMintree);
-    testComponentTreeFZ(maxtree, "(1) Max-Tree after pruning", imgMaxtree);
+    testComponentTreeFZ(mintreePtr, "(1) Min-Tree after adjustment", imgMintree);
+    testComponentTreeFZ(maxtreePtr, "(1) Max-Tree after pruning", imgMaxtree);
 
     return 0;
 }

@@ -266,7 +266,7 @@ void ComponentTreeFZ::createTreeByUnionFind(std::vector<int>& orderedPixelFlatzo
         int idxP = pixelView.pixelToIndex[p];
         zPar[idxP] = idxP;
         parent[idxP] = idxP; 
-		for(int q: flatzoneGraph->getAdjacentFlatzonesFromPixel(p)){
+		flatzoneGraph->forEachAdjacentFlatzoneFromPixelStatic(p, [&](int q) {
             int idxQ = pixelView.pixelToIndex[q];
 			if(zPar[idxQ] != -1){
 				int idxR = findRoot(idxQ);
@@ -275,7 +275,7 @@ void ComponentTreeFZ::createTreeByUnionFind(std::vector<int>& orderedPixelFlatzo
 					zPar[idxR] = idxP;
 				}
 			}
-		}
+		});
 	}
 
     
@@ -827,8 +827,6 @@ template <>
 inline int ComponentTreeP::getNumCNPsById(NodeId id) const {
     return this->pixelBuffer->numPixelsInSet(arena.repNode[id]);
 }
-
-
 
 
 

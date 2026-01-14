@@ -85,8 +85,9 @@ public:
      * @param nodeUnion Nó que receberá a FZ conectada (vencedor).
      * @param tree Árvore na qual a união ocorre.
      */
-    void addCNPsToConnectedFlatzone(NodeFZ nodeUnion, ComponentTreeFZPtr tree) {
-       nodeUnion.addCNPsToConnectedFlatzone(repFlatzones, fzWinner, tree);
+    void addCNPsToConnectedFlatzone(NodeId nodeUnion, ComponentTreeFZ* tree) {
+       //nodeUnion.addCNPsToConnectedFlatzone(repFlatzones, fzWinner);
+       NodeFZ::addCNPsToConnectedFlatzone(repFlatzones, fzWinner, nodeUnion, tree);
        this->removeFlatzones(tree);
     }
 
@@ -94,13 +95,16 @@ public:
      * @brief Remove das FZs dos nós coletados aquelas que foram agregadas ao vencedor.
      * @param tree Árvore-alvo.
      */
-    void removeFlatzones(ComponentTreeFZPtr tree){
+    void removeFlatzones(ComponentTreeFZ* tree){
         for(size_t i = 0; i < repFlatzones.size(); ++i) {
-            NodeFZ node = tree->proxy( nodesWithFZToBeRemoved[i] );
+            NodeId nodeId = nodesWithFZToBeRemoved[i];
+            //NodeFZ node = tree->proxy( nodesWithFZToBeRemoved[i] );
             int repFZ = repFlatzones[i];
-            node.removeFlatzone(repFZ);  
-            if(node.getNumFlatzone() == 0){ 
-                isNodesToBeRemoved[node] = 1; // Marca o nó para remoção
+            //node.removeFlatzone(repFZ);  
+            NodeFZ::removeFlatzone(repFZ, nodeId, tree);
+            //tree->removeFlatzoneById(nodeId, repFZ);
+            if(tree->getNumFlatzoneById(nodeId) == 0){ 
+                isNodesToBeRemoved[nodeId] = 1; // Marca o nó para remoção
             }
         }
     }
@@ -135,7 +139,7 @@ public:
      * @param nodeTau NodeId do nó a ser considerado.
      * @param repFZ Representante da FZ ligada a `nodeTau`.
      */
-    void addNode(ComponentTreeFZPtr tree, NodeId nodeTau, int repFZ) {
+    void addNode(ComponentTreeFZ* tree, NodeId nodeTau, int repFZ) {
         repFlatzones.push_back(repFZ);
         nodesWithFZToBeRemoved.push_back(nodeTau);
         
@@ -172,7 +176,7 @@ public:
      * @param mintree Ponteiro para a min-tree.
      * @param maxtree Ponteiro para a max-tree.
      */
-    ComponentTreeAdjustmentBySubtree(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree)
+    ComponentTreeAdjustmentBySubtree(ComponentTreeFZ* mintree, ComponentTreeFZ* maxtree)
         : ComponentTreeAdjustment<Computer>(mintree, maxtree), properPartsCollector(maxtree->isMaxtree(), std::max(mintree->getNumNodes(), maxtree->getNumNodes())) { }
       
     /**
@@ -180,7 +184,7 @@ public:
      * @param tree Árvore (min ou max) a ser atualizada.
      * @param rootSubtree Raiz da subárvore removida/mesclada na árvore complementar.
      */
-    void updateTree(ComponentTreeFZPtr tree, NodeFZ node);
+    void updateTree(ComponentTreeFZ* tree, NodeId node);
     
     /**
      * @brief Ajusta a min-tree após podas por subárvore na max-tree.
@@ -188,7 +192,7 @@ public:
      * @param maxtree Árvore máxima onde subárvores foram removidas/mescladas.
      * @param nodesToPruning Lista de NodeId raízes de subárvore na max-tree.
      */
-    void adjustMinTree(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree, std::vector<NodeId>& nodesToPruning) ;
+    void adjustMinTree(ComponentTreeFZ* mintree, ComponentTreeFZ* maxtree, std::vector<NodeId>& nodesToPruning) ;
     
     /**
      * @brief Ajusta a max-tree após podas por subárvore na min-tree.
@@ -196,7 +200,7 @@ public:
      * @param mintree Árvore mínima onde subárvores foram removidas/mescladas.
      * @param nodesToPruning Lista de NodeId raízes de subárvore na min-tree.
      */
-    void adjustMaxTree(ComponentTreeFZPtr maxtree, ComponentTreeFZPtr mintree, std::vector<NodeId>& nodesToPruning) ;
+    void adjustMaxTree(ComponentTreeFZ* maxtree, ComponentTreeFZ* mintree, std::vector<NodeId>& nodesToPruning) ;
 
 
 };

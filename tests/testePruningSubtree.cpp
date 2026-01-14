@@ -32,14 +32,16 @@ int main()
     AdjacencyRelationPtr adj =std::make_shared<AdjacencyRelation>(img->getNumRows(), img->getNumCols(), radioAdj);
     std::shared_ptr<FlatZonesGraph> graph = std::make_shared<FlatZonesGraph>(img, adj);
 
-    ComponentTreeFZPtr maxtree = std::make_shared<ComponentTreeFZ>(graph, true);
-    ComponentTreeFZPtr mintree = std::make_shared<ComponentTreeFZ>(graph, false);
+    ComponentTreeFZPtr maxtreePtr = std::make_shared<ComponentTreeFZ>(graph, true);
+    ComponentTreeFZPtr mintreePtr = std::make_shared<ComponentTreeFZ>(graph, false);
+    ComponentTreeFZ* maxtree = maxtreePtr.get();
+    ComponentTreeFZ* mintree = mintreePtr.get();
     //testComponentTreeFZ(maxtree, "max-tree", img);
     //testComponentTreeFZ(mintree, "min-tree", img);
     //std::cout <<"\n=========== mapIDs min-tree ===========\n" << std::endl;
     //printMappingSC(mintree);
     std::cout <<"\n=========== mapIDs max-tree ===========\n" << std::endl;
-    printMappingSC(maxtree);
+    printMappingSC(maxtreePtr);
 
     std::cout <<"\nMintree:" << std::endl;
     printTree(mintree->getRoot());
@@ -87,15 +89,15 @@ int main()
         for(NodeId rootSubtreeId: ComponentTreeFZ::getNodesThreshold(mintree, threshold)){
             NodeFZ rootSubtree = mintree->proxy(rootSubtreeId);
             std::cout<< "\n" << cont++ << " - Processing the subtree rooted (mintree) at node id: " << rootSubtree.getIndex()<< ", numDescendants: "<< rootSubtree.computerNumDescendants()  << ", area: "<< rootSubtree.getArea() << std::endl;
-            printConnectedComponent(rootSubtree, mintree);
+            printConnectedComponent(rootSubtree, mintreePtr);
 
             
             adjust.updateTree(maxtree, rootSubtree);
             std::cout << adjust.getOutputLog() << std::endl;
             adjust.prunning(mintree, rootSubtree);
 
-            checkRepresentatives(mintree, graph);
-            checkRepresentatives(maxtree, graph);
+            checkRepresentatives(mintreePtr, graph);
+            checkRepresentatives(maxtreePtr, graph);
 
             auto imgOutMaxtree = maxtree->reconstructionImage();
             auto imgOutMintree = mintree->reconstructionImage();
@@ -141,10 +143,10 @@ int main()
             auto imgOutMintree = mintree->reconstructionImage();
             
             printTree(maxtree->getRoot());                    
-            testComponentTreeFZ(maxtree, "max-tree", imgOutMaxtree);
+            testComponentTreeFZ(maxtreePtr, "max-tree", imgOutMaxtree);
             
             printTree(mintree->getRoot());                    
-            testComponentTreeFZ(mintree, "min-tree", imgOutMintree);
+            testComponentTreeFZ(mintreePtr, "min-tree", imgOutMintree);
             if(imgOutMaxtree->isEqual(imgOutMintree))
                 std::cout <<"✅ Rec(maxtree) = Rec(mintree)" << std::endl;
             else
