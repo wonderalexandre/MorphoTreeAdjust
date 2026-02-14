@@ -1,5 +1,5 @@
 
-/* Debugar
+/* Como depurar
 1. cmake .. -DCMAKE_BUILD_TYPE=Debug
 2. make
 */
@@ -8,7 +8,6 @@
 #include <list>
 #include <iomanip>
 #include <fstream>
-#include <iostream>
 
 #include "../morphoTreeAdjust/include/NodeCT.hpp"
 #include "../morphoTreeAdjust/include/ComponentTree.hpp"
@@ -35,14 +34,14 @@ int main()
     double radioAdj = 1.5;
     
     AdjacencyRelationPtr adj =std::make_shared<AdjacencyRelation>(img->getNumRows(), img->getNumCols(), radioAdj);
-    std::shared_ptr<FlatZonesGraph> graph = std::make_shared<FlatZonesGraph>(img, adj);
+    std::shared_ptr<DefaultFlatZonesGraph> graph = std::make_shared<DefaultFlatZonesGraph>(img, adj);
     
 
-    ComponentTreeFZPtr maxtreePtr = std::make_shared<ComponentTreeFZ>(graph, true);
-    ComponentTreeFZPtr mintreePtr = std::make_shared<ComponentTreeFZ>(graph, false);
+    ComponentTreeFZPtr<> maxtreePtr = std::make_shared<ComponentTreeFZ<>>(graph, true);
+    ComponentTreeFZPtr<> mintreePtr = std::make_shared<ComponentTreeFZ<>>(graph, false);
 
-    ComponentTreeFZ* maxtree = maxtreePtr.get();
-    ComponentTreeFZ* mintree = mintreePtr.get();
+    ComponentTreeFZ<>* maxtree = maxtreePtr.get();
+    ComponentTreeFZ<>* mintree = mintreePtr.get();
 
     std::cout <<"\nMintree:" << std::endl;
     printTree(mintree->getRoot());
@@ -54,13 +53,13 @@ int main()
     testComponentTreeFZ(maxtreePtr, "max-tree", img);
    // printMappingSC(maxtree);
 
-    ComponentTreeAdjustmentByLeaf adjust(mintree, maxtree);
+    ComponentTreeAdjustmentByLeaf<> adjust(mintree, maxtree);
     AreaComputerFZ computerAttrMax(maxtree);
     AreaComputerFZ computerAttrMin(mintree);
     std::vector<float> attributeMax = computerAttrMax.compute();
     std::vector<float> attributeMin = computerAttrMin.compute();
     adjust.setAttributeComputer(computerAttrMin, computerAttrMax, attributeMin, attributeMax);
-    ComponentTreeFZPtr tree1, tree2;
+    ComponentTreeFZPtr<> tree1, tree2;
     tree1 = tree2 = nullptr;
     int numNodes = mintree->getNumNodes();
     for(int i=0; i < numNodes; i++){

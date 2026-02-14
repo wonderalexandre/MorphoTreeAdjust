@@ -1,7 +1,0 @@
-/Users/wonderalexandre/GitHub/MorphoTreeAdjust/tests/build-asan/CMakeFiles/dgmm2025.dir
-/Users/wonderalexandre/GitHub/MorphoTreeAdjust/tests/build-asan/CMakeFiles/jmiv2025.dir
-/Users/wonderalexandre/GitHub/MorphoTreeAdjust/tests/build-asan/CMakeFiles/testePruningLeaf.dir
-/Users/wonderalexandre/GitHub/MorphoTreeAdjust/tests/build-asan/CMakeFiles/TestComponentTree.dir
-/Users/wonderalexandre/GitHub/MorphoTreeAdjust/tests/build-asan/CMakeFiles/testePruningSubtree.dir
-/Users/wonderalexandre/GitHub/MorphoTreeAdjust/tests/build-asan/CMakeFiles/edit_cache.dir
-/Users/wonderalexandre/GitHub/MorphoTreeAdjust/tests/build-asan/CMakeFiles/rebuild_cache.dir

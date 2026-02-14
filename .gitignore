@@ -18,3 +18,9 @@ Pipfile
 /tests/build-asan
 /tests/build-asan
 /tests/build-asan
+/tests/dat/dataset-icdar2024_occluded
+/tests/dat/dataset-icdar2024_occluded
+/tests/dat/icdar_1024p
+/tests/dat/icdar_360p
+/tests/dat/icdar_480p
+/tests/dat/icdar_720p
