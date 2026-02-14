@@ -1,12 +1,9 @@
-#include <list>
-#include <vector>
+#pragma once
+
 #include <map>
-#include <stack>
 
 #include "../include/NodeCT.hpp"
 #include "../include/ComponentTree.hpp"
-#include "../include/AdjacencyRelation.hpp"
-#include "../include/Common.hpp"
 
 #include "../pybind/PyBindFlatZonesGraph.hpp"
 
@@ -14,13 +11,6 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/numpy.h>
-#include <iostream>
-
-
-#ifndef PYBIND_COMPONENT_TREE_H
-#define PYBIND_COMPONENT_TREE_H
-
-
 
 namespace py = pybind11;
 
@@ -45,5 +35,3 @@ public:
 };
 
 #include "../pybind/PyBindComponentTree.tpp"
-
-#endif

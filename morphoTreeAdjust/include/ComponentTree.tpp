@@ -1,35 +1,31 @@
-#include <list>
-#include <array>
 #include <vector>
-#include <unordered_map>
-#include <unordered_set>
 #include <iostream>
-#include <iomanip>
 #include <utility>
 #include <algorithm> 
 
 #include "../include/NodeCT.hpp"
 #include "../include/ComponentTree.hpp"
-#include "../include/AdjacencyRelation.hpp"
-#include "../include/FlatZonesGraph.hpp"
 
-template <typename CNPsType>
-NodeCT<CNPsType> ComponentTree<CNPsType>::proxy(NodeId id) const {
+template <typename CNPsType, typename GraphT>
+NodeCT<CNPsType, GraphT> ComponentTree<CNPsType, GraphT>::proxy(NodeId id) const {
     if (id < 0) 
-        return NodeCT<CNPsType>(); // handle vazio
+        return NodeCT<CNPsType, GraphT>(); // handle vazio
     else
-        return NodeCT<CNPsType>(const_cast<ComponentTree<CNPsType>*>(this), id);
+        return NodeCT<CNPsType, GraphT>(const_cast<ComponentTree<CNPsType, GraphT>*>(this), id);
 }
 
 
-template<typename CNPsType>
-NodeCT<CNPsType> ComponentTree<CNPsType>::createNode(int repNode, NodeCT<CNPsType> parent, int threshold1, int threshold2) {
+template<typename CNPsType, typename GraphT>
+NodeCT<CNPsType, GraphT> ComponentTree<CNPsType, GraphT>::createNode(int repNode,
+                                                                     NodeCT<CNPsType, GraphT> parent,
+                                                                     int threshold1,
+                                                                     int threshold2) {
     NodeId id = makeNode(repNode, parent ? parent.getIndex() : -1, threshold1, threshold2);
     return proxy(id);
 }
 
-template <typename CNPsType>
-NodeId ComponentTree<CNPsType>::makeNode(int repNode, NodeId parentId, int threshold1, int threshold2){
+template <typename CNPsType, typename GraphT>
+NodeId ComponentTree<CNPsType, GraphT>::makeNode(int repNode, NodeId parentId, int threshold1, int threshold2){
     // Aloca ID contíguo
     NodeId id = this->arena.allocate(repNode, threshold1, threshold2);
 
@@ -45,8 +41,8 @@ NodeId ComponentTree<CNPsType>::makeNode(int repNode, NodeId parentId, int thres
     return id;
 }
 
-template<typename CNPsType>
-inline void ComponentTree<CNPsType>::setParentById(NodeId nodeId, NodeId parentId) {
+template<typename CNPsType, typename GraphT>
+inline void ComponentTree<CNPsType, GraphT>::setParentById(NodeId nodeId, NodeId parentId) {
     if (parentId == arena.parentId[nodeId]) return;
     if (parentId == -1) {
         if (arena.parentId[nodeId] != -1) 
@@ -56,8 +52,8 @@ inline void ComponentTree<CNPsType>::setParentById(NodeId nodeId, NodeId parentI
     }        
 }
 
-template<typename CNPsType>
-void ComponentTree<CNPsType>::addChildById(int parentId, int childId) {
+template<typename CNPsType, typename GraphT>
+void ComponentTree<CNPsType, GraphT>::addChildById(int parentId, int childId) {
     if (parentId < 0 || childId < 0) return;
 
     // Se o filho já tem pai, desconecta antes de ler P/C
@@ -83,8 +79,8 @@ void ComponentTree<CNPsType>::addChildById(int parentId, int childId) {
 }
 
 // Remove um filho 'childId' da lista encadeada de filhos do pai 'parentId'.
-template<typename CNPsType>
-inline void ComponentTree<CNPsType>::removeChildById(int parentId, int childId, bool release) {
+template<typename CNPsType, typename GraphT>
+inline void ComponentTree<CNPsType, GraphT>::removeChildById(int parentId, int childId, bool release) {
     if (parentId < 0 || childId < 0) return;
     if (arena.parentId[childId] != parentId) return;
 
@@ -111,8 +107,8 @@ inline void ComponentTree<CNPsType>::removeChildById(int parentId, int childId, 
 
 
 // Move todos os filhos de 'fromId' para o fim da lista de filhos de 'toId'.
-template<typename CNPsType>
-inline void ComponentTree<CNPsType>::spliceChildrenById(int toId, int fromId) {
+template<typename CNPsType, typename GraphT>
+inline void ComponentTree<CNPsType, GraphT>::spliceChildrenById(int toId, int fromId) {
     if (toId < 0 || fromId < 0 || toId == fromId) return;
 
     NodeId firstFrom = arena.firstChildId[fromId];
@@ -147,8 +143,8 @@ inline void ComponentTree<CNPsType>::spliceChildrenById(int toId, int fromId) {
    // assert(ComponentTree::validateStructure(this) && "ComponentTree topology invariant failed after spliceChildrenById");
 }
 
-template <typename CNPsType>
-std::vector<int> ComponentTree<CNPsType>::countingSort(ImageUInt8Ptr imgPtr){
+template <typename CNPsType, typename GraphT>
+std::vector<int> ComponentTree<CNPsType, GraphT>::countingSort(ImageUInt8Ptr imgPtr){
 	int n = this->numRows * this->numCols;
     auto img = imgPtr->rawData();
 	int maxvalue = img[0];
@@ -185,9 +181,9 @@ std::vector<int> ComponentTree<CNPsType>::countingSort(ImageUInt8Ptr imgPtr){
 	return orderedPixels;
 }
 
-template <>
+template <typename CNPsType, typename GraphT>
 template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
-std::vector<int> ComponentTreeFZ::countingSort() {
+std::vector<int> ComponentTree<CNPsType, GraphT>::countingSort() {
     int numFZ = flatzoneGraph->getNumFlatZones();
     auto img = flatzoneGraph->getImage()->rawData();
     
@@ -248,9 +244,9 @@ std::vector<int> ComponentTreeFZ::countingSort() {
 
 
 
-template <>
+template <typename CNPsType, typename GraphT>
 template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
-void ComponentTreeFZ::createTreeByUnionFind(std::vector<int>& orderedPixelFlatzones) {
+void ComponentTree<CNPsType, GraphT>::createTreeByUnionFind(std::vector<int>& orderedPixelFlatzones) {
     int numFZ = flatzoneGraph->getNumFlatZones();
     //parent.resize(numFZ);
     std::vector<int> zPar(numFZ, -1); 
@@ -260,7 +256,7 @@ void ComponentTreeFZ::createTreeByUnionFind(std::vector<int>& orderedPixelFlatzo
         return p;
     };
 
-    //criando a arvore já canônizada
+    // criando a árvore já canonizada
 	for(int i=numFZ-1; i >= 0; i--){
 		int p = orderedPixelFlatzones[i];
         int idxP = pixelView.pixelToIndex[p];
@@ -307,9 +303,9 @@ void ComponentTreeFZ::createTreeByUnionFind(std::vector<int>& orderedPixelFlatzo
 			
 }
 
-template <>
+template <typename CNPsType, typename GraphT>
 template<typename T, typename std::enable_if_t<std::is_same<T, Pixels>::value, int>>
-void ComponentTreeP::createTreeByUnionFind(std::vector<int>& orderedPixels, ImageUInt8Ptr imgPtr) {
+void ComponentTree<CNPsType, GraphT>::createTreeByUnionFind(std::vector<int>& orderedPixels, ImageUInt8Ptr imgPtr) {
 	int numPixels = numRows*numCols;
     std::vector<int> zPar(numPixels, -1); 
     std::vector<int> parent(numPixels, -1); 
@@ -319,7 +315,7 @@ void ComponentTreeP::createTreeByUnionFind(std::vector<int>& orderedPixels, Imag
     };
 	auto img = imgPtr->rawData();
     
-    //criando a arvore
+    // criando a árvore
 	for(int i=numPixels-1; i >= 0; i--){
 		int p = orderedPixels[i];
 		parent[p] = p;
@@ -335,7 +331,7 @@ void ComponentTreeP::createTreeByUnionFind(std::vector<int>& orderedPixels, Imag
 		}
 	}
     
-	// canonizacao da arvore
+	// canonização da árvore
     int numNodes = 0;
 	for (int i = 0; i < numPixels; i++) {
 		int p = orderedPixels[i];
@@ -396,9 +392,9 @@ void ComponentTreeP::createTreeByUnionFind(std::vector<int>& orderedPixels, Imag
     	
 }
 
-template <>
+template <typename CNPsType, typename GraphT>
 template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
-void ComponentTreeFZ::createTreeByUnionFind(std::vector<int>& orderedPixels, ImageUInt8Ptr imgPtr) {
+void ComponentTree<CNPsType, GraphT>::createTreeByUnionFind(std::vector<int>& orderedPixels, ImageUInt8Ptr imgPtr) {
     int numPixels = numRows * numCols;
     
     
@@ -521,16 +517,24 @@ void ComponentTreeFZ::createTreeByUnionFind(std::vector<int>& orderedPixels, Ima
 }
 
 
-template <typename CNPsType>
-ComponentTree<CNPsType>::ComponentTree(ImageUInt8Ptr img, bool isMaxtree, AdjacencyRelationPtr adj) : numRows(img->getNumRows()), numCols(img->getNumCols()), maxtreeTreeType(isMaxtree), adj(adj), numNodes(0){   
+template <typename CNPsType, typename GraphT>
+ComponentTree<CNPsType, GraphT>::ComponentTree(ImageUInt8Ptr img, bool isMaxtree, AdjacencyRelationPtr adj)
+    : numRows(img->getNumRows()),
+      numCols(img->getNumCols()),
+      maxtreeTreeType(isMaxtree),
+      adj(adj),
+      numNodes(0) {
     this->pixelToNodeId.resize(numRows * numCols, -1);
     build(img);
     
 }
 
-template <>
+template <typename CNPsType, typename GraphT>
 template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
-ComponentTreeFZ::ComponentTree(std::shared_ptr<FlatZonesGraph> graph, bool isMaxtree) :  maxtreeTreeType(isMaxtree), numNodes(0), flatzoneGraph(graph){   
+ComponentTree<CNPsType, GraphT>::ComponentTree(std::shared_ptr<GraphT> graph, bool isMaxtree)
+    : maxtreeTreeType(isMaxtree),
+      numNodes(0),
+      flatzoneGraph(std::move(graph)) {
     ImageUInt8Ptr img = flatzoneGraph->getImage();
     this->numRows = img->getNumRows();
     this->numCols = img->getNumCols();
@@ -542,11 +546,13 @@ ComponentTreeFZ::ComponentTree(std::shared_ptr<FlatZonesGraph> graph, bool isMax
 }
 
     
-template <typename CNPsType>
-void ComponentTree<CNPsType>::build(){ 
-    
-    if(flatzoneGraph)
-        reserveNodes(flatzoneGraph->getNumFlatZones());
+template <typename CNPsType, typename GraphT>
+void ComponentTree<CNPsType, GraphT>::build(){
+    if constexpr (std::is_same_v<CNPsType, FlatZones>) {
+        if (flatzoneGraph) {
+            reserveNodes(flatzoneGraph->getNumFlatZones());
+        }
+    }
 
     std::vector<int> orderedFlatzones = countingSort();
 	createTreeByUnionFind(orderedFlatzones);
@@ -562,8 +568,8 @@ void ComponentTree<CNPsType>::build(){
 }
 
 
-template <typename CNPsType>
-void ComponentTree<CNPsType>::build(ImageUInt8Ptr imgPtr){ 
+template <typename CNPsType, typename GraphT>
+void ComponentTree<CNPsType, GraphT>::build(ImageUInt8Ptr imgPtr){
 	std::vector<int> orderedPixels = countingSort(imgPtr);
     createTreeByUnionFind(orderedPixels, imgPtr);
 	computerArea(this->root); //computer area
@@ -572,8 +578,8 @@ void ComponentTree<CNPsType>::build(ImageUInt8Ptr imgPtr){
 
 
 
-template <typename CNPsType>
-void ComponentTree<CNPsType>::computerArea(NodeId id){
+template <typename CNPsType, typename GraphT>
+void ComponentTree<CNPsType, GraphT>::computerArea(NodeId id){
     int32_t area = getNumCNPsById(id);
     for (NodeId c : arena.children(id)) {
         computerArea(c);
@@ -582,9 +588,9 @@ void ComponentTree<CNPsType>::computerArea(NodeId id){
     arena.areaCC[id] = area;
 }
 
-template<>
+template <typename CNPsType, typename GraphT>
 template<typename T, typename std::enable_if_t<std::is_same<T, Pixels>::value, int>>
-void ComponentTreeP::prunning(NodeId nodeId){
+void ComponentTree<CNPsType, GraphT>::prunning(NodeId nodeId){
     assert(nodeId && "node is invalid");
     assert(getParentById(nodeId) && "node is root");
 
@@ -617,9 +623,9 @@ void ComponentTreeP::prunning(NodeId nodeId){
     }
 }
 
-template<>
+template <typename CNPsType, typename GraphT>
 template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
-void ComponentTreeFZ::prunning(NodeId nodeId) {
+void ComponentTree<CNPsType, GraphT>::prunning(NodeId nodeId) {
     assert(nodeId && "node is invalid");
     assert(getParentById(nodeId) && "node is root");
 
@@ -655,9 +661,9 @@ void ComponentTreeFZ::prunning(NodeId nodeId) {
 
 
 
-template<>
+template <typename CNPsType, typename GraphT>
 template<typename T, typename std::enable_if_t<std::is_same<T, Pixels>::value, int>>
-void ComponentTreeP::mergeWithParent(NodeP node)
+void ComponentTree<CNPsType, GraphT>::mergeWithParent(NodeCT<CNPsType, GraphT> node)
 {
     if (!node || !node.getParent()) return;
 
@@ -681,11 +687,11 @@ void ComponentTreeP::mergeWithParent(NodeP node)
 }
 
 
-template <>
+template <typename CNPsType, typename GraphT>
 template<typename T, typename std::enable_if_t<std::is_same<T, Pixels>::value, int>>
-void ComponentTreeP::mergeWithParent(std::vector<int>& flatzone){
+void ComponentTree<CNPsType, GraphT>::mergeWithParent(std::vector<int>& flatzone){
     int idFlatzone = flatzone.front();
-    NodeP node = proxy(this->pixelToNodeId[idFlatzone]);
+    NodeCT<CNPsType, GraphT> node = proxy(this->pixelToNodeId[idFlatzone]);
     if(getNumCNPsById(node) == static_cast<int>(flatzone.size())) {
         this->mergeWithParent(node);
     }
@@ -701,7 +707,7 @@ void ComponentTreeP::mergeWithParent(std::vector<int>& flatzone){
         int idxRootWinner = pixelView.pixelToIndex[repWinner];
         int idxRootLoser  = pixelView.pixelToIndex[repLoser];
 
-        //2. Atualiza a quantidade de cnps
+        //2. Atualiza a quantidade de CNPs
         pixelView.sizeSets[idxRootWinner] += flatzone->size();
         pixelView.sizeSets[idxRootLoser] -= flatzone->size();
 
@@ -730,8 +736,8 @@ void ComponentTreeP::mergeWithParent(std::vector<int>& flatzone){
 
 
 
-template <typename CNPsType>
-std::vector<NodeId> ComponentTree<CNPsType>::getLeaves(){
+template <typename CNPsType, typename GraphT>
+std::vector<NodeId> ComponentTree<CNPsType, GraphT>::getLeaves(){
     std::vector<NodeId> leaves;
     FastQueue<NodeId> s;
     s.push(this->root);
@@ -750,39 +756,32 @@ std::vector<NodeId> ComponentTree<CNPsType>::getLeaves(){
 }
 
 
-template <>
+template <typename CNPsType, typename GraphT>
 template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
-std::shared_ptr<FlatZonesGraph>& ComponentTreeFZ::getFlatZonesGraph(){
+std::shared_ptr<GraphT>& ComponentTree<CNPsType, GraphT>::getFlatZonesGraph(){
     return this->flatzoneGraph;
 }
 
 
-template <typename CNPsType>
-ImageUInt8Ptr ComponentTree<CNPsType>::reconstructionImage(){
+template <typename CNPsType, typename GraphT>
+ImageUInt8Ptr ComponentTree<CNPsType, GraphT>::reconstructionImage(){
     ImageUInt8Ptr imgPtr = ImageUInt8::create(this->numRows, this->numCols);
     this->reconstruction(this->root, imgPtr->rawData());
     return imgPtr;
 }
 
 
-// FlatZones
-template <>
-inline void ComponentTreeFZ::reconstruction(NodeId id, uint8_t* imgOut) {
+template <typename CNPsType, typename GraphT>
+inline void ComponentTree<CNPsType, GraphT>::reconstruction(NodeId id, uint8_t* imgOut) {
     assert(imgOut && "Erro: Ponteiro de saída da imagem é nulo!");
-    for (int p : pixelBuffer->getPixelsBySet(arena.repCNPs[id])) {
-        imgOut[p] = static_cast<uint8_t>(arena.threshold2[id]);
-    }
-    for (int c : arena.children(id)) {
-        reconstruction(c, imgOut);
-    }
-}
-
-// Pixels
-template <>
-inline void ComponentTreeP::reconstruction(NodeId id, uint8_t* imgOut) {
-    assert(imgOut && "Erro: Ponteiro de saída da imagem é nulo!");
-    for (int p : pixelBuffer->getPixelsBySet(arena.repNode[id])) {
-        imgOut[p] = static_cast<uint8_t>(arena.threshold2[id]);
+    if constexpr (std::is_same_v<CNPsType, FlatZones>) {
+        for (int p : pixelBuffer->getPixelsBySet(arena.repCNPs[id])) {
+            imgOut[p] = static_cast<uint8_t>(arena.threshold2[id]);
+        }
+    } else {
+        for (int p : pixelBuffer->getPixelsBySet(arena.repNode[id])) {
+            imgOut[p] = static_cast<uint8_t>(arena.threshold2[id]);
+        }
     }
     for (int c : arena.children(id)) {
         reconstruction(c, imgOut);
@@ -791,42 +790,28 @@ inline void ComponentTreeP::reconstruction(NodeId id, uint8_t* imgOut) {
 
 
 
-// FlatZones
-template <>
-inline auto ComponentTreeFZ::getCNPsById(NodeId id) const {
-    return pixelBuffer->getPixelsBySet(arena.repCNPs[id]);
+template <typename CNPsType, typename GraphT>
+inline auto ComponentTree<CNPsType, GraphT>::getCNPsById(NodeId id) const {
+    if constexpr (std::is_same_v<CNPsType, FlatZones>) {
+        return pixelBuffer->getPixelsBySet(arena.repCNPs[id]);
+    } else {
+        return pixelBuffer->getPixelsBySet(arena.repNode[id]);
+    }
 }
 
-// Pixels
-template <>
-inline auto ComponentTreeP::getCNPsById(NodeId id) const {
-    return pixelBuffer->getPixelsBySet(arena.repNode[id]);
-}
-
-// FlatZones
-template <>
-inline int ComponentTreeFZ::getNumFlatzoneById(NodeId id) const {
-    return static_cast<int>(arena.repCNPs[id].size());
-}
-
-// Pixels
-template <>
-inline int ComponentTreeP::getNumFlatzoneById(NodeId id) const {
+template <typename CNPsType, typename GraphT>
+inline int ComponentTree<CNPsType, GraphT>::getNumFlatzoneById(NodeId id) const {
+    if constexpr (std::is_same_v<CNPsType, FlatZones>) {
+        return static_cast<int>(arena.repCNPs[id].size());
+    }
     (void)id;
     return 1;
 }
 
-// FlatZones
-template <>
-inline int ComponentTreeFZ::getNumCNPsById(NodeId id) const {
-    return this->pixelBuffer->numPixelsInSets(arena.repCNPs[id]);
-}
-
-// Pixels
-template <>
-inline int ComponentTreeP::getNumCNPsById(NodeId id) const {
+template <typename CNPsType, typename GraphT>
+inline int ComponentTree<CNPsType, GraphT>::getNumCNPsById(NodeId id) const {
+    if constexpr (std::is_same_v<CNPsType, FlatZones>) {
+        return this->pixelBuffer->numPixelsInSets(arena.repCNPs[id]);
+    }
     return this->pixelBuffer->numPixelsInSet(arena.repNode[id]);
 }
-
-
-

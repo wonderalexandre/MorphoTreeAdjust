@@ -5,8 +5,6 @@
 #include "pybind/PyBindComponentTreeAdjustmentBySubtree.hpp"
 #include "pybind/PyBindFlatZonesGraph.hpp"
 
-#include <iterator>
-#include <utility>
 #include <sstream>
 
 namespace py = pybind11;
@@ -127,10 +125,10 @@ void init_ComponentTreeAdjustment(py::module &m) {
             self.updateTree(tree, leaf);
         })
         .def("mergeWithParent", [](PyBindComponentTreeAdjustmentByLeaf &self, PyBindComponentTreeFZPtr tree, NodeCT<FlatZones> node) {
-            self.mergeWithParent(tree, node);
+            self.mergeWithParent(tree.get(), node);
         })
         .def("prunning", [](PyBindComponentTreeAdjustmentByLeaf &self, PyBindComponentTreeFZPtr tree, NodeCT<FlatZones> node) {
-            self.prunning(tree, node);
+            self.prunning(tree.get(), node.getIndex());
         })
         .def("buildCollections", &PyBindComponentTreeAdjustmentByLeaf::buildCollections)
         .def("log", &PyBindComponentTreeAdjustmentByLeaf::getOutputLog);
@@ -141,10 +139,10 @@ void init_ComponentTreeAdjustment(py::module &m) {
             self.updateTree(tree, leaf);
         })
         .def("mergeWithParent", [](PyBindComponentTreeAdjustmentBySubtree &self, PyBindComponentTreeFZPtr tree, NodeCT<FlatZones> node) {
-            self.mergeWithParent(tree, node);
+            self.mergeWithParent(tree.get(), node);
         })
         .def("prunning", [](PyBindComponentTreeAdjustmentBySubtree &self, PyBindComponentTreeFZPtr tree, NodeCT<FlatZones> node) {
-            self.prunning(tree, node);
+            self.prunning(tree.get(), node.getIndex());
         })
         .def("buildCollections", &PyBindComponentTreeAdjustmentBySubtree::buildCollections)
         .def("log", &PyBindComponentTreeAdjustmentBySubtree::getOutputLog);

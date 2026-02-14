@@ -1,35 +1,28 @@
-#include <list>
-#include <vector>
+#pragma once
 
-#include "../include/NodeCT.hpp"
 #include "../include/ComponentTreeAdjustmentBySubtree.hpp"
 #include "../pybind/PyBindComponentTree.hpp"
-#include "../include/Common.hpp"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/numpy.h>
 
-#ifndef PYBIND_COMPONENT_TREE_ADJUSTMENT_SUBTREE_H
-#define PYBIND_COMPONENT_TREE_ADJUSTMENT_SUBTREE_H
-
 namespace py = pybind11;
 
 using PyBindComponentTreeFZ = PyBindComponentTree<FlatZones>;
 using PyBindComponentTreeFZPtr = std::shared_ptr<PyBindComponentTreeFZ>;
+using PyBindAdjustmentSubtreeBase = ComponentTreeAdjustmentBySubtree<>;
 
-class PyBindComponentTreeAdjustmentBySubtree: public ComponentTreeAdjustmentBySubtree {
+class PyBindComponentTreeAdjustmentBySubtree: public PyBindAdjustmentSubtreeBase {
 
 public:
    
    PyBindComponentTreeAdjustmentBySubtree(PyBindComponentTreeFZPtr maxtree, PyBindComponentTreeFZPtr mintree)
-        : ComponentTreeAdjustmentBySubtree(maxtree, mintree) {} 
+        : PyBindAdjustmentSubtreeBase(mintree.get(), maxtree.get()) {} 
 
-   using ComponentTreeAdjustmentBySubtree::updateTree;
-   void updateTree(PyBindComponentTreeFZPtr tree, NodeFZ L_leaf);
+   using PyBindAdjustmentSubtreeBase::updateTree;
+   void updateTree(PyBindComponentTreeFZPtr tree, NodeFZ<> L_leaf);
 
-   py::tuple buildCollections(PyBindComponentTreeFZPtr tree, NodeFZ nodeSubtree,int newGrayLevel);
+   py::tuple buildCollections(PyBindComponentTreeFZPtr tree, NodeFZ<> nodeSubtree, int newGrayLevel);
 
 };
-
-#endif

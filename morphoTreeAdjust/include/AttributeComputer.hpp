@@ -38,12 +38,12 @@ using enum Attribute;
  * compor etapas de pré-processamento, mesclagem e pós-processamento sem criar
  * estruturas auxiliares temporárias. 
  */
-template <typename CNPsType>
+template <typename CNPsType, typename GraphT = DefaultFlatZonesGraph>
 class AttributeComputedIncrementally {
 public:
     
     template<class PreProcessing, class MergeProcessing, class PostProcessing>
-    static void computerAttribute(ComponentTree<CNPsType>* tree, NodeId root, 
+    static void computerAttribute(ComponentTree<CNPsType, GraphT>* tree, NodeId root, 
                                     PreProcessing&& preProcessing, 
                                     MergeProcessing&& mergeProcessing, 
                                     PostProcessing&& postProcessing) {
@@ -97,22 +97,26 @@ struct IncrementalFunctions {
     PostProcessing postProcessing;
 };
 
-template<typename CNPsType, typename IncrementalFunctionsT, typename Derived>
+template<typename CNPsType, typename GraphT, typename IncrementalFunctionsT, typename Derived>
 class AttributeComputer {
 protected:
-    ComponentTree<CNPsType>* tree;
+    static_assert(!std::is_same_v<CNPsType, FlatZones> || FlatZonesGraphCommonInterface<GraphT>,
+                  "GraphT must satisfy FlatZonesGraphCommonInterface when CNPsType is FlatZones");
+    ComponentTree<CNPsType, GraphT>* tree;
     Attribute attribute;
     IncrementalFunctionsT incrementalFunctions;
     mutable Derived* selfPtr = nullptr;
 
 public:
-    AttributeComputer(ComponentTree<CNPsType>* tree, Attribute attribute, IncrementalFunctionsT incrementalFunctions)
+    AttributeComputer(ComponentTree<CNPsType, GraphT>* tree,
+                      Attribute attribute,
+                      IncrementalFunctionsT incrementalFunctions)
         : tree(tree), attribute(attribute), incrementalFunctions(std::move(incrementalFunctions)) {}
 
     virtual ~AttributeComputer() = default;
 
-    ComponentTree<CNPsType>* getTree() { return tree; }
-    const ComponentTree<CNPsType>* getTree() const { return tree; }
+    ComponentTree<CNPsType, GraphT>* getTree() { return tree; }
+    const ComponentTree<CNPsType, GraphT>* getTree() const { return tree; }
 
     // Permite registrar explicitamente o ponteiro para o objeto derivado ao final do ctor do derivado.
     void registerDerived(Derived* self) const {
@@ -127,7 +131,7 @@ public:
 
     void compute(std::span<float> buffer) {
         
-        AttributeComputedIncrementally<CNPsType>::computerAttribute(
+        AttributeComputedIncrementally<CNPsType, GraphT>::computerAttribute(
             tree, tree->getRootById(),
             [this, buffer](NodeId idx) mutable { preProcessing(idx, buffer); },
             [this, buffer](NodeId parentId, NodeId childId) mutable { mergeProcessing(parentId, childId, buffer); },
@@ -160,21 +164,22 @@ public:
 /**
  * @brief Computa a área (número de pixels) de cada nó da árvore.
  */
-template<typename CNPsType>
+template<typename CNPsType, typename GraphT = DefaultFlatZonesGraph>
 class AreaComputer : public AttributeComputer<
     CNPsType,
+    GraphT,
     IncrementalFunctions<
-        void (AreaComputer<CNPsType>::*)(NodeId, std::span<float>),
-        void (AreaComputer<CNPsType>::*)(NodeId, NodeId, std::span<float>),
-        void (AreaComputer<CNPsType>::*)(NodeId, std::span<float>)>,
-    AreaComputer<CNPsType>> {
+        void (AreaComputer<CNPsType, GraphT>::*)(NodeId, std::span<float>),
+        void (AreaComputer<CNPsType, GraphT>::*)(NodeId, NodeId, std::span<float>),
+        void (AreaComputer<CNPsType, GraphT>::*)(NodeId, std::span<float>)>,
+    AreaComputer<CNPsType, GraphT>> {
 
 public:
     using Functions = IncrementalFunctions<
-        void (AreaComputer<CNPsType>::*)(NodeId, std::span<float>),
-        void (AreaComputer<CNPsType>::*)(NodeId, NodeId, std::span<float>),
-        void (AreaComputer<CNPsType>::*)(NodeId, std::span<float>)>;
-    using Base = AttributeComputer<CNPsType, Functions, AreaComputer<CNPsType>>;
+        void (AreaComputer<CNPsType, GraphT>::*)(NodeId, std::span<float>),
+        void (AreaComputer<CNPsType, GraphT>::*)(NodeId, NodeId, std::span<float>),
+        void (AreaComputer<CNPsType, GraphT>::*)(NodeId, std::span<float>)>;
+    using Base = AttributeComputer<CNPsType, GraphT, Functions, AreaComputer<CNPsType, GraphT>>;
 
     Functions makeIncrementalFunctions() const {
         return Functions{
@@ -184,7 +189,8 @@ public:
         };
     }
 
-    explicit AreaComputer(ComponentTree<CNPsType>* tree) : Base(tree, AREA, makeIncrementalFunctions() )  {
+    explicit AreaComputer(ComponentTree<CNPsType, GraphT>* tree)
+        : Base(tree, AREA, makeIncrementalFunctions() )  {
         this->registerDerived(this);
     }
 
@@ -203,6 +209,8 @@ public:
 };
 using AreaComputerP = AreaComputer<Pixels>;
 using AreaComputerFZ = AreaComputer<FlatZones>;
+template <typename GraphT = DefaultFlatZonesGraph>
+using AreaComputerFZT = AreaComputer<FlatZones, GraphT>;
 
 
 
@@ -211,14 +219,15 @@ using AreaComputerFZ = AreaComputer<FlatZones>;
 /**
  * @brief Computa atributos derivadas do boundind box
  */
-template<typename CNPsType>
+template<typename CNPsType, typename GraphT = DefaultFlatZonesGraph>
 class BoundingBoxComputer : public AttributeComputer<
     CNPsType,
+    GraphT,
     IncrementalFunctions<
-        void (BoundingBoxComputer<CNPsType>::*)(NodeId, std::span<float>),
-        void (BoundingBoxComputer<CNPsType>::*)(NodeId, NodeId, std::span<float>),
-        void (BoundingBoxComputer<CNPsType>::*)(NodeId, std::span<float>)>,
-    AreaComputer<CNPsType>> {
+        void (BoundingBoxComputer<CNPsType, GraphT>::*)(NodeId, std::span<float>),
+        void (BoundingBoxComputer<CNPsType, GraphT>::*)(NodeId, NodeId, std::span<float>),
+        void (BoundingBoxComputer<CNPsType, GraphT>::*)(NodeId, std::span<float>)>,
+    BoundingBoxComputer<CNPsType, GraphT>> {
 
 private:
     std::vector<int> xmin;
@@ -231,10 +240,10 @@ private:
 
 public:
     using Functions = IncrementalFunctions<
-        void (BoundingBoxComputer<CNPsType>::*)(NodeId, std::span<float>),
-        void (BoundingBoxComputer<CNPsType>::*)(NodeId, NodeId, std::span<float>),
-        void (BoundingBoxComputer<CNPsType>::*)(NodeId, std::span<float>)>;
-    using Base = AttributeComputer<CNPsType, Functions, AreaComputer<CNPsType>>;
+        void (BoundingBoxComputer<CNPsType, GraphT>::*)(NodeId, std::span<float>),
+        void (BoundingBoxComputer<CNPsType, GraphT>::*)(NodeId, NodeId, std::span<float>),
+        void (BoundingBoxComputer<CNPsType, GraphT>::*)(NodeId, std::span<float>)>;
+    using Base = AttributeComputer<CNPsType, GraphT, Functions, BoundingBoxComputer<CNPsType, GraphT>>;
 
     Functions makeIncrementalFunctions() const {
         return Functions{
@@ -246,7 +255,7 @@ public:
 
 
 
-    explicit BoundingBoxComputer(ComponentTree<CNPsType>* tree, Attribute attribute) 
+    explicit BoundingBoxComputer(ComponentTree<CNPsType, GraphT>* tree, Attribute attribute) 
         : Base(tree, attribute, makeIncrementalFunctions()), 
         xmin(tree->getNumNodes(), tree->getNumColsOfImage()), 
         xmax(tree->getNumNodes(), 0), 
@@ -298,4 +307,5 @@ public:
 };
 using BoundingBoxComputerP = BoundingBoxComputer<Pixels>;
 using BoundingBoxComputerFZ = BoundingBoxComputer<FlatZones>;
-
+template <typename GraphT = DefaultFlatZonesGraph>
+using BoundingBoxComputerFZT = BoundingBoxComputer<FlatZones, GraphT>;

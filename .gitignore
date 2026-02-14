@@ -13,3 +13,8 @@ Pipfile
 /tests/dat/icdar
 /tests/dat/icdar_resized
 /python/morphoTreeAdjust.egg-info
+/notebooks/.ipynb_checkpoints
+/notebooks/anaconda_projects
+/tests/build-asan
+/tests/build-asan
+/tests/build-asan

@@ -1,24 +1,16 @@
 #include "../include/ComponentTreeAdjustmentBySubtree.hpp"
-#include <unordered_set>
-#include <list>
-#include <vector>
-#include <iostream>
-#include <functional>
-#include <algorithm> 
-#include <utility>
 
 
-template<typename Computer>
-void ComponentTreeAdjustmentBySubtree<Computer>::updateTree(ComponentTreeFZ* tree, NodeId rootIdSubtree) {
+template<typename Computer, typename GraphT>
+void ComponentTreeAdjustmentBySubtree<Computer, GraphT>::updateTree(ComponentTreeFZ<GraphT>* tree, NodeId rootIdSubtree) {
     assert(rootIdSubtree!=InvalidNode && "rootSubtree is invalid"); 
     bool isMaxtree = tree->isMaxtree();
 
-    ComponentTreeFZ* otherTree = tree->isMaxtree()? this->mintree : this->maxtree;
+    ComponentTreeFZ<GraphT>* otherTree = isMaxtree ? this->mintree : this->maxtree;
     this->areaFZsRemoved = otherTree->getAreaById(rootIdSubtree);
-    int newGrayLevel = otherTree->getLevelById( otherTree->getParentById(rootIdSubtree) );  // g(p)
+    int newGrayLevel = otherTree->getLevelById( otherTree->getParentById(rootIdSubtree) );  // b = g(p)
     
     properPartsCollector.resetCollections(isMaxtree);
-    
     for (NodeId nSubtree : otherTree->getIteratorBreadthFirstTraversalById(rootIdSubtree)) {
         for(int repFZ : otherTree->getRepCNPsById(nSubtree)) {
             properPartsCollector.addNode(tree, tree->getSCById(repFZ), repFZ); 
@@ -35,7 +27,7 @@ void ComponentTreeAdjustmentBySubtree<Computer>::updateTree(ComponentTreeFZ* tre
         this->outputLog << "Proper parts: (Tau_S): [";
         bool flagPrint = false;
         for(int repFZTau: properPartsCollector.getRepsFZ()){
-            NodeFZ nodeTau = tree->getSC(repFZTau);
+            NodeFZ<GraphT> nodeTau = tree->getSC(repFZTau);
             if(flagPrint){
                 this->outputLog << "\t";
             }
@@ -52,7 +44,7 @@ void ComponentTreeAdjustmentBySubtree<Computer>::updateTree(ComponentTreeFZ* tre
 
 
     
-    ComponentTreeAdjustment<Computer>::buildMergedAndNestedCollections(tree,  properPartsCollector.getRepsFZ(), pixelUpperBound, newGrayLevel, isMaxtree);
+    this->buildMergedAndNestedCollections(tree,  properPartsCollector.getRepsFZ(), pixelUpperBound, newGrayLevel, isMaxtree);
 
     if(PRINT_LOG){
         this->outputLog << "F_λ = { ";
@@ -74,15 +66,53 @@ void ComponentTreeAdjustmentBySubtree<Computer>::updateTree(ComponentTreeFZ* tre
         this->outputLog << "}\n" << std::endl;
         
     }    
-
+    
 
     // Ordenação dos lambdas (crescente para Min-Tree, decrescente para Max-Tree)
-    int lambda = this->F.firstLambda(grayTauStar, newGrayLevel);
+    int lambda = this->F.firstLambda();
     NodeId nodeUnion;
     NodeId nodeUnionPrevious = InvalidNode;
-    
+    size_t mergedCalls = 0;
+    size_t totalMerged = 0;
+    long long areaSum = 0;
+    long long areaMax = 0;
+    size_t areaCount = 0;
+    size_t adjacentCount = 0;
+    long long areaTauStar = 0;
+    size_t loopIterations = 0;
+
+    auto mergedParentAndChildrenTracked = [&](ComponentTreeFZ<GraphT>* targetTree, NodeId parentId, NodeId childId) {
+        this->mergedParentAndChildren(targetTree, parentId, childId);
+        if (this->metrics_) {
+            ++mergedCalls;
+        }
+    };
+
+    if (this->metrics_) {
+        this->pauseMetrics();
+        areaTauStar = (nodeIdTauStar != InvalidNode) ? tree->getAreaById(nodeIdTauStar) : 0;
+        for (int l = 0; l <= 255; ++l) {
+            const auto& nodes = this->F.getMergedNodes(l);
+            totalMerged += nodes.size();
+            for (NodeId nodeId : nodes) {
+                long long area = tree->getAreaById(nodeId);
+                areaSum += area;
+                if (area > areaMax) {
+                    areaMax = area;
+                }
+                ++areaCount;
+            }
+        }
+        adjacentCount = this->F.getAdjacentNodes().size();
+        this->resumeMetrics();
+    }
+
+
     // Definição da direção do loop
     while ((isMaxtree && lambda > grayTauStar) || (!isMaxtree && lambda < grayTauStar)) {
+        if (this->metrics_) {
+            ++loopIterations;
+        }
         std::vector<NodeId>& F_lambda = this->F.getMergedNodes(lambda);
         
         // Encontrar um nodeUnion que NÃO esteja em nodesToBeRemoved
@@ -93,10 +123,12 @@ void ComponentTreeAdjustmentBySubtree<Computer>::updateTree(ComponentTreeFZ* tre
                 break; 
             }
         }
+
+        
         // Se não encontrou nenhum node válido, continua para a próxima iteração
         if (nodeUnion == InvalidNode) {
             for (NodeId nodeId : F_lambda) {
-                this->mergedParentAndChildren(tree, tree->getParentById(nodeId), nodeId);
+                mergedParentAndChildrenTracked(tree, tree->getParentById(nodeId), nodeId);
                 this->disconnect(tree, nodeId, true);
             }
             lambda = this->F.nextLambda();  
@@ -117,13 +149,13 @@ void ComponentTreeAdjustmentBySubtree<Computer>::updateTree(ComponentTreeFZ* tre
                 }
 
                 if(!properPartsCollector.isRemoved(nodeId)){ //node não foi removido
-                    NodeFZ::addCNPsOfDisjointFlatzones(tree->getRepCNPsById(nodeId), nodeUnion, tree);    
+                    NodeFZ<GraphT>::addCNPsOfDisjointFlatzones(tree->getRepCNPsById(nodeId), nodeUnion, tree);    
                 }else{
                     if(PRINT_LOG)
                         this->outputLog << "\t\twas removed" << std::endl;
                 }
                     
-                this->mergedParentAndChildren(tree, nodeUnion, nodeId);
+                mergedParentAndChildrenTracked(tree, nodeUnion, nodeId);
                 this->disconnect(tree, nodeId, true);
             }
         }
@@ -164,7 +196,7 @@ void ComponentTreeAdjustmentBySubtree<Computer>::updateTree(ComponentTreeFZ* tre
             tree->setAreaById(nodeUnion, tree->getAreaById(nodeUnion) + tree->getAreaById(nodeId));
         }
         /********************************************************
-         **   Atualização inremental de atributos do nodeUnion **
+         **   Atualização incremental de atributos do nodeUnion **
          ********************************************************/
         if(isMaxtree){
             this->attrComputerMax->preProcessing(nodeUnion, this->bufferMax);
@@ -263,11 +295,33 @@ void ComponentTreeAdjustmentBySubtree<Computer>::updateTree(ComponentTreeFZ* tre
             tree->addChildById(nodeIdTauStar, nodeUnion);
         }   
     }
+
+    if (this->metrics_) {
+        this->pauseMetrics();
+        this->metrics_->reset();
+        this->metrics_->a = newGrayLevel;
+        this->metrics_->b = grayTauStar;
+        this->metrics_->area_substree = this->areaFZsRemoved;
+        this->metrics_->count_proper_parts = properPartsCollector.getRepsFZ().size();
+        this->metrics_->count_nodes_Fb = this->F.getFb().size();
+        this->metrics_->count_total_nodes_merged = totalMerged;
+        this->metrics_->count_total_nodes_removed = properPartsCollector.getRemovedCount();
+        this->metrics_->count_total_nodes_and_children_merged = mergedCalls;
+        this->metrics_->count_adjacent_nodes = adjacentCount;
+        this->metrics_->area_tau_star = areaTauStar;
+        this->metrics_->loop_iterations = loopIterations;
+        this->metrics_->avg_area_nodes_merged = areaCount ? (static_cast<double>(areaSum) / static_cast<double>(areaCount)) : 0.0;
+        this->metrics_->max_area_nodes_merged = areaMax;
+        this->metrics_->valid = true;
+        this->resumeMetrics();
+    }
 }
 
 
-template<typename Computer>
-void ComponentTreeAdjustmentBySubtree<Computer>::adjustMinTree(ComponentTreeFZ* mintree, ComponentTreeFZ* maxtree, std::vector<NodeId>& nodesToPruning) {
+template<typename Computer, typename GraphT>
+void ComponentTreeAdjustmentBySubtree<Computer, GraphT>::adjustMinTree(ComponentTreeFZ<GraphT>* mintree,
+                                                                       ComponentTreeFZ<GraphT>* maxtree,
+                                                                       std::vector<NodeId>& nodesToPruning) {
     for (NodeId rSubtreeId : nodesToPruning) {  	
         assert(rSubtreeId != maxtree->getRootById() && "rSubtree is root");
         if (rSubtreeId == InvalidNode) {
@@ -278,8 +332,10 @@ void ComponentTreeAdjustmentBySubtree<Computer>::adjustMinTree(ComponentTreeFZ* 
     }
 }
 
-template<typename Computer>
-void ComponentTreeAdjustmentBySubtree<Computer>::adjustMaxTree(ComponentTreeFZ* maxtree, ComponentTreeFZ* mintree, std::vector<NodeId>& nodesToPruning) {
+template<typename Computer, typename GraphT>
+void ComponentTreeAdjustmentBySubtree<Computer, GraphT>::adjustMaxTree(ComponentTreeFZ<GraphT>* maxtree,
+                                                                       ComponentTreeFZ<GraphT>* mintree,
+                                                                       std::vector<NodeId>& nodesToPruning) {
     for (NodeId rSubtreeId : nodesToPruning) {  
         assert(rSubtreeId != mintree->getRootById() && "rSubtree is root");
         if (rSubtreeId == InvalidNode) {
@@ -290,4 +346,9 @@ void ComponentTreeAdjustmentBySubtree<Computer>::adjustMaxTree(ComponentTreeFZ* 
     }
 }
 
-template class ComponentTreeAdjustmentBySubtree<DefaultAttributeComputer>;
+template class ComponentTreeAdjustmentBySubtree<DefaultAttributeComputer, DefaultFlatZonesGraph>;
+template class ComponentTreeAdjustmentBySubtree<BoundingBoxComputerFZ, DefaultFlatZonesGraph>;
+template class ComponentTreeAdjustmentBySubtree<DefaultAttributeComputerT<FlatZonesGraphFullEdges>, FlatZonesGraphFullEdges>;
+template class ComponentTreeAdjustmentBySubtree<BoundingBoxComputerFZT<FlatZonesGraphFullEdges>, FlatZonesGraphFullEdges>;
+template class ComponentTreeAdjustmentBySubtree<DefaultAttributeComputerT<FlatZonesGraphOnDemandEdgesByPixel>, FlatZonesGraphOnDemandEdgesByPixel>;
+template class ComponentTreeAdjustmentBySubtree<BoundingBoxComputerFZT<FlatZonesGraphOnDemandEdgesByPixel>, FlatZonesGraphOnDemandEdgesByPixel>;

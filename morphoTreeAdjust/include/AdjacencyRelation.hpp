@@ -1,10 +1,8 @@
 
-#include <list>
+#pragma once
+
 #include <vector>
 #include "../include/Common.hpp"
-
-#ifndef ADJACENCY_H
-#define ADJACENCY_H
 
 class AdjacencyRelation;  // forward declaration
 using AdjacencyRelationPtr = std::shared_ptr<AdjacencyRelation>;
@@ -53,19 +51,19 @@ public:
      */
     int getSize();
     /**
-     * @brief Configura (row,col) e prepara iteração de adjacentes sem filtro forward. Esse método incluí a origem.
+     * @brief Configura (row,col) e prepara iteração de adjacentes sem filtro forward. Esse método inclui a origem.
      */
     AdjacencyRelation& getAdjPixels(int row, int col);
     /**
-     * @brief Configura por índice linear e prepara iteração de adjacentes sem filtro. Esse método incluí a origem.
+     * @brief Configura por índice linear e prepara iteração de adjacentes sem filtro. Esse método inclui a origem.
      */
     AdjacencyRelation& getAdjPixels(int index);
     /**
-     * @brief Configura (row,col) e prepara iteração de vizinhos dentro dos limites. Esse método NÃO incluí a origem.
+     * @brief Configura (row,col) e prepara iteração de vizinhos dentro dos limites. Esse método NÃO inclui a origem.
      */
     AdjacencyRelation& getNeighborPixels(int row, int col);
     /**
-     * @brief Configura por índice linear e prepara iteração de vizinhos dentro dos limites. Esse método NÃO incluí a origem.
+     * @brief Configura por índice linear e prepara iteração de vizinhos dentro dos limites. Esse método NÃO inclui a origem.
      */
     AdjacencyRelation& getNeighborPixels(int index);
     /**
@@ -142,6 +140,3 @@ public:
      */
    IteratorAdjacency end();	 
 };
-
-
-#endif
