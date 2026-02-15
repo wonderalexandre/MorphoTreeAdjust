@@ -44,10 +44,22 @@ add_executable(dgmm2025 dgmm2025.cpp
     ./external/stb/stb_image.cpp
 )
 
-add_executable(jmiv2025 jmiv2025.cpp
+add_executable(jmiv2026 jmiv2026.cpp
     ../morphoTreeAdjust/src/AdjacencyRelation.cpp
     ../morphoTreeAdjust/src/ComponentTreeAdjustmentByLeaf.cpp
     ../morphoTreeAdjust/src/ComponentTreeAdjustmentBySubtree.cpp
+    ./external/stb/stb_image.cpp
+)
+
+add_executable(jmiv2026_benchmark jmiv2026_benchmark.cpp
+    ../morphoTreeAdjust/src/AdjacencyRelation.cpp
+    ../morphoTreeAdjust/src/ComponentTreeAdjustmentByLeaf.cpp
+    ../morphoTreeAdjust/src/ComponentTreeAdjustmentBySubtree.cpp
+    ./external/stb/stb_image.cpp
+)
+
+add_executable(ctree_area_hist ctree_area_hist.cpp
+    ../morphoTreeAdjust/src/AdjacencyRelation.cpp
     ./external/stb/stb_image.cpp
 )
 
@@ -67,4 +79,8 @@ add_executable(testePruningSubtree testePruningSubtree.cpp
     ../morphoTreeAdjust/src/ComponentTreeAdjustmentBySubtree.cpp
 )
 
-
+add_executable(break_even_runner break_even_runner.cpp
+    ../morphoTreeAdjust/src/AdjacencyRelation.cpp
+    ../morphoTreeAdjust/src/ComponentTreeAdjustmentBySubtree.cpp
+    ./external/stb/stb_image.cpp
+)
