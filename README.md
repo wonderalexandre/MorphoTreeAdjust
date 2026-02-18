@@ -13,12 +13,13 @@ Problem:
 
 <br><br>
 ### Demo:
-> [Click here and see a demo on jupyter notebook](./notebooks/morphoTreeAdjust_example_leaf.ipynb)
+> [Click here and see a demo on jupyter notebook - leaf](./notebooks/morphoTreeAdjust_example_leaf.ipynb)
+> [Click here and see a demo on jupyter notebook - subtree](./notebooks/morphoTreeAdjust_example_subtree.ipynb)
 
 ### Paper:
 > Wonder Alves, Nicolas Passat, Dênnis José da Silva, Alexandre Morimitsu, Ronaldo F. Hashimoto. *Efficient connected alternating sequential filters based on component trees*. International Conference on Discrete Geometry and Mathematical Morphology (DGMM), Nov 2025, Groningen, Netherlands. ⟨[hal-05163556](https://hal.science/hal-05163556/)⟩
 
-> [Submission] Wonder Alves, Nicolas Passat, Dênnis José da Silva, Alexandre Morimitsu, Ronaldo F. Hashimoto. *Component tree: Update rather than rebuild*. Journal of Mathematical Imaging and Vision, 2026.
+> [Under review] Wonder Alves, Nicolas Passat, Dênnis José da Silva, Alexandre Morimitsu, Ronaldo F. Hashimoto. *Component tree: Update rather than rebuild*. Journal of Mathematical Imaging and Vision, 2026.
 
 
 ### Benchmark
