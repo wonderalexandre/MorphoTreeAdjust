@@ -13,7 +13,7 @@ Problem:
 
 <br><br>
 ### Demo:
-> [Click here and see a demo on jupyter notebook - leaf](./notebooks/morphoTreeAdjust_example_leaf.ipynb)
+> [Click here and see a demo on jupyter notebook - leaf](./notebooks/morphoTreeAdjust_example_leaf.ipynb) <br>
 > [Click here and see a demo on jupyter notebook - subtree](./notebooks/morphoTreeAdjust_example_subtree.ipynb)
 
 ### Paper:
