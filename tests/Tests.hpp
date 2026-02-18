@@ -1,6 +1,5 @@
+#pragma once
 
-#ifndef TESTS_HPP
-#define TESTS_HPP  
 
 #include <iostream>
 #include <unordered_set>
@@ -13,7 +12,6 @@
 
 #include <iomanip>
 #include <fstream>
-#include <iostream>
 
 
 /**
@@ -27,7 +25,7 @@
  * @param graph Ponteiro para o grafo/DSU de flatzones usado como verdade.
  * @return true se encontrou pelo menos um representante desatualizado; false caso contrário.
  */
-inline bool checkRepresentatives(ComponentTreeFZPtr tree, std::shared_ptr<FlatZonesGraph> graph){
+inline bool checkRepresentatives(ComponentTreeFZPtr<> tree, std::shared_ptr<DefaultFlatZonesGraph> graph){
     bool hadStale = false;
     std::cout << "\n==== checkRepresentatives: " << (tree->isMaxtree()? "max-tree":"min-tree") << " ===" << std::endl;
     for(NodeId nodeId: tree->getIteratorBreadthFirstTraversalById()){
@@ -39,7 +37,7 @@ inline bool checkRepresentatives(ComponentTreeFZPtr tree, std::shared_ptr<FlatZo
             if (cur != original) {
                 hadStale = true;
                 std::cout << "\t======================Representante desatualizado: " << original << " -> " << cur << "==============================\n";
-                //r = cur;
+                // r = cur;
             }else{
                 std::cout << "\tRepresentante atualizado: " << original << " -> " << cur << "\n";
             }
@@ -119,7 +117,7 @@ inline void printMappingSC(ComponentTreePtr<CNPsType> tree, int setw=4, std::str
             map[p] = tree->getSC(p)->getIndex();
         }
     }else if constexpr (std::is_same_v<CNPsType, FlatZones>) {
-        for(NodeFZ node: tree->getRoot().getIteratorBreadthFirstTraversal()){
+        for(NodeFZ<> node: tree->getRoot().getIteratorBreadthFirstTraversal()){
             int index = node.getIndex();
             for(int p: tree->getCNPsById(node)){
                 map[p] = index; 
@@ -176,7 +174,7 @@ inline void printMappingSC(ComponentTreePtr<CNPsType> tree, int setw=4, std::str
  * A saída pode ir para stdout ou para arquivo.
  *
  * @tparam CNPsType Pixels ou FlatZones.
- * @param node Nó alvo a ser inspecionado/impressos seus dados.
+ * @param node Nó alvo a ser inspecionado e impresso.
  * @param tree Árvore à qual o nó pertence (para recuperar dimensões e pixels).
  * @param nomeArquivo Caminho de saída; vazio para imprimir em stdout.
  */
@@ -340,13 +338,13 @@ inline void printImage(ImageUInt8Ptr imgPtr, int setw=4, std::string nomeArquivo
         return;
     }
 
-    if(ComponentTreeFZ::validateStructure(tree)){
+    if(ComponentTreeFZ<>::validateStructure(tree)){
         std::cout << "✅ Estrutura da árvore está consistente no arena" << std::endl;
     }else{
         std::cerr << "❌ Erro: Estrutura da árvore está inconsistente no arena" << std::endl;
     }
 
-    //Teste: Verifica se o Iterator getPixelsOfCC está correto
+    // Teste: verifica se o iterador getPixelsOfCC está correto
     int area = tree->getRoot().getArea();
     int count_area = 0;
     for(int p : tree->getPixelsOfCCById(tree->getRoot())){
@@ -360,7 +358,7 @@ inline void printImage(ImageUInt8Ptr imgPtr, int setw=4, std::string nomeArquivo
     }
         
     
-    //Teste: Verifica se o Iterator getCNPs está correto
+    // Teste: verifica se o iterador getCNPs está correto
     int num_cnps = tree->getRoot().getNumCNPs();
     int count_cnps= 0;
     for(int p : tree->getRoot().getCNPs()){
@@ -391,7 +389,7 @@ inline void printImage(ImageUInt8Ptr imgPtr, int setw=4, std::string nomeArquivo
     }
     std::cout << "✅ " << treeType << " tem " << numNodes << " nós." << std::endl;
 
-    // Teste: Verificando se todos os nós possuem um pai correto (exceto a raiz)
+    // Teste: verifica se todos os nós possuem um pai correto (exceto a raiz)
     bool allParentsCorrect = true;
     for (NodeCT<CNPsType> node : tree->getRoot().getIteratorBreadthFirstTraversal()) {
         if (node != root && !node.getParent()) {
@@ -403,7 +401,7 @@ inline void printImage(ImageUInt8Ptr imgPtr, int setw=4, std::string nomeArquivo
         std::cout << "✅ Todos os nós possuem pais corretos na " << treeType << "." << std::endl;
     }
 
-    // Teste: Verificando se cada nó tem filhos corretos
+    // Teste: verifica se cada nó tem filhos corretos
     bool allChildrenCorrect = true;
     for (NodeCT<CNPsType> node : tree->getRoot().getIteratorBreadthFirstTraversal()) {
         for (NodeCT<CNPsType> child : node.getChildren()) {
@@ -418,7 +416,7 @@ inline void printImage(ImageUInt8Ptr imgPtr, int setw=4, std::string nomeArquivo
     }
 
     
-    // Teste: Verificando se os pixels estão corretamente armazenados nos nós
+    // Teste: verifica se os pixels estão corretamente armazenados nos nós
     bool allPixelsCorrect = true;
     for (NodeCT<CNPsType> node : tree->getRoot().getIteratorBreadthFirstTraversal()) {
         for (int p : node.getRepCNPs()) {
@@ -433,7 +431,7 @@ inline void printImage(ImageUInt8Ptr imgPtr, int setw=4, std::string nomeArquivo
     }
 
 
-    // Teste: Verificando se todos os pixels da imagem estão mapeados corretamente na ComponentTree
+    // Teste: verifica se todos os pixels da imagem estão mapeados corretamente na ComponentTree
     bool allMappedCorrectly = true;
     for (int p: tree->getRepCNPs()) {
         NodeCT<CNPsType> mappedNode = tree->getSC(p);
@@ -463,9 +461,9 @@ inline void printImage(ImageUInt8Ptr imgPtr, int setw=4, std::string nomeArquivo
  * @param node Nó a ser verificado (e seus descendentes).
  * @return true se a área do nó for consistente; false caso contrário.
  */
-inline long int computerArea(ComponentTreeFZPtr tree, NodeFZ node){
+inline long int computerArea(ComponentTreeFZPtr<> tree, NodeFZ<> node){
 	long int area = node.getNumCNPs();
-	for(NodeFZ child: node.getChildren()){
+	for(NodeFZ<> child: node.getChildren()){
         long int areaComputed = computerArea(tree, child);
 		if(areaComputed != child.getArea()){
             std::cerr << "❌ Erro: Falha ao computar a área do nó de id " << child.getIndex() << ". Área: "<< child.getArea() << ", área computada: " << areaComputed << std::endl;
@@ -488,12 +486,12 @@ inline long int computerArea(ComponentTreeFZPtr tree, NodeFZ node){
  * @param imgPtr Imagem base usada na construção/validação da árvore.
  */
 template <typename CNPsType>
-inline void testComponentTreeFZ(ComponentTreeFZPtr tree, const std::string& treeType, ImagePtr<CNPsType> imgPtr) {
+inline void testComponentTreeFZ(ComponentTreeFZPtr<> tree, const std::string& treeType, ImagePtr<CNPsType> imgPtr) {
     
     testComponentTree(tree, treeType, imgPtr);
 
     /*
-    // Teste: Verificando se as flatzones estão corretamente definidas
+    // Teste: verifica se as flatzones estão corretamente definidas
     bool allFlatzonesCorrect = true;
     for (NodeFZPtr node : tree->getRoot().getIteratorBreadthFirstTraversal()) {
         if(node.getNumCNPs(tree->getFlatZonesGraph()) == 0){
@@ -522,7 +520,7 @@ inline void testComponentTreeFZ(ComponentTreeFZPtr tree, const std::string& tree
     */
     
 
-    // Teste: Verifica se o atributo area permanece correto
+    // Teste: verifica se o atributo área permanece correto
     bool allAreaCorrect = true;
     for (NodeId nodeId : tree->getIteratorBreadthFirstTraversalById()) {
         NodeCT node = tree->proxy(nodeId);
@@ -1248,6 +1246,3 @@ inline ImageUInt8Ptr getSimpleImage(){
             10, 10, 10, 10, 10, 10, 10,  10, 10, 10, 10, 10, 10, 10,10};
     return ImageUInt8::fromRaw(img, 17, 15);
 }
-
-
-#endif // TESTS_HPP

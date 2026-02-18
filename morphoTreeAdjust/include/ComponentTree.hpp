@@ -1,21 +1,12 @@
-#include <list>
+#pragma once
+
+#include <iomanip>
 #include <vector>
-#include <array>
-#include <unordered_set>
-#include <utility>
-#include <optional>
-#include <functional>
-#include <variant>
-#include <span>
+#include <type_traits>
 
 #include "../include/AdjacencyRelation.hpp"
 #include "../include/Common.hpp"
 #include "../include/FlatZonesGraph.hpp"
-
-
-#ifndef COMPONENT_TREE_H
-#define COMPONENT_TREE_H
-
 
 /**
  * @brief Arena de nós para Component Trees com armazenamento contíguo e acesso rápido.
@@ -61,11 +52,11 @@
  *
  * @tparam CNPsType Tipo de dados armazenado em `repCNPs` (ex.: Pixels=int, FlatZones=std::vector<int>).
  */
-template <typename CNPsType>
+template <typename CNPsType, typename GraphT = DefaultFlatZonesGraph>
 class NodeArena {
     private:
-    template<typename T> friend class ComponentTree; 
-    template<typename T> friend class NodeCT; 
+    template<typename T, typename G> friend class ComponentTree; 
+    template<typename T, typename G> friend class NodeCT; 
     
     std::vector<int>      repNode;       // representante do UF
     std::vector<int>      threshold2;    // level (max threshold)
@@ -336,10 +327,12 @@ class NodeArena {
  *
  * @tparam CNPsType Define o tipo de construção da árvore: `Pixels` ou `FlatZones`.
  */
-template <typename CNPsType>
-class ComponentTree : public std::enable_shared_from_this<ComponentTree<CNPsType>> {
+template <typename CNPsType, typename GraphT>
+class ComponentTree : public std::enable_shared_from_this<ComponentTree<CNPsType, GraphT>> {
 protected:
-    template<typename T> friend class NodeCT; 
+    static_assert(!std::is_same_v<CNPsType, FlatZones> || FlatZonesGraphCommonInterface<GraphT>,
+                  "GraphT must satisfy FlatZonesGraphCommonInterface when CNPsType is FlatZones");
+    template<typename T, typename G> friend class NodeCT; 
     NodeId root;
     int numRows;
     int numCols;
@@ -347,16 +340,16 @@ protected:
     AdjacencyRelationPtr adj; //disk of a given ratio: ratio(1) for 4-connect and ratio(1.5) for 8-connect 
     int numNodes;
     
-    std::vector<NodeId> pixelToNodeId; //Mapeamento dos pixels representantes para NodeID. Para adquirir todos os representantes valido utilize o método getRepCNPs
-    std::shared_ptr<PixelSetManager> pixelBuffer; PixelSetManager::View pixelView; //gerenciamento de pixels da arvore
-    NodeArena<CNPsType> arena; // armazenamento indexado dos dados de todos os nós 
+    std::vector<NodeId> pixelToNodeId; // mapeamento dos pixels representantes para NodeID. Para obter todos os representantes válidos, use getRepCNPs.
+    std::shared_ptr<PixelSetManager> pixelBuffer; PixelSetManager::View pixelView; // gerenciamento de pixels da árvore
+    NodeArena<CNPsType, GraphT> arena; // armazenamento indexado dos dados de todos os nós 
     
     NodeId makeNode(int repNode, NodeId parentId, int threshold1, int threshold2);
     void reserveNodes(int expected) { arena.reserve(expected);}
     
     // Define `flatzoneGraph` apenas para `FlatZones`
     using FlatzoneGraphType = std::conditional_t<std::is_same_v<CNPsType, FlatZones>,
-        std::shared_ptr<FlatZonesGraph>, 
+        std::shared_ptr<GraphT>, 
         std::monostate>;
     FlatzoneGraphType flatzoneGraph;
 
@@ -384,25 +377,32 @@ public:
     ComponentTree(ImageUInt8Ptr img, bool isMaxtree, AdjacencyRelationPtr adj);
     
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    ComponentTree(std::shared_ptr<FlatZonesGraph> graph, bool isMaxtree);
+    ComponentTree(std::shared_ptr<GraphT> graph, bool isMaxtree);
 
     virtual ~ComponentTree() = default;
 
-    NodeCT<CNPsType> proxy(NodeId id) const;
+    NodeCT<CNPsType, GraphT> proxy(NodeId id) const;
 
-    NodeCT<CNPsType> createNode(int repNode,NodeCT<CNPsType> parent,int threshold1,int threshold2);
+    NodeCT<CNPsType, GraphT> createNode(int repNode, NodeCT<CNPsType, GraphT> parent, int threshold1, int threshold2);
 
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    std::shared_ptr<FlatZonesGraph>& getFlatZonesGraph();
+    std::shared_ptr<GraphT>& getFlatZonesGraph();
 
     bool isMaxtree()const noexcept{ return maxtreeTreeType;}
     int getNumNodes()const noexcept{ return numNodes; }
     int getNumRowsOfImage()const noexcept{ return numRows;}
     int getNumColsOfImage()const noexcept{ return numCols;}
+    int getArenaSize() const noexcept { return static_cast<int>(arena.size()); }
+    bool isValidNodeId(NodeId id) const noexcept {
+        return id >= 0 && id < static_cast<NodeId>(arena.size());
+    }
+    bool isAllocatedNodeId(NodeId id) const noexcept {
+        return isValidNodeId(id) && !arena.isFree(id);
+    }
     AdjacencyRelationPtr getAdjacencyRelation() noexcept {return adj;}
-    inline NodeArena<CNPsType>::RepsOfCCRangeById getRepCNPs() const { return arena.getRepsOfCC(root); } //iterador
+    inline NodeArena<CNPsType, GraphT>::RepsOfCCRangeById getRepCNPs() const { return arena.getRepsOfCC(root); } //iterador
 
-    inline NodeArena<CNPsType>::RepsOfCCRangeById getRepCNPsOfCCById(NodeId id) const { return arena.getRepsOfCC(id); } //iterador
+    inline NodeArena<CNPsType, GraphT>::RepsOfCCRangeById getRepCNPsOfCCById(NodeId id) const { return arena.getRepsOfCC(id); } //iterador
     inline auto getPixelsOfCCById(NodeId id) const{ return pixelBuffer->getPixelsBySet(arena.getRepsOfCC(id));  } //iterador
     inline auto getPixelsOfFlatzone(int repFZ) const{ return pixelBuffer->getPixelsBySet(repFZ); } //iterador
     inline int getLevelById(NodeId id) const noexcept{return arena.threshold2[id];}
@@ -432,10 +432,10 @@ public:
     inline NodeId getSCById(int p) const noexcept{ return this->pixelToNodeId[p];}
     inline void setSCById(int p, NodeId id) noexcept { this->pixelToNodeId[p] = id;}
     
-    NodeCT<CNPsType> getSC(int p) const noexcept { return proxy(this->pixelToNodeId[p]);}
-    void setSC(int p, NodeCT<CNPsType> node){ setSCById(p, node); }
-    NodeCT<CNPsType> getRoot() { return proxy(this->root); }
-    void setRoot(NodeCT<CNPsType> n){ setRootById(n); }
+    NodeCT<CNPsType, GraphT> getSC(int p) const noexcept { return proxy(this->pixelToNodeId[p]);}
+    void setSC(int p, NodeCT<CNPsType, GraphT> node){ setSCById(p, node); }
+    NodeCT<CNPsType, GraphT> getRoot() { return proxy(this->root); }
+    void setRoot(NodeCT<CNPsType, GraphT> n){ setRootById(n); }
 
     inline int getNumFlatzoneById(NodeId id) const;
     inline auto getCNPsById(NodeId id) const;
@@ -445,6 +445,7 @@ public:
     inline void addChildById(int parentId, int childId);
     inline void spliceChildrenById(int toId, int fromId);
     inline void setParentById(NodeId nodeId, NodeId parentId);
+
 
     void computerArea(NodeId node);
     ImageUInt8Ptr reconstructionImage();
@@ -457,11 +458,45 @@ public:
     void prunning(NodeId nodeId);
 
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, Pixels>::value, int> = 0>
-    void mergeWithParent(NodeCT<CNPsType> node);
+    void mergeWithParent(NodeCT<CNPsType, GraphT> node);
 
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, Pixels>::value, int> = 0>
     void mergeWithParent(std::vector<int>& flatzone);
     
+    // Soma de "flat-zones" nos descendentes (exclui o próprio nó)
+    int computerNumFlatzoneDescendants(NodeId id) {
+        int acc = 0; //não implementado para Pixels
+        FastQueue<int> st;
+        for (NodeId c : this->arena.children(id)) 
+            st.push(c);
+        while (!st.empty()) {
+            NodeId u = st.pop();
+            if constexpr (std::is_same_v<CNPsType, FlatZones>) {
+                // Para FlatZones (CNPsType == std::vector<int>), soma a quantidade de reps no nó
+                acc += static_cast<int>(this->arena.repCNPs[u].size());
+            }
+            for (NodeId v : this->arena.children(u)) 
+                st.push(v);
+        }
+        return acc;
+    }
+
+
+    // Conta descendentes (exclui o próprio nó)
+    int computerNumDescendants(NodeId id) {
+        int cont = 0;
+        // Empilha apenas os filhos diretos; não conta o próprio nó
+        FastQueue<int> st;
+        for(int c: this->arena.children(id)) st.push(c);
+        while (!st.empty()) {
+            int u = st.pop();
+            ++cont; // conta nó u
+            // empilha filhos de u
+            for(int v: this->arena.children(u)) st.push(v);
+        }
+        return cont;
+    }
+
 
     static bool validateStructure(ComponentTreePtr<CNPsType> tree)  {
         return validateStructure(tree.get());
@@ -534,7 +569,7 @@ public:
         return true;
     }
     
-    static std::vector<NodeId> getNodesThreshold(ComponentTreePtr<CNPsType> tree, int areaThreshold){
+    static std::vector<NodeId> getNodesThreshold(ComponentTree<CNPsType, GraphT>* tree, int areaThreshold, bool ENABLE_LOG = false){
         std::vector<NodeId> lista;
         FastQueue<NodeId> queue;
         queue.push(tree->root);
@@ -549,7 +584,7 @@ public:
                     queue.push(c);
                 }
             } else {
-                if (PRINT_LOG) {
+                if (ENABLE_LOG) {
                     sumArea += tree->arena.areaCC[id];
                     // Para estatísticas abaixo, usamos os helpers já existentes no NodeCT (cria handle só aqui):
                     auto h = tree->proxy(id);
@@ -559,7 +594,7 @@ public:
                 lista.push_back(id);
             }
         }
-        if (PRINT_LOG) {
+        if (ENABLE_LOG) {
             int areaImage = tree->getNumColsOfImage() * tree->getNumRowsOfImage();
             std::cout << "\tArea threshold: " << areaThreshold
                     << ", #Nodes: " << numNodes
@@ -573,13 +608,79 @@ public:
         return lista;
     }
     
+    
     // ====================== Iteradores por ID (sem proxy) ====================== //
+
+
+    /**
+     * @brief Iterador interno que salta slots vazios e retorna IDs válidos.
+     */
+    class InternalIteratorValidNodeIds {
+    private:
+        const int* rep_;        // ponteiro p/ arena.repNode[0]
+        NodeId cur_;            // posição atual
+        NodeId end_;            // N = arena.repNode.size()
+
+        // avança cur_ até um id válido ou coloca cur_ = end_
+        inline void settle_() noexcept {
+            while (cur_ < end_ && rep_[cur_] == InvalidNode) ++cur_;
+        }
+
+    public:
+        using iterator_category = std::input_iterator_tag;
+        using value_type        = NodeId;
+        using difference_type   = std::ptrdiff_t;
+        using pointer           = const NodeId*;
+        using reference         = const NodeId&;
+
+        inline InternalIteratorValidNodeIds(ComponentTree<CNPsType, GraphT>* T, NodeId start) noexcept
+        : rep_(T ? T->arena.repNode.data() : nullptr),
+        cur_(T ? start : 0),
+        end_(T ? static_cast<NodeId>(T->arena.repNode.size()) : 0) {
+            settle_();
+        }
+
+        inline InternalIteratorValidNodeIds& operator++() noexcept {
+            ++cur_;
+            settle_();
+            return *this;
+        }
+
+        inline NodeId operator*() const noexcept { return cur_; }
+
+        // iterador input: comparar só posição é suficiente
+        inline bool operator==(const InternalIteratorValidNodeIds& other) const noexcept { return cur_ == other.cur_; }
+        inline bool operator!=(const InternalIteratorValidNodeIds& other) const noexcept { return cur_ != other.cur_; }
+    };
+
+    /**
+     * @brief Range wrapper para percorrer todos os NodeId ativos da arena.
+     */
+    class IteratorValidNodeIds {
+    private:
+        ComponentTree<CNPsType, GraphT>* T_ = nullptr;
+    public:
+        inline explicit IteratorValidNodeIds(ComponentTree<CNPsType, GraphT>* T) noexcept : T_(T) {}
+
+        inline InternalIteratorValidNodeIds begin() const noexcept { return InternalIteratorValidNodeIds(T_, 0); }
+        inline InternalIteratorValidNodeIds end() const noexcept {
+            // end iterator shares the same end_ (size) as begin();
+            // if T_ is null, both begin/end will be empty
+            return InternalIteratorValidNodeIds(T_, T_ ? static_cast<NodeId>(T_->arena.repNode.size()) : 0);
+        }
+    };
+
+    /** Range para iterar NodeId válidos (exclui slots livres) */
+    inline IteratorValidNodeIds getNodeIds() noexcept { return IteratorValidNodeIds(this); }
+    inline IteratorValidNodeIds getNodeIds() const noexcept { return IteratorValidNodeIds(const_cast<ComponentTree<CNPsType, GraphT>*>(this)); }
+
+
     // Pós-ordem (retorna NodeId)
     class InternalIteratorPostOrderTraversalId {
     private:
         struct Item { int id; bool expanded; };
 
-        ComponentTree<CNPsType>* T_ = nullptr;
+        ComponentTree<CNPsType, GraphT>* T_ = nullptr;
         FastStack<Item> st_;
         NodeId current_ = -1;
 
@@ -610,7 +711,7 @@ public:
         using pointer           = const NodeId*;
         using reference         = const NodeId&;
 
-        InternalIteratorPostOrderTraversalId(ComponentTree<CNPsType>* T, NodeId rootId) noexcept : T_(T) {
+        InternalIteratorPostOrderTraversalId(ComponentTree<CNPsType, GraphT>* T, NodeId rootId) noexcept : T_(T) {
             if (T_ && rootId >= 0) {
                 st_.push(Item{rootId, false});
                 settle_(); // posiciona no primeiro elemento
@@ -639,10 +740,10 @@ public:
 
     class IteratorPostOrderTraversalId {
     private:
-        ComponentTree<CNPsType>* T_ = nullptr;
+        ComponentTree<CNPsType, GraphT>* T_ = nullptr;
         int rootId_ = -1;
     public:
-        explicit IteratorPostOrderTraversalId(ComponentTree<CNPsType>* T, int rootId) noexcept : T_(T), rootId_(rootId) {}
+        explicit IteratorPostOrderTraversalId(ComponentTree<CNPsType, GraphT>* T, int rootId) noexcept : T_(T), rootId_(rootId) {}
 
         InternalIteratorPostOrderTraversalId begin() const noexcept {
             return InternalIteratorPostOrderTraversalId(T_, rootId_);
@@ -662,7 +763,7 @@ public:
     // Largura (BFS) — retorna NodeId
     class InternalIteratorBreadthFirstTraversalId {
     private:
-        ComponentTree<CNPsType>* T_ = nullptr;
+        ComponentTree<CNPsType, GraphT>* T_ = nullptr;
         FastQueue<int> q_;
 
     public:
@@ -672,7 +773,7 @@ public:
         using pointer           = const int*;
         using reference         = const int&;
 
-        InternalIteratorBreadthFirstTraversalId(ComponentTree<CNPsType>* T, int rootId) noexcept : T_(T) {
+        InternalIteratorBreadthFirstTraversalId(ComponentTree<CNPsType, GraphT>* T, int rootId) noexcept : T_(T) {
             if (T_ && rootId >= 0) q_.push(rootId);
         }
 
@@ -698,10 +799,10 @@ public:
 
     class IteratorBreadthFirstTraversalId {
     private:
-        ComponentTree<CNPsType>* T_ = nullptr;
+        ComponentTree<CNPsType, GraphT>* T_ = nullptr;
         int rootId_ = -1;
     public:
-        explicit IteratorBreadthFirstTraversalId(ComponentTree<CNPsType>* T, int rootId) noexcept : T_(T), rootId_(rootId) {}
+        explicit IteratorBreadthFirstTraversalId(ComponentTree<CNPsType, GraphT>* T, int rootId) noexcept : T_(T), rootId_(rootId) {}
 
         InternalIteratorBreadthFirstTraversalId begin() const noexcept {
             return InternalIteratorBreadthFirstTraversalId(T_, rootId_);
@@ -722,7 +823,7 @@ public:
     // ================== Iterador para caminho até a raiz por NodeId (sem proxy) ================== //
     class InternalIteratorNodesOfPathToRootId {
     private:
-        ComponentTree<CNPsType>* T_ = nullptr;
+        ComponentTree<CNPsType, GraphT>* T_ = nullptr;
         NodeId currentId_ = -1;
 
     public:
@@ -732,7 +833,7 @@ public:
         using pointer           = const NodeId*;
         using reference         = const NodeId&;
 
-        InternalIteratorNodesOfPathToRootId(ComponentTree<CNPsType>* T, NodeId startId) noexcept : T_(T), currentId_(startId) {}
+        InternalIteratorNodesOfPathToRootId(ComponentTree<CNPsType, GraphT>* T, NodeId startId) noexcept : T_(T), currentId_(startId) {}
 
         InternalIteratorNodesOfPathToRootId& operator++() noexcept {
             if (T_ && currentId_ != -1) {
@@ -753,11 +854,11 @@ public:
 
     class IteratorNodesOfPathToRootId {
     private:
-        ComponentTree<CNPsType>* T_ = nullptr;
+        ComponentTree<CNPsType, GraphT>* T_ = nullptr;
         NodeId startId_ = -1;
 
     public:
-        IteratorNodesOfPathToRootId(ComponentTree<CNPsType>* T, NodeId startId) noexcept : T_(T), startId_(startId) {}
+        IteratorNodesOfPathToRootId(ComponentTree<CNPsType, GraphT>* T, NodeId startId) noexcept : T_(T), startId_(startId) {}
 
         InternalIteratorNodesOfPathToRootId begin() const noexcept {
             return InternalIteratorNodesOfPathToRootId(T_, startId_);
@@ -774,5 +875,3 @@ public:
 
 
 #include "../include/ComponentTree.tpp"
-
-#endif

@@ -1,48 +1,61 @@
-#ifndef COMMONS_HPP  
-#define COMMONS_HPP  
+#pragma once
 
 
 #define NDEBUG  // Remove os asserts do código
-#include <cassert>
-#include <list>
-#include <unordered_set>
-#include <unordered_map>
-#include <map>
-#include <memory>
-#include <limits>
+#include <array>
+#include <chrono>
 #include <cstdint>
 #include <algorithm>
+#include <iterator>
+#include <memory>
 #include <span>
+#include <utility>
+#include <vector>
 
 
 #define PRINT_LOG 0
 #define PRINT_DEBUG 0
 
 // Forward declaration dos templates
-template <typename T>
+class FlatZonesGraphOnDemandEdgesByBoundary;
+class FlatZonesGraphOnDemandEdgesByPixel;
+class FlatZonesGraphFullEdges;
+
+using DefaultFlatZonesGraph = FlatZonesGraphOnDemandEdgesByBoundary;
+
+template <typename GraphT = DefaultFlatZonesGraph>
+using FlatZonesGraphPtr = std::shared_ptr<GraphT>;
+
+template <typename T, typename GraphT = DefaultFlatZonesGraph>
 class ComponentTree;
 
-template <typename T>
+template <typename T, typename GraphT = DefaultFlatZonesGraph>
 class NodeCT;
 
 
 using NodeId = int; 
+constexpr NodeId InvalidNode = -1; //-1 indica nó inválido
+inline bool isValidNode(NodeId id) noexcept { return id != InvalidNode;}
+inline bool isInvalid(NodeId id) noexcept { return id == InvalidNode; }
 
 // Definição de tipos para CNPs
-using Pixels = int;                 // representante do cnps do node => Esse representante serve para acessar os CNPs em PixelSetManager. É o mesmo que repNode
-using FlatZones = std::vector<int>; //Lista de representantes das flatzones => Esses representante servem para acessar os pixels da FZ em PixelSetManager
+using Pixels = int;                 // representante dos CNPs do nó. Esse representante serve para acessar os CNPs no PixelSetManager. É o mesmo que repNode.
+using FlatZones = std::vector<int>; // lista de representantes das flatzones. Esses representantes servem para acessar os pixels da FZ no PixelSetManager.
 
 
-using ComponentTreeFZ = ComponentTree<FlatZones>; //representa uma component tree por flatzones
-using ComponentTreeP = ComponentTree<Pixels>; //representa uma component tree sem tratamento de flatzones
+template <typename GraphT = DefaultFlatZonesGraph>
+using ComponentTreeFZ = ComponentTree<FlatZones, GraphT>; // representa uma component tree por flatzones
+using ComponentTreeP = ComponentTree<Pixels, DefaultFlatZonesGraph>; // representa uma component tree sem tratamento de flatzones
 
-using NodeFZ = NodeCT<FlatZones>;
-using NodeP  = NodeCT<Pixels>;
+template <typename GraphT = DefaultFlatZonesGraph>
+using NodeFZ = NodeCT<FlatZones, GraphT>;
+using NodeP  = NodeCT<Pixels, DefaultFlatZonesGraph>;
 
-template <typename CNPsType>
-using ComponentTreePtr = std::shared_ptr<ComponentTree<CNPsType>>; 
-using ComponentTreeFZPtr = std::shared_ptr<ComponentTreeFZ>; //representa um component tree por flatzones
-using ComponentTreePPtr = std::shared_ptr<ComponentTreeP>; //representa um component tree sem tratamento de flatzones
+template <typename CNPsType, typename GraphT = DefaultFlatZonesGraph>
+using ComponentTreePtr = std::shared_ptr<ComponentTree<CNPsType, GraphT>>; 
+template <typename GraphT = DefaultFlatZonesGraph>
+using ComponentTreeFZPtr = std::shared_ptr<ComponentTreeFZ<GraphT>>; // representa uma component tree por flatzones
+using ComponentTreePPtr = std::shared_ptr<ComponentTreeP>; // representa uma component tree sem tratamento de flatzones
 
 
 class ImageUtils{
@@ -202,17 +215,16 @@ using ImagePtr = std::shared_ptr<Image<T>>;
 struct GenerationStampSet {
     using gen_t = uint32_t;
 
-    std::unique_ptr<gen_t[]> stamp; // array de carimbos
-    size_t n{0};                    // tamanho
-    gen_t cur{1};                   // geração atual (0 = “limpo”)
+    std::vector<gen_t> stamp; // array de carimbos
+    size_t n{0};              // tamanho
+    gen_t cur{1};             // geração atual (0 = “limpo”)
 
     GenerationStampSet() = default;
     explicit GenerationStampSet(size_t n) { resize(n); }
 
     void resize(size_t newN) {
         n = newN;
-        stamp = std::make_unique<gen_t[]>(n);
-        std::fill_n(stamp.get(), n, 0);
+        stamp.assign(n, 0);
         cur = 1;
     }
 
@@ -227,14 +239,14 @@ struct GenerationStampSet {
     // reset lógico em O(1)
     void resetAll() {
         if (++cur == 0) {
-            std::fill_n(stamp.get(), n, 0);
+            std::fill(stamp.begin(), stamp.end(), 0);
             cur = 1;
         }
     }
 
     // limpeza forçada em O(N)
     void clearAll() {
-        std::fill_n(stamp.get(), n, 0);
+        std::fill(stamp.begin(), stamp.end(), 0);
         cur = 1;
     }
 
@@ -243,9 +255,9 @@ struct GenerationStampSet {
 
 
 /**
- * @brief Gerenciador de conjuntos disjuntos de pixels (flat zones ou cnps) com listas circulares e mapeamentos O(1).
+ * @brief Gerenciador de conjuntos disjuntos de pixels (flat zones ou CNPs) com listas circulares e mapeamentos O(1).
  *
- * O `PixelSetManager` mantém a relação entre pixels e seus conjuntos (flat zones ou cnps)
+ * O `PixelSetManager` mantém a relação entre pixels e seus conjuntos (flat zones ou CNPs)
  * usando quatro vetores paralelos: `pixelToIndex`, `indexToPixel`, `sizeSets` e
  * `pixelsNext`. O desenho provê operações O(1) para consultas e splices
  * (concatenação de listas circulares) durante fusões de conjuntos, além de
@@ -258,7 +270,7 @@ struct GenerationStampSet {
  * - `pixelsNext[p]` → próximo pixel na lista circular do conjunto ao qual `p` pertence.
  *
  * ## Operações principais
- * - `numSets()`, `numPixelsInSet(rep)`, `numPixelsInSets(reps)` — consultas O(1)/O(k).
+ * - `numSets()` (conjuntos ativos), `numPixelsInSet(rep)`, `numPixelsInSets(reps)` — consultas O(1)/O(k).
  * - `mergeSetsByRep(repWinner, repLoser)` — fusão O(1) com splice de listas circulares.
  * - `shrinkToNumSets(n)` — reduz vetores de conjuntos ao número real de FZs ou |numNodes|
  * - *Views*: `view()`, `viewOf*()` expõem `std::span` para zero-cópia.
@@ -296,14 +308,23 @@ struct PixelSetManager{
     std::vector<int> indexToPixel; // mapeamento de índice para pixel representante. Tamanho: numSets
     std::vector<int> sizeSets; // usada para armazenar o tamanho dos conjuntos disjuntos. Tamanho: numSets
     std::vector<int> pixelsNext; // mapa de pixels dos conjuntos disjuntos: Tamanho: numPixels
+    int activeSetsCount;
 
     PixelSetManager(int numPixels, int numSets)
-        : pixelToIndex(numPixels, -1), indexToPixel(numSets, -1), sizeSets(numSets, 0), pixelsNext(numPixels, -1) { }
+        : pixelToIndex(numPixels, -1),
+          indexToPixel(numSets, -1),
+          sizeSets(numSets, 0),
+          pixelsNext(numPixels, -1),
+          activeSetsCount(numSets) { }
         
     PixelSetManager(int numPixels)
-        : pixelToIndex(numPixels, -1), indexToPixel(numPixels, -1), sizeSets(numPixels, 0), pixelsNext(numPixels, -1) { }
+        : pixelToIndex(numPixels, -1),
+          indexToPixel(numPixels, -1),
+          sizeSets(numPixels, 0),
+          pixelsNext(numPixels, -1),
+          activeSetsCount(numPixels) { }
     
-    int numSets() const { return sizeSets.size(); }
+    int numSets() const { return activeSetsCount; }
 
     int numPixelsInSet(int rep){ return sizeSets[pixelToIndex[rep]]; }
 
@@ -332,6 +353,7 @@ struct PixelSetManager{
     void shrinkToNumSets(int newNumSets) {
         indexToPixel.resize(newNumSets);
         sizeSets.resize(newNumSets);
+        activeSetsCount = newNumSets;
     }
     
     void mergeSetsByRep(int repWinner, int repLoser) {
@@ -339,6 +361,8 @@ struct PixelSetManager{
         // 1. Recupera índices dos representantes
         int idxRootWinner = pixelToIndex[repWinner];
         int idxRootLoser  = pixelToIndex[repLoser];
+        if (idxRootWinner < 0 || idxRootLoser < 0 || idxRootWinner == idxRootLoser) return;
+
         sizeSets[idxRootWinner] += sizeSets[idxRootLoser];
 
         // 2. Splice O(1) das listas circulares (pixels)
@@ -353,6 +377,7 @@ struct PixelSetManager{
 
         // 4. Redireciona lookups pelo antigo rep pixel
         pixelToIndex[repLoser] = idxRootWinner;
+        if (activeSetsCount > 0) --activeSetsCount;
     }
 
 
@@ -854,9 +879,9 @@ struct LocalPrefilter64 {
  *  - `swap` permite o “swap trick” para liberar memória em O(1) (opcional no seu fluxo).
  *
  * @warning Não é *thread-safe*; proteja externamente se houver acesso concorrente.
- * @see FlatZonesGraph::getAdjacentFlatzonesFromPixel
- * @see FlatZonesGraph::mergeAdjacentCandidatesInPlace
- * @see FlatZonesGraph::mergeBasesWithAdjacentCandidatesInPlace
+ * @see FlatZonesGraphFullEdges::getAdjacentFlatzonesFromPixel
+ * @see FlatZonesGraphFullEdges::mergeAdjacentCandidatesInPlace
+ * @see FlatZonesGraphFullEdges::mergeBasesWithAdjacentCandidatesInPlace
  *
  * @par Exemplo
  * @code
@@ -940,7 +965,20 @@ public:
     // tamanho/estado
     int  size()  const { return static_cast<int>(v_.size()); }
     bool empty() const { return v_.empty(); }
+    
+    bool isSorted() const noexcept { return sorted_; }
 
+    // Força operações em modo não-ordenado (evita shifts em vector::insert/erase).
+    // Mantém o Bloom (pode ter falsos positivos, mas nunca falsos negativos).
+    void markUnsorted() noexcept { sorted_ = false; }
+
+    // Reconstrói o Bloom a partir do conteúdo atual (ordem não importa).
+    void rebuildBloom() { bloom_.rebuild(v_); }
+    void clear() {
+        v_.clear();
+        sorted_ = false;
+        bloom_.clear();
+    }
     // iteração
     iterator begin() { return v_.begin(); }
     iterator end()   { return v_.end();   }
@@ -996,6 +1034,16 @@ public:
         v_.erase(std::unique(v_.begin(), v_.end()), v_.end());
         sorted_ = true;
         if (rebuildBloom) bloom_.rebuild(v_); 
+    }
+
+    // Ordena apenas quando o tamanho justifica; caso contrário só reconstrói Bloom.
+    void finalizeMaybeSorted(int sortThreshold, bool rebuildBloom = true) {
+        if ((int)v_.size() >= sortThreshold) {
+            finalize(rebuildBloom);
+            return;
+        }
+        sorted_ = false;
+        if (rebuildBloom) bloom_.rebuild(v_);
     }
 
     
@@ -1058,8 +1106,43 @@ public:
     }
 };
 
+using AdjacentFlatZones = AdjacentFlatZonesSet; //Tipo de dado que armazena as aresta do grafo
 
 
-#endif 
 
 
+class Stopwatch {
+public:
+    using clock = std::chrono::steady_clock;
+
+    void start() {
+        accumulated_ = clock::duration::zero();
+        running_ = true;
+        last_ = clock::now();
+    }
+
+    void pause() {
+        if (!running_) return;
+        accumulated_ += clock::now() - last_;
+        running_ = false;
+    }
+
+    void resume() {
+        if (running_) return;
+        running_ = true;
+        last_ = clock::now();
+    }
+
+    // tempo decorrido "ativo" até agora
+    clock::duration elapsed() const {
+        if (!running_) return accumulated_;
+        return accumulated_ + (clock::now() - last_);
+    }
+
+    bool running() const { return running_; }
+
+private:
+    clock::time_point last_{};
+    clock::duration accumulated_{clock::duration::zero()};
+    bool running_{false};
+};

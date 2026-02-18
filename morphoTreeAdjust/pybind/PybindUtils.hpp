@@ -1,11 +1,10 @@
+#pragma once
+
 
 #include "../include/Common.hpp"
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 namespace py = pybind11;
-
-#ifndef PYBIND_UTILS_H
-#define PYBIND_UTILS_H
 
 class PybindUtils{
     public:
@@ -37,5 +36,3 @@ class PybindUtils{
 
 
 };
-
-#endif

@@ -1,24 +1,17 @@
+#pragma once
+
 #include <list>
 #include <vector>
 #include <stack>
-#include <queue>
 #include <iterator>
-#include <utility>
-#include <functional> 
-#include <optional>
-#include <stdexcept>
 #include <type_traits>
 #include "../include/Common.hpp"
 #include "../include/ComponentTree.hpp"
 
-#ifndef NODECT_H
-#define NODECT_H
-
-
 /**
  * @brief Handle (proxy leve) para nós da Component Tree com acesso O(1) via NodeArena.
  *
- * `NodeCT<CNPsType>` é um *wrapper* leve que referencia um nó da árvore de componentes
+ * `NodeCT<CNPsType, GraphT>` é um *wrapper* leve que referencia um nó da árvore de componentes
  * (identificado por `id`) e delega leituras/escritas para a `NodeArena` da
  * árvore dona (`ComponentTree<CNPsType>* tree`). Não possui propriedade do nó nem
  * alocação própria — serve como *view* handle seguro e barato de copiar.
@@ -69,19 +62,21 @@
  *
  * @tparam CNPsType Tipo das CNPs armazenadas por nó (ex.: `Pixels=int`, `FlatZones=std::vector<int>`).
  */
-template <typename CNPsType>
+template <typename CNPsType, typename GraphT>
 class NodeCT{
 private:
-    template <typename> friend class ComponentTree;
+    static_assert(!std::is_same_v<CNPsType, FlatZones> || FlatZonesGraphCommonInterface<GraphT>,
+                  "GraphT must satisfy FlatZonesGraphCommonInterface when CNPsType is FlatZones");
+    template <typename, typename> friend class ComponentTree;
 
-    NodeId id = -1;
-    ComponentTree<CNPsType>* tree = nullptr;  // árvore dona
+    NodeId id = InvalidNode;
+    ComponentTree<CNPsType, GraphT>* tree = nullptr;  // árvore dona
     
 public:
     
     // Construtor padrão
     NodeCT() = default;
-    NodeCT(ComponentTree<CNPsType>* owner, NodeId i) : id(i), tree(owner) {}
+    NodeCT(ComponentTree<CNPsType, GraphT>* owner, NodeId i) : id(i), tree(owner) {}
 
     //id >= 0 é o operador booleno
     explicit operator bool() const noexcept { return tree != nullptr && id >= 0; }
@@ -113,83 +108,100 @@ public:
     inline auto getCNPs() const { return tree->getCNPsById(id); } //iterador 
     inline int getNumFlatzone() const { return tree->getNumFlatzoneById(id); }
     inline int getNumCNPs() const { return tree->getNumCNPsById(id);} 
-    inline bool isChild(NodeCT<CNPsType> node) const noexcept { return tree && node && hasChildById(id, node.getIndex()); }
-    inline  NodeCT<CNPsType> getParent() { if (!tree || tree->arena.parentId[id] < 0) return {}; return NodeCT<CNPsType>(tree, tree->arena.parentId[id]);}
-    inline  void setParent(NodeCT<CNPsType> node) { if (!tree) return;  tree->setParentById(id, node.getIndex()); }
-    inline void addChild(NodeCT<CNPsType> child) { if (!tree || !child) return; tree->addChildById(id, child.getIndex()); }
-    inline void removeChild(NodeCT<CNPsType> child, bool releaseNode) { if (!tree || !child) return; tree->removeChildById(id, child.getIndex(), releaseNode); }
-    inline void spliceChildren(NodeCT<CNPsType> from) { if (!tree || !from || from.getIndex() == id) return; tree->spliceChildrenById(id, from.getIndex()); }
+    inline bool isChild(NodeCT<CNPsType, GraphT> node) const noexcept { return tree && node && hasChildById(id, node.getIndex()); }
+    inline  NodeCT<CNPsType, GraphT> getParent() { if (!tree || tree->arena.parentId[id] < 0) return {}; return NodeCT<CNPsType, GraphT>(tree, tree->arena.parentId[id]);}
+    inline  void setParent(NodeCT<CNPsType, GraphT> node) { if (!tree) return;  tree->setParentById(id, node.getIndex()); }
+    inline void addChild(NodeCT<CNPsType, GraphT> child) { if (!tree || !child) return; tree->addChildById(id, child.getIndex()); }
+    inline void removeChild(NodeCT<CNPsType, GraphT> child, bool releaseNode) { if (!tree || !child) return; tree->removeChildById(id, child.getIndex(), releaseNode); }
+    inline void spliceChildren(NodeCT<CNPsType, GraphT> from) { if (!tree || !from || from.getIndex() == id) return; tree->spliceChildrenById(id, from.getIndex()); }
     inline void addRepCNPs(int rep) { if(!tree) return; tree->addRepCNPsById(id, rep);}
     inline bool isLeaf() const { return tree->isLeaf(id); }
+    inline int computerNumDescendants() { return tree->computerNumDescendants(id); }
+    inline int computerNumFlatzoneDescendants() { return tree->computerNumFlatzoneDescendants(id);}
 
 
     ///Métodos disponíveis SOMENTE para `FlatZones`
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    void addCNPsOfDisjointFlatzones(std::vector<int>& repsFlatZones, ComponentTreeFZPtr tree);
+    void addCNPsOfDisjointFlatzones(std::vector<int>& repsFlatZones);
 
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    void addCNPsToConnectedFlatzone(int repFlatZone, ComponentTreeFZPtr tree);
+    void addCNPsToConnectedFlatzone(int repFlatZone);
 
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
-    void addCNPsToConnectedFlatzone(const std::vector<int>& repsBase, int repWinner, ComponentTreeFZPtr tree);
+    void addCNPsToConnectedFlatzone(const std::vector<int>& repsBase, int repWinner);
 
     template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
     void removeFlatzone(int idFlatZone);
-          
-    // Conta descendentes (exclui o próprio nó)
-    int computerNumDescendants() {
-        if (!tree) return 0;
-        int cont = 0;
-        // Empilha apenas os filhos diretos; não conta o próprio nó
-        FastQueue<int> st;
-        for(int c: tree->arena.children(id)) st.push(c);
-        while (!st.empty()) {
-            int u = st.pop();
-            ++cont; // conta nó u
-            // empilha filhos de u
-            for(int v: tree->arena.children(u)) st.push(v);
+    
+        
+
+
+    // --- FlatZones: adiciona reps de FZ disjuntas (versão estática)
+    template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
+    static void addCNPsOfDisjointFlatzones(std::vector<int>& repsFlatZones,
+                                           NodeId nodeId,
+                                           ComponentTreeFZ<GraphT>* tree) {
+        for (int rep: repsFlatZones) {
+            tree->setSCById(rep, nodeId);
         }
-        return cont;
+        auto& reps = tree->getRepCNPsById(nodeId);
+        reps.insert(reps.end(), repsFlatZones.begin(), repsFlatZones.end());
     }
 
-    // Soma de "flat-zones" nos descendentes (exclui o próprio nó)
-    // (usa n->getNumFlatzone(), que você já especializa por CNPsType)
-    int computerNumFlatzoneDescendants() {
-        if (!tree) return 0;
-        int acc = 0;
-        FastQueue<int> st;
-        for (NodeId c : tree->arena.children(id)) 
-            st.push(c);
-        while (!st.empty()) {
-            NodeId u = st.pop();
-            if constexpr (std::is_same_v<CNPsType, Pixels>) {
-                // Para Pixels (CNPsType == int), cada nó contribui com 1 flat-zone
-                acc += 1;
-            } else {
-                // Para FlatZones (CNPsType == std::vector<int>), soma a quantidade de reps no nó
-                acc += static_cast<int>(tree->arena.repCNPs[u].size());
-            }
-            for (NodeId v : tree->arena.children(u)) 
-                st.push(v);
-        }
-        return acc;
+
+    // --- FlatZones: remove uma FZ do nó (versão estática)
+    template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
+    static void removeFlatzone(int repFlatZone, NodeId nodeId, ComponentTreeFZ<GraphT>* nodeTree) {
+        auto& reps = nodeTree->getRepCNPsById(nodeId);
+        std::erase(reps, repFlatZone);
     }
 
+
+    // --- FlatZones: conecta reps adicionais à FZ base (uma base) (versão estática)
+    template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
+    static void addCNPsToConnectedFlatzone(int repFlatZone,
+                                           NodeId nodeId,
+                                           ComponentTreeFZ<GraphT>* tree) { //usado na versão ByLeaf
+        auto& reps = tree->getRepCNPsById(nodeId);
+        assert(!reps.empty() && "Erro: conjunto de FZs do nó está vazio!");
+        
+        auto& graph = tree->getFlatZonesGraph();
+        int repWinner = graph->mergeAdjacentCandidatesInPlace(repFlatZone, reps);
+        tree->setSCById(repWinner, nodeId); // atualiza pixelToNode
+    }
+
+
+    // --- FlatZones: conecta reps adicionais à FZ base (várias bases) (versão estática)
+    template<typename T = CNPsType, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int> = 0>
+    static void addCNPsToConnectedFlatzone(const std::vector<int>& repBases,
+                                           int repBaseWinner,
+                                           NodeId nodeId,
+                                           ComponentTreeFZ<GraphT>* tree) { //usado na versão BySubtree
+        auto& reps = tree->getRepCNPsById(nodeId);
+        assert(!reps.empty() && "Erro: conjunto de FZs do nó está vazio!");
+        auto& graph = tree->getFlatZonesGraph();
+        int repWinner = graph->mergeBasesWithAdjacentCandidatesInPlace(repBases, reps, repBaseWinner);
+
+        tree->setSCById(repWinner, nodeId); // atualiza pixelToNode
+    }
+
+
+    
 
     // Ranges existentes que devolvem filhos (por ponteiro lógico) continuam,
     // mas internamente usam `tree->proxy(id)` (que agora devolve handle)
     class ChildIdRange {
-        int cur; ComponentTree<CNPsType>* T;
+        int cur; ComponentTree<CNPsType, GraphT>* T;
     public:
         struct It {
-            int id; ComponentTree<CNPsType>* T;
+            int id; ComponentTree<CNPsType, GraphT>* T;
             bool operator!=(const It& o) const { return id != o.id; }
             void operator++() { id = (id == -1) ? -1 : T->arena.nextSiblingId[id]; }
-            NodeCT<CNPsType> operator*() const { return T->proxy(id); }
+            NodeCT<CNPsType, GraphT> operator*() const { return T->proxy(id); }
         };
         It begin() const { return {cur, T}; }
         It end()   const { return {-1,  T}; }
-        ChildIdRange(int first, ComponentTree<CNPsType>* t) : cur(first), T(t) {}
+        ChildIdRange(int first, ComponentTree<CNPsType, GraphT>* t) : cur(first), T(t) {}
     };
     auto getChildren() const {
         return ChildIdRange(tree ? tree->arena.firstChildId[id] : -1, tree);
@@ -198,16 +210,16 @@ public:
     //============= Iterator para iterar os nodes do caminho até o root==============//
     class InternalIteratorNodesOfPathToRoot {
     private:
-        NodeCT<CNPsType> currentNode;
+        NodeCT<CNPsType, GraphT> currentNode;
     
     public:
         using iterator_category = std::input_iterator_tag;
-        using value_type = NodeCT<CNPsType>;
+        using value_type = NodeCT<CNPsType, GraphT>;
         using difference_type = std::ptrdiff_t;
-        using pointer = NodeCT<CNPsType>*;
-        using reference = NodeCT<CNPsType>&;
+        using pointer = NodeCT<CNPsType, GraphT>*;
+        using reference = NodeCT<CNPsType, GraphT>&;
     
-        InternalIteratorNodesOfPathToRoot(NodeCT<CNPsType> obj) : currentNode(obj) {}
+        InternalIteratorNodesOfPathToRoot(NodeCT<CNPsType, GraphT> obj) : currentNode(obj) {}
     
         InternalIteratorNodesOfPathToRoot& operator++() {
             if (currentNode) {
@@ -231,20 +243,20 @@ public:
     
     class IteratorNodesOfPathToRoot {
     private:
-        NodeCT<CNPsType> instance;
+        NodeCT<CNPsType, GraphT> instance;
     
     public:
-        explicit IteratorNodesOfPathToRoot(NodeCT<CNPsType> obj) : instance(obj) {}
+        explicit IteratorNodesOfPathToRoot(NodeCT<CNPsType, GraphT> obj) : instance(obj) {}
     
         InternalIteratorNodesOfPathToRoot begin() const { return InternalIteratorNodesOfPathToRoot(instance); }
         InternalIteratorNodesOfPathToRoot end() const {
-            return InternalIteratorNodesOfPathToRoot(NodeCT<CNPsType>()); 
+            return InternalIteratorNodesOfPathToRoot(NodeCT<CNPsType, GraphT>()); 
         }
     };
     
     // Chamador usa this como shared_ptr:
     IteratorNodesOfPathToRoot getNodesOfPathToRoot() {
-        return IteratorNodesOfPathToRoot(NodeCT<CNPsType>(tree, id));
+        return IteratorNodesOfPathToRoot(NodeCT<CNPsType, GraphT>(tree, id));
     }
     
 
@@ -253,21 +265,21 @@ public:
 // Classe do Iterador Pós-Ordem por Ramos
 class InternalIteratorBranchPostOrderTraversal {
     private:
-        std::stack<NodeCT<CNPsType>> processingStack;
-        std::stack<NodeCT<CNPsType>> postOrderStack;
-        std::list<std::list<NodeCT<CNPsType>>> branches;
-        typename std::list<std::list<NodeCT<CNPsType>>>::iterator branchIterator;
+        std::stack<NodeCT<CNPsType, GraphT>> processingStack;
+        std::stack<NodeCT<CNPsType, GraphT>> postOrderStack;
+        std::list<std::list<NodeCT<CNPsType, GraphT>>> branches;
+        typename std::list<std::list<NodeCT<CNPsType, GraphT>>>::iterator branchIterator;
     
     public:
         using iterator_category = std::input_iterator_tag;
-        using value_type = std::list<NodeCT<CNPsType>>;
-        using pointer = std::list<NodeCT<CNPsType>>*;
-        using reference = std::list<NodeCT<CNPsType>>&;
+        using value_type = std::list<NodeCT<CNPsType, GraphT>>;
+        using pointer = std::list<NodeCT<CNPsType, GraphT>>*;
+        using reference = std::list<NodeCT<CNPsType, GraphT>>&;
     
-        InternalIteratorBranchPostOrderTraversal(NodeCT<CNPsType> root) {
+        InternalIteratorBranchPostOrderTraversal(NodeCT<CNPsType, GraphT> root) {
             if (!root) return;
     
-            std::stack<NodeCT<CNPsType>> tempStack;
+            std::stack<NodeCT<CNPsType, GraphT>> tempStack;
             tempStack.push(root);
     
             while (!tempStack.empty()) {
@@ -280,7 +292,7 @@ class InternalIteratorBranchPostOrderTraversal {
                 }
             }
     
-            std::list<NodeCT<CNPsType>> currentBranch;
+            std::list<NodeCT<CNPsType, GraphT>> currentBranch;
             while (!postOrderStack.empty()) {
                 auto node = postOrderStack.top();
                 postOrderStack.pop();
@@ -334,19 +346,19 @@ class InternalIteratorBranchPostOrderTraversal {
     // Classe externa
     class IteratorBranchPostOrderTraversal {
     private:
-        NodeCT<CNPsType> root;
+        NodeCT<CNPsType, GraphT> root;
     public:
-        explicit IteratorBranchPostOrderTraversal(NodeCT<CNPsType> root) : root(root) {}
+        explicit IteratorBranchPostOrderTraversal(NodeCT<CNPsType, GraphT> root) : root(root) {}
     
         InternalIteratorBranchPostOrderTraversal begin() { return InternalIteratorBranchPostOrderTraversal(root); }
         InternalIteratorBranchPostOrderTraversal end() {
-            return InternalIteratorBranchPostOrderTraversal(NodeCT<CNPsType>()); // default-vazio
+            return InternalIteratorBranchPostOrderTraversal(NodeCT<CNPsType, GraphT>()); // default-vazio
         }
     };
     
     // Método da classe
     IteratorBranchPostOrderTraversal getIteratorBranchPostOrderTraversal() {
-        return IteratorBranchPostOrderTraversal(NodeCT<CNPsType>(tree, id));
+        return IteratorBranchPostOrderTraversal(NodeCT<CNPsType, GraphT>(tree, id));
     }
     
 
@@ -356,7 +368,7 @@ class InternalIteratorBranchPostOrderTraversal {
     private:
         struct Item { int id; bool expanded; };
 
-        ComponentTree<CNPsType>* T_ = nullptr;
+        ComponentTree<CNPsType, GraphT>* T_ = nullptr;
         FastStack<Item> st_;
         NodeId current_ = -1;
 
@@ -379,12 +391,12 @@ class InternalIteratorBranchPostOrderTraversal {
 
     public:
         using iterator_category = std::input_iterator_tag;
-        using value_type        = NodeCT<CNPsType>;
+        using value_type        = NodeCT<CNPsType, GraphT>;
         using difference_type   = std::ptrdiff_t;
-        using pointer           = NodeCT<CNPsType>*;     // apenas para conformidade
-        using reference         = NodeCT<CNPsType>;      // retornaremos por valor (handle leve)
+        using pointer           = NodeCT<CNPsType, GraphT>*;     // apenas para conformidade
+        using reference         = NodeCT<CNPsType, GraphT>;      // retornaremos por valor (handle leve)
 
-        InternalIteratorPostOrderTraversal(NodeCT<CNPsType> root) noexcept {
+        InternalIteratorPostOrderTraversal(NodeCT<CNPsType, GraphT> root) noexcept {
             if (root) {
                 T_ = root.tree;
                 st_.push({root.getIndex(), false});
@@ -402,7 +414,7 @@ class InternalIteratorBranchPostOrderTraversal {
 
         // devolve o PROXY (handle leve) para o nó atual
         inline value_type operator*() const noexcept {
-            return (current_ >= 0) ? NodeCT<CNPsType>(T_, current_) : NodeCT<CNPsType>();
+            return (current_ >= 0) ? NodeCT<CNPsType, GraphT>(T_, current_) : NodeCT<CNPsType, GraphT>();
         }
 
         inline bool operator==(const InternalIteratorPostOrderTraversal& other) const noexcept {
@@ -418,15 +430,15 @@ class InternalIteratorBranchPostOrderTraversal {
     };
 
     class IteratorPostOrderTraversal {
-        NodeCT<CNPsType> root_;
+        NodeCT<CNPsType, GraphT> root_;
     public:
-        explicit IteratorPostOrderTraversal(NodeCT<CNPsType> root) : root_(root) {}
+        explicit IteratorPostOrderTraversal(NodeCT<CNPsType, GraphT> root) : root_(root) {}
         InternalIteratorPostOrderTraversal begin() const { return InternalIteratorPostOrderTraversal(root_); }
-        InternalIteratorPostOrderTraversal end()   const { return InternalIteratorPostOrderTraversal(NodeCT<CNPsType>()); }
+        InternalIteratorPostOrderTraversal end()   const { return InternalIteratorPostOrderTraversal(NodeCT<CNPsType, GraphT>()); }
     };
 
     IteratorPostOrderTraversal getIteratorPostOrderTraversal() {
-        return IteratorPostOrderTraversal(NodeCT<CNPsType>(tree, id));
+        return IteratorPostOrderTraversal(NodeCT<CNPsType, GraphT>(tree, id));
     }
 
 
@@ -434,18 +446,18 @@ class InternalIteratorBranchPostOrderTraversal {
     //============= Iterator para iterar os nodes de um percuso em largura ==============//
     class InternalIteratorBreadthFirstTraversal {
     private:
-        ComponentTree<CNPsType>* T_ = nullptr; // apenas leitura/encaminhamento
+        ComponentTree<CNPsType, GraphT>* T_ = nullptr; // apenas leitura/encaminhamento
         FastQueue<int> q_;                     // guarda somente NodeIds
 
     public:
         using iterator_category = std::input_iterator_tag;
-        using value_type        = NodeCT<CNPsType>;    // devolvemos PROXY
+        using value_type        = NodeCT<CNPsType, GraphT>;    // devolvemos PROXY
         using difference_type   = std::ptrdiff_t;
         using pointer           = void;               // não expomos ponteiro real
-        using reference         = NodeCT<CNPsType>;   // retornamos por valor (handle leve)
+        using reference         = NodeCT<CNPsType, GraphT>;   // retornamos por valor (handle leve)
 
         // Constrói a partir de um proxy raiz. Enfileira apenas o id da raiz.
-        explicit InternalIteratorBreadthFirstTraversal(NodeCT<CNPsType> root) noexcept {
+        explicit InternalIteratorBreadthFirstTraversal(NodeCT<CNPsType, GraphT> root) noexcept {
             if (root) {
                 T_ = root.tree;
                 q_.push(root.getIndex());
@@ -465,7 +477,7 @@ class InternalIteratorBranchPostOrderTraversal {
 
         // Desreferencia: devolve um PROXY (NodeCT) para o nó atual (frente da fila)
         value_type operator*() const noexcept {
-            return q_.empty() ? NodeCT<CNPsType>() : NodeCT<CNPsType>(T_, q_.front());
+            return q_.empty() ? NodeCT<CNPsType, GraphT>() : NodeCT<CNPsType, GraphT>(T_, q_.front());
         }
 
         bool operator==(const InternalIteratorBreadthFirstTraversal& other) const noexcept {
@@ -478,25 +490,46 @@ class InternalIteratorBranchPostOrderTraversal {
 
     class IteratorBreadthFirstTraversal {
     private:
-        NodeCT<CNPsType> root_;
+        NodeCT<CNPsType, GraphT> root_;
 
     public:
-        explicit IteratorBreadthFirstTraversal(NodeCT<CNPsType> root) : root_(root) {}
+        explicit IteratorBreadthFirstTraversal(NodeCT<CNPsType, GraphT> root) : root_(root) {}
 
         InternalIteratorBreadthFirstTraversal begin() const { return InternalIteratorBreadthFirstTraversal(root_); }
-        InternalIteratorBreadthFirstTraversal end()   const { return InternalIteratorBreadthFirstTraversal(NodeCT<CNPsType>()); }
+        InternalIteratorBreadthFirstTraversal end()   const { return InternalIteratorBreadthFirstTraversal(NodeCT<CNPsType, GraphT>()); }
     };
 
     // Método para expor o iterador na classe NodeCT
     IteratorBreadthFirstTraversal getIteratorBreadthFirstTraversal() {
-        return IteratorBreadthFirstTraversal(NodeCT<CNPsType>(tree, id));
+        return IteratorBreadthFirstTraversal(NodeCT<CNPsType, GraphT>(tree, id));
     }
     
 };
 
+// --- FlatZones: adiciona reps de FZ disjuntas
+template <typename CNPsType, typename GraphT>
+template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
+void NodeCT<CNPsType, GraphT>::addCNPsOfDisjointFlatzones(std::vector<int>& repsFlatZones) {
+    NodeCT<CNPsType, GraphT>::addCNPsOfDisjointFlatzones(repsFlatZones, this->getIndex(), this->tree);
+}
 
-#include "../include/NodeCT.tpp"
+// --- FlatZones: remove uma FZ do no
+template <typename CNPsType, typename GraphT>
+template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
+void NodeCT<CNPsType, GraphT>::removeFlatzone(int repFlatZone) {
+    NodeCT<CNPsType, GraphT>::removeFlatzone(repFlatZone, this->getIndex(), this->tree);
+}
 
-#endif
+// --- FlatZones: conecta reps adicionais a FZ base (uma base)
+template <typename CNPsType, typename GraphT>
+template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
+void NodeCT<CNPsType, GraphT>::addCNPsToConnectedFlatzone(int repFlatZone) {
+    NodeCT<CNPsType, GraphT>::addCNPsToConnectedFlatzone(repFlatZone, this->getIndex(), this->tree);
+}
 
-
+// --- FlatZones: conecta reps adicionais a FZ base (varias bases)
+template <typename CNPsType, typename GraphT>
+template<typename T, typename std::enable_if_t<std::is_same<T, FlatZones>::value, int>>
+void NodeCT<CNPsType, GraphT>::addCNPsToConnectedFlatzone(const std::vector<int>& repBases, int repBaseWinner) {
+    NodeCT<CNPsType, GraphT>::addCNPsToConnectedFlatzone(repBases, repBaseWinner, this->getIndex(), this->tree);
+}

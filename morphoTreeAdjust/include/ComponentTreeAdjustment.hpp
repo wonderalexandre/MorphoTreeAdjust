@@ -1,20 +1,22 @@
+#pragma once
+
 #include <iterator>
 #include <functional>
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <cstdlib>
 
 #include "../include/AdjacencyRelation.hpp"
-#include "../include/NodeCT.hpp"
+//#include "../include/NodeCT.hpp"
 #include "../include/ComponentTree.hpp"
 #include "../include/Common.hpp"
-
-#ifndef COMPONENT_TREE_ADJUSTMENT_H
-#define COMPONENT_TREE_ADJUSTMENT_H
+#include "../include/AttributeComputer.hpp"
 
 #include <array>
 #include <vector>
 #include <unordered_set>
+#include <span>
 
 /**
  * @brief Estrutura auxiliar para gerenciar coleções de nós mesclados e adjacentes em árvores de componentes.
@@ -23,8 +25,11 @@
  * adjacentes (nodesNL), e conjuntos auxiliares (Fb). Também controla a ordem de iteração (maxtree/min-tree)
  * e evita duplicações através de marcações (`visited`, `visitedAdj`).
  */
+template <typename GraphT = DefaultFlatZonesGraph>
 class MergedNodesCollection {
 protected:
+    static_assert(FlatZonesGraphCommonInterface<GraphT>,
+                  "GraphT must satisfy FlatZonesGraphCommonInterface");
     std::array<std::vector<NodeId>, 256> collectionF;
     
     int maxIndex;
@@ -46,30 +51,14 @@ public:
         return collectionF[level]; 
     }
 
-    /// @brief Adiciona um nó mesclado (versão NodeFZ).
-    void addMergedNode(NodeFZ nodeNL) {
-        //if(!visited.isMarked(nodeNL->getIndex())) {
-            collectionF[nodeNL.getLevel()].push_back(nodeNL);
-            visited.mark(nodeNL.getIndex());
-        //}
-    }
-
-    /// @brief Adiciona um nó mesclado especificando árvore e id.
-    void addMergedNode(ComponentTreeFZPtr tree, NodeId nodeId) {
-        //if(!visited.isMarked(nodeNL->getIndex())) {
-            collectionF[tree->getLevelById(nodeId)].push_back(nodeId);
-            visited.mark(nodeId);
-        //}
-    }
-
     /// @brief Computa e armazena nós adjacentes a uma lista de flat-zones.
-    void computerAdjacentNodes(ComponentTreeFZPtr tree, const std::vector<int>& flatZonesID) {
+    void computerAdjacentNodes(ComponentTreeFZ<GraphT>* tree, const std::vector<int>& flatZonesID) {
         bool isMaxtree = tree->isMaxtree();
-        FlatZonesGraphPtr& graph = tree->getFlatZonesGraph();
+        auto& graph = tree->getFlatZonesGraph();
         for (int flatZoneID_P : flatZonesID) {   
             int grayFlatZoneP =  tree->getLevelById(tree->getSCById(flatZoneID_P)); //is same that: level de "a"
     
-            for (int flatZoneID_Q : graph->getAdjacentFlatzonesFromPixel(flatZoneID_P)) {
+            graph->forEachAdjacentFlatzoneFromPixel(flatZoneID_P, [&](int flatZoneID_Q) {
                 NodeId nodeId = tree->getSCById(flatZoneID_Q);
                 if ( (isMaxtree && tree->getLevelById(nodeId) > grayFlatZoneP) || (!isMaxtree && tree->getLevelById(nodeId) < grayFlatZoneP) ) {
                     if(!visitedAdj.isMarked(nodeId)) {
@@ -77,18 +66,18 @@ public:
                         visitedAdj.mark(nodeId);
                     }
                 }
-            }
+            });
         }
     }
 
     /// @brief Computa e armazena nós adjacentes a uma flat-zone específica.
-    void computerAdjacentNodes(ComponentTreeFZPtr tree, int flatZoneID_P) {
+    void computerAdjacentNodes(ComponentTreeFZ<GraphT>* tree, int flatZoneID_P) {
         bool isMaxtree = tree->isMaxtree();
-        FlatZonesGraphPtr& graph = tree->getFlatZonesGraph();
+        auto& graph = tree->getFlatZonesGraph();
         
         int grayFlatZoneP =  tree->getLevelById(tree->getSCById(flatZoneID_P)); //is same that: level de "a"
 
-        for (int flatZoneID_Q : graph->getAdjacentFlatzonesFromPixel(flatZoneID_P)) {
+        graph->forEachAdjacentFlatzoneFromPixel(flatZoneID_P, [&](int flatZoneID_Q) {
             NodeId nodeId = tree->getSCById(flatZoneID_Q);
             if ( (isMaxtree && tree->getLevelById(nodeId) > grayFlatZoneP) || (!isMaxtree && tree->getLevelById(nodeId) < grayFlatZoneP) ) {
                 if(!visitedAdj.isMarked(nodeId)) {
@@ -96,7 +85,7 @@ public:
                     visitedAdj.mark(nodeId);
                 }
             }
-        }
+        });
     }
 
     /// @brief Retorna a lista de nós adjacentes coletados.
@@ -141,7 +130,7 @@ public:
     }
 
     /// @brief Adiciona todos os nós do caminho até a raiz, parando em nodeTauL.
-    void addNodesOfPath(ComponentTreeFZPtr tree, NodeId nodeNL, NodeId nodeTauL) {
+    void addNodesOfPath(ComponentTreeFZ<GraphT>* tree, NodeId nodeNL, NodeId nodeTauL) {
         if(!visited.isMarked(nodeNL)){
             for (NodeId nodeId : tree->getNodesOfPathToRootById(nodeNL)) {
                 if(!visited.isMarked(nodeId)) {
@@ -161,7 +150,7 @@ public:
     /// @brief Retorna o primeiro valor lambda disponível na coleção.
     int firstLambda() {
         lambdaList.clear();
-        for (int i = 0; i < 256; ++i) {
+        for (int i = 0; i <= 255; ++i) {
             if (!collectionF[i].empty()) {
                 lambdaList.push_back(i);
             }
@@ -185,6 +174,16 @@ public:
     }
 };
 
+// Alias padrão para o computador de atributos trabalhando com FlatZones.
+template <typename GraphT = DefaultFlatZonesGraph>
+using DefaultAttributeComputerT = AttributeComputer<
+    FlatZones,
+    GraphT,
+    typename AreaComputer<FlatZones, GraphT>::Functions,
+    AreaComputer<FlatZones, GraphT>
+    >;
+using DefaultAttributeComputer = DefaultAttributeComputerT<>;
+
 /**
  * @brief Algoritmos de ajuste em árvores de componentes (min-tree e max-tree).
  *
@@ -192,32 +191,59 @@ public:
  * e construção de coleções aninhadas/mescladas em árvores de componentes
  * baseadas em flat-zones. É utilizada em algoritmos de ajuste e atualização
  * entre max-tree e min-tree.
+ *
+ * @tparam Computer Tipo concreto de AttributeComputer a ser utilizado (ex.: AreaComputer<FlatZones>).
  */
+template<typename Computer = DefaultAttributeComputer, typename GraphT = DefaultFlatZonesGraph>
 class ComponentTreeAdjustment {
 
 protected: 
-    ComponentTreeFZPtr mintree;
-    ComponentTreeFZPtr maxtree;    
+    static_assert(FlatZonesGraphCommonInterface<GraphT>,
+                  "GraphT must satisfy FlatZonesGraphCommonInterface");
+    ComponentTreeFZ<GraphT>* mintree;
+    ComponentTreeFZ<GraphT>* maxtree;    
 
     int maxIndex; 
-    MergedNodesCollection F;
+    MergedNodesCollection<GraphT> F;
     std::ostringstream outputLog;
     long int areaFZsRemoved;
     
-    void disconnect(ComponentTreeFZPtr tree, NodeId nodeId, bool releaseNode) {
+    Computer* attrComputerMin = nullptr;
+    Computer* attrComputerMax = nullptr;
+    std::span<float> bufferMin;
+    std::span<float> bufferMax;
+    
+    void disconnect(ComponentTreeFZ<GraphT>* tree, NodeId nodeId, bool releaseNode) {
+        if (!tree || !tree->isAllocatedNodeId(nodeId)) {
+            std::cerr << "[disconnect] Invalid nodeId=" << nodeId
+                      << " arenaSize=" << (tree ? tree->getArenaSize() : -1)
+                      << " numNodes=" << (tree ? tree->getNumNodes() : -1)
+                      << " isMaxtree=" << (tree ? tree->isMaxtree() : false)
+                      << std::endl;
+            std::abort();
+        }
         NodeId parentId = tree->getParentById(nodeId);
+        if (parentId != InvalidNode && !tree->isAllocatedNodeId(parentId)) {
+            std::cerr << "[disconnect] Invalid parentId=" << parentId
+                      << " for nodeId=" << nodeId
+                      << " arenaSize=" << tree->getArenaSize()
+                      << " numNodes=" << tree->getNumNodes()
+                      << " isMaxtree=" << tree->isMaxtree()
+                      << std::endl;
+            std::abort();
+        }
         tree->removeChildById(parentId, nodeId, releaseNode);
         
     }
 
-    void mergedParentAndChildren(ComponentTreeFZPtr tree, NodeId nodeUnion, NodeId n){
+    void mergedParentAndChildren(ComponentTreeFZ<GraphT>* tree, NodeId nodeUnion, NodeId n){
         for(NodeId son: tree->getChildrenById(n)){
             tree->setParentById(son, nodeUnion);
         }
         tree->spliceChildrenById(nodeUnion, n);
     }
     
-    ComponentTreeFZPtr getOtherTree(bool isMaxtree){
+    ComponentTreeFZ<GraphT>* getOtherTree(bool isMaxtree){
         return isMaxtree ? mintree : maxtree;
     }
 
@@ -235,22 +261,36 @@ public:
     }
 
     /// @brief Construtor principal a partir de min-tree e max-tree.
-    ComponentTreeAdjustment(ComponentTreeFZPtr mintree, ComponentTreeFZPtr maxtree): mintree(mintree), maxtree(maxtree), maxIndex(maxtree->getFlatZonesGraph()->getNumFlatZones()), F(maxIndex)  { }
+    ComponentTreeAdjustment(ComponentTreeFZ<GraphT>* mintree, ComponentTreeFZ<GraphT>* maxtree)
+        : mintree(mintree),
+          maxtree(maxtree),
+          maxIndex(maxtree->getFlatZonesGraph()->getNumFlatZones()),
+          F(maxIndex) { }
 
     ComponentTreeAdjustment() = delete; 
 
     virtual ~ComponentTreeAdjustment() = default;
+
+    /**
+     * @brief Registra um AttributeComputer concreto e dimensiona o buffer interno.
+     */
+    void setAttributeComputer(Computer& computerMin, Computer& computerMax, std::span<float> bufMin, std::span<float> bufMax) {
+        attrComputerMin = &computerMin;
+        attrComputerMax = &computerMax;
+        bufferMin = bufMin;
+        bufferMax = bufMax;
+    }
     
     /// @brief Constrói coleções mescladas e aninhadas a partir de uma lista de flat-zones.
-    void buildMergedAndNestedCollections(ComponentTreeFZPtr tree, std::vector<int>& flatZonesID,  int pixelUpperBound, int newGrayLevel, bool isMaxtree){
+    void buildMergedAndNestedCollections(ComponentTreeFZ<GraphT>* tree, std::vector<int>& flatZonesID,  int pixelUpperBound, int newGrayLevel, bool isMaxtree){
         
         F.resetCollection(isMaxtree);
         F.computerAdjacentNodes(tree, flatZonesID);
-        NodeId nodeTauStar = tree->getSCById(pixelUpperBound); //node tauL: nó que contem L na maxtree
+        NodeId nodeTauStar = tree->getSCById(pixelUpperBound); // node tauL: nó que contém L na max-tree
 
-        for (NodeId nodeNL: F.getAdjacentNodes()) { //todos os vizinho de flatzone (folha) L com level > "a" 
+        for (NodeId nodeNL: F.getAdjacentNodes()) { // todos os vizinhos da flatzone (folha) L com level > "a"
             if( (isMaxtree && tree->getLevelById(nodeNL) <= newGrayLevel) || (!isMaxtree &&  tree->getLevelById(nodeNL) >= newGrayLevel)) { 
-                //o nodeNL está no intervalo [a+1, b] =>Note que: newGrayLevel é a variavel "b" do paper
+                // nodeNL está no intervalo [a+1, b]. Note que: newGrayLevel é a variável "b" do paper.
                 F.addNodesOfPath(tree, nodeNL, nodeTauStar);  
             } 
             else { 
@@ -260,11 +300,12 @@ public:
                     if ( (isMaxtree && newGrayLevel > tree->getLevelById(n)) || (!isMaxtree && newGrayLevel < tree->getLevelById(n))) {
                         break;
                     }
-                    nodeSubtree = n; //nodeSubtree é a raiz da subarvore antes de atingir o nivel b
+                    nodeSubtree = n; // nodeSubtree é a raiz da subárvore antes de atingir o nível b
                 }
                 // se a subtree tiver level = b, então ela entra em F[\lambda]
-                if ( (tree->getLevelById(nodeSubtree) == newGrayLevel) || (tree->getNumFlatzoneById(nodeTauStar)==1 && tree->getParentById(nodeSubtree) && tree->getParentById(nodeSubtree) != nodeTauStar)) {
+                if ( (tree->getLevelById(nodeSubtree) == newGrayLevel) || (tree->getNumFlatzoneById(nodeTauStar)==1 && tree->getParentById(nodeSubtree) != InvalidNode && tree->getParentById(nodeSubtree) != nodeTauStar)) {
                 //if(nodeSubtree->getParent() && nodeSubtree->getParent()->getIndex() != nodeTauStar->getIndex() ){ // caso raro: se o pai de nodeSubtree for diferente de tauL
+                //if(tree->getParentById(nodeSubtree) != InvalidNode && tree->getParentById(nodeSubtree) != nodeTauStar ){  // caso raro: se o pai de nodeSubtree for diferente de tauL
                     F.addNodesOfPath(tree, nodeSubtree, nodeTauStar); //F_lambda
                 } 
                 else {
@@ -276,14 +317,14 @@ public:
     }
     
     /// @brief Constrói coleções mescladas e aninhadas para uma flat-zone específica.
-    void buildMergedAndNestedCollections(ComponentTreeFZPtr tree, int flatZoneID, int newGrayLevel, bool isMaxtree){
+    void buildMergedAndNestedCollections(ComponentTreeFZ<GraphT>* tree, int flatZoneID, int newGrayLevel, bool isMaxtree){
         F.resetCollection(isMaxtree);
         F.computerAdjacentNodes(tree, flatZoneID);
         NodeId nodeTauL = tree->getSCById(flatZoneID);
 
-        for (NodeId nodeNL: F.getAdjacentNodes()) { //todos os vizinho de flatzone (folha) L com level > "a" 
+        for (NodeId nodeNL: F.getAdjacentNodes()) { // todos os vizinhos da flatzone (folha) L com level > "a"
             if( (isMaxtree && tree->getLevelById(nodeNL) <= newGrayLevel) || (!isMaxtree &&  tree->getLevelById(nodeNL) >= newGrayLevel)) {
-                //o nodeNL está no intervalo [a+1, b] =>Note que: newGrayLevel é a variavel "b" do paper
+                // nodeNL está no intervalo [a+1, b]. Note que: newGrayLevel é a variável "b" do paper.
                 F.addNodesOfPath(tree, nodeNL, nodeTauL); 
             } 
             else { 
@@ -293,7 +334,7 @@ public:
                     if ( (isMaxtree && newGrayLevel > tree->getLevelById(n)) || (!isMaxtree && newGrayLevel < tree->getLevelById(n))) {
                         break;
                     }
-                    nodeSubtree = n; //nodeSubtree é a raiz da subarvore antes de atingir o nivel b
+                    nodeSubtree = n; // nodeSubtree é a raiz da subárvore antes de atingir o nível b
                 }
                 
                 if (tree->getLevelById(nodeSubtree) == newGrayLevel) {
@@ -302,7 +343,7 @@ public:
                 } 
                 else {
                     // caso raro: se o pai de nodeSubtree for diferente de tauL
-                    if(tree->getParentById(nodeSubtree) && tree->getParentById(nodeSubtree) != nodeTauL ){ 
+                    if(tree->getParentById(nodeSubtree) != InvalidNode && tree->getParentById(nodeSubtree) != nodeTauL ){ 
                         F.addNodesOfPath(tree, tree->getParentById(nodeSubtree), nodeTauL); // Adiciona os nodes do caminho até tauL
                     }else{
                         F.addNodesInFb(nodeSubtree); //F_{lambda} > b
@@ -313,55 +354,113 @@ public:
         }
     }
 
+
     /// @brief Realiza poda (prunning) de um nó e seus descendentes, atualizando SCs.
-    void prunning(ComponentTreeFZPtr tree, NodeFZ node) {
-        assert(node && "Erro: node is nullptr");
-        assert(node.getParent() && "Erro: node é a raiz");
+    void prunning(ComponentTreeFZ<GraphT>* tree, NodeId node) {
+        assert(node != InvalidNode && "Erro: node is nullptr");
+        assert(tree->getParentById(node) != InvalidNode && "Erro: node é a raiz");
 
-        if (node != tree->getRoot()) {
-            NodeFZ parent = node.getParent();
-            
-            FlatZonesGraphPtr& graph = tree->getFlatZonesGraph();
-            //tratamento dos representantes de flatzones que já foram fundidos 
-            std::vector<int>& repsParent = parent.getRepCNPs();        
-            //1 normaliza os representantes
-            for (int& r : repsParent) r = graph->findRepresentative(r); 
-            //2 remove os repetidos
-            std::sort(repsParent.begin(), repsParent.end()); 
-            repsParent.erase(std::unique(repsParent.begin(), repsParent.end()), repsParent.end()); 
-            
-            FastQueue<NodeFZ> s;
-            s.push(node);
-            while (!s.empty()) {
-                NodeFZ child = s.pop();
-                for (NodeFZ n : child.getChildren()) {
-                    s.push(n);
-                }
-                for(int repBase: child.getRepCNPs()) {
-                    tree->setSC(repBase, parent); // atualiza o SC para apontar para o pai
-                    
-                    //Normaliza o representante base
-                    int winner = graph->findRepresentative(repBase); // normaliza o representante
-                        
-                    //Remove todos que colapsaram no mesmo winner 
-                    std::erase_if(repsParent, [&](int r){ return r == winner; });
+        if (node == tree->getRootById()) return;
 
-                    //Adiciona o vencedor 1x no final
-                    repsParent.push_back(winner);
-                }
-                tree->removeChildById(child.getParent(), child, true);
-                //tree->releaseNode(child);
+        NodeId parentId = tree->getParentById(node);
+        auto& graph = tree->getFlatZonesGraph();
+
+        // tratamento dos representantes de flatzones que já foram fundidos
+        std::vector<int>& repsParent = tree->getRepCNPsById(parentId);
+        // 1) normaliza os representantes
+        for (int& r : repsParent) r = graph->findRepresentative(r);
+        // 2) remove os repetidos
+        std::sort(repsParent.begin(), repsParent.end());
+        repsParent.erase(std::unique(repsParent.begin(), repsParent.end()), repsParent.end());
+
+        FastQueue<NodeId> s;
+        s.push(node);
+        while (!s.empty()) {
+            NodeId childId = s.pop();
+            for (NodeId n : tree->getChildrenById(childId)) {
+                s.push(n);
             }
+            for (int repBase : tree->getRepCNPsById(childId)) {
+                tree->setSCById(repBase, parentId); // atualiza o SC para apontar para o pai
 
+                // Normaliza o representante base
+                int winner = graph->findRepresentative(repBase);
+
+                // Remove todos que colapsaram no mesmo winner
+                std::erase_if(repsParent, [&](int r){ return r == winner; });
+
+                // Adiciona o vencedor 1x no final
+                repsParent.push_back(winner);
+            }
+            tree->removeChildById(tree->getParentById(childId), childId, true);
         }
+        //rebuildRepCNPsNaiveIfNeeded(*graph, repsParent, tree, parentId);
 
     }
 
+    /*
+    GenerationStampSet repStamp;
+    /// @brief Realiza poda (prunning) de um nó e seus descendentes, atualizando SCs.
+    void prunning(ComponentTreeFZ<GraphT>* tree, NodeId node) {
+        assert(node && "Erro: node is nullptr");
+        assert(node.getParent() && "Erro: node é a raiz");
+
+        if (node == tree->getRootById()) return;
+
+        NodeId parentId = tree->getParentById(node);
+        auto& graph = tree->getFlatZonesGraph();
+
+        std::vector<int>& repsParent = tree->getRepCNPsById(parentId);
+
+        const int imgSize = tree->getNumRowsOfImage() * tree->getNumColsOfImage();
+        if (repStamp.n != static_cast<size_t>(imgSize)) {
+            repStamp.resize(imgSize);
+        }
+        repStamp.resetAll();
+
+        // 1) Canoniza reps do pai e remove duplicatas por stamp
+        int write = 0;
+        for (int r : repsParent) {
+            int canon = graph->findRepresentative(r);
+            assert(canon >= 0 && canon < imgSize);
+            const size_t idx = static_cast<size_t>(canon);
+            if (repStamp.isMarked(idx)) continue;
+            repStamp.mark(idx);
+            repsParent[write++] = canon;
+        }
+        repsParent.resize(write);
+
+        FastQueue<NodeId> s;
+        s.push(node);
+
+        while (!s.empty()) {
+            NodeId childId = s.pop();
+            for (NodeId n : tree->getChildrenById(childId)) {
+                s.push(n);
+            }
+
+            for (int repBase : tree->getRepCNPsById(childId)) {
+                tree->setSCById(repBase, parentId);
+
+                int winner = graph->findRepresentative(repBase);
+                assert(winner >= 0 && winner < imgSize);
+                const size_t idx = static_cast<size_t>(winner);
+                if (!repStamp.isMarked(idx)) {
+                    repStamp.mark(idx);
+                    repsParent.push_back(winner);
+                }
+            }
+
+            tree->removeChildById(tree->getParentById(childId), childId, true);
+        }
+    }
+    */
+
     /// @brief Funde um nó com seu pai, movendo filhos e ajustando representantes.
-    void mergeWithParent(ComponentTreeFZPtr tree, NodeFZ node) {
+    void mergeWithParent(ComponentTreeFZ<GraphT>* tree, NodeFZ<GraphT> node) {
         if (!node || node.getParent().getIndex() == -1) return;
-        FlatZonesGraphPtr& flatzoneGraph = tree->getFlatZonesGraph();
-        NodeFZ parent = node.getParent();
+        auto& flatzoneGraph = tree->getFlatZonesGraph();
+        NodeFZ<GraphT> parent = node.getParent();
         
         // Retira 'node' da cadeia do pai e move todos os seus filhos para o pai
         parent.removeChild(node, false);
@@ -393,8 +492,8 @@ public:
     }
 
     /// @brief Funde o nó SC associado a um representante com seu pai.
-    void mergeWithParent(ComponentTreeFZPtr tree, int repBase) {
-        NodeFZ node = tree->getSC(repBase);
+    void mergeWithParent(ComponentTreeFZ<GraphT>* tree, int repBase) {
+        NodeFZ<GraphT> node = tree->getSC(repBase);
         if (!node || node.getParent().getIndex() == -1) return;
         if(node.getNumFlatzone() == 1) {
             mergeWithParent(tree, node);
@@ -404,8 +503,8 @@ public:
         node.removeFlatzone(repBase); 
         node.setArea(node.getArea() - areaFZsRemoved); //a area é o unico atributo que mantido pela arena
 
-        FlatZonesGraphPtr& flatzoneGraph = tree->getFlatZonesGraph();
-        NodeFZ parent = node.getParent();
+        auto& flatzoneGraph = tree->getFlatZonesGraph();
+        NodeFZ<GraphT> parent = node.getParent();
 
         //tratamento dos representantes de flatzones que já foram fundidos 
         std::vector<int>& repsParent = parent.getRepCNPs();        
@@ -435,6 +534,3 @@ public:
     }
   
 };
-
-
-#endif

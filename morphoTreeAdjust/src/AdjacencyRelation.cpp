@@ -1,5 +1,4 @@
 #include "../include/AdjacencyRelation.hpp"
-#include <math.h>
 #include <cmath> 
 #include <stdexcept>
 #define PI 3.14159265358979323846
@@ -229,4 +228,3 @@ AdjacencyRelation& AdjacencyRelation::getNeighborPixelsForward(int row, int col)
 AdjacencyRelation& AdjacencyRelation::getNeighborPixelsForward(int indexVector){
 	return getNeighborPixelsForward(indexVector / this->numCols, indexVector % this->numCols);
 }
-
