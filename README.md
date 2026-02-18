@@ -11,15 +11,14 @@ We set:
 Problem:
 > How to modify $T^\max_f$ to obtain $T^\max_g$?
 
-<br>
+<br><br>
 ### Demo:
 > [Click here and see a demo on jupyter notebook - leaf](./notebooks/morphoTreeAdjust_example_leaf.ipynb) <br>
 > [Click here and see a demo on jupyter notebook - subtree](./notebooks/morphoTreeAdjust_example_subtree.ipynb)
 
 ### Paper:
-> Wonder Alves, Nicolas Passat, Dênnis José da Silva, Alexandre Morimitsu, Ronaldo F. Hashimoto. *Efficient connected alternating sequential filters based on component trees*. International Conference on Discrete Geometry and Mathematical Morphology (DGMM), Nov 2025, Groningen, Netherlands. ⟨[hal-05163556](https://hal.science/hal-05163556/)⟩
-
-> [Under review] Wonder Alves, Nicolas Passat, Dênnis José da Silva, Alexandre Morimitsu, Ronaldo F. Hashimoto. *Component tree: Update rather than rebuild*. Journal of Mathematical Imaging and Vision, 2026.
+> - Wonder Alves, Nicolas Passat, Dênnis José da Silva, Alexandre Morimitsu, Ronaldo F. Hashimoto. *Efficient connected alternating sequential filters based on component trees*. International Conference on Discrete Geometry and Mathematical Morphology (DGMM), Nov 2025, Groningen, Netherlands. ⟨[hal-05163556](https://hal.science/hal-05163556/)⟩ <br>
+> - [Under review] Wonder Alves, Nicolas Passat, Dênnis José da Silva, Alexandre Morimitsu, Ronaldo F. Hashimoto. *Component tree: Update rather than rebuild*. Journal of Mathematical Imaging and Vision, 2026.
 
 
 ### Benchmark
