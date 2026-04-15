@@ -7,14 +7,37 @@ updates of component trees and connected alternating sequential filters (CASF).
 The repository is organized around a small public API, example programs, and
 developer tools for experiments, validation, and benchmarks.
 
-## What You Can Do With It
+## Research Context
 
-- build min-trees and max-trees with a shared adjacency model;
-- update primal/dual trees after local structural changes instead of rebuilding
-  everything from scratch;
-- run CASF on grayscale images with dynamic update strategies;
-- use the same core concepts from C++ and Python;
-- inspect benchmarks and development tools used in the DGMM and JMIV work.
+The repository is centered on dynamic update problems for component trees.
+
+Let `f` be an image, and let `T_f^min` and `T_f^max` be the min-tree and
+max-tree of `f`.
+
+We set:
+
+- `S`: a subtree in `T_f^min`
+- `T_g^min`: the min-tree obtained after pruning `S` from `T_f^min`
+- `g`: the image reconstructed from `T_g^min`
+- `T_g^max`: the max-tree of `g`
+
+The central question is:
+
+> How to modify `T_f^max` to obtain `T_g^max`?
+
+This is the basis for the dynamic primal/dual adjustment work and for CASF
+implementations derived from those structures.
+
+Related papers:
+
+- Wonder Alves, Nicolas Passat, Dênnis José da Silva, Alexandre Morimitsu,
+  Ronaldo F. Hashimoto. *Efficient connected alternating sequential filters
+  based on component trees*. International Conference on Discrete Geometry and
+  Mathematical Morphology (DGMM), November 2025, Groningen, Netherlands.
+  [hal-05163556](https://hal.science/hal-05163556/)
+- Wonder Alves, Nicolas Passat, Dênnis José da Silva, Alexandre Morimitsu,
+  Ronaldo F. Hashimoto. *Component tree: Update rather than rebuild*. Journal
+  of Mathematical Imaging and Vision (under review), 2026.
 
 ## Quick Start
 
@@ -86,50 +109,6 @@ cmake --install ../build/MorphoTreeAdjust/install --prefix /tmp/mta-install
 - the public C++ headers under `include/MorphoTreeAdjust` when
   `MTA_INSTALL_PUBLIC_CORE_HEADERS=ON`.
 
-## Public API
-
-Recommended public C++ include:
-
-```cpp
-#include <MorphoTreeAdjust/MorphoTreeAdjust.hpp>
-```
-
-When working directly from a local checkout, the equivalent include is:
-
-```cpp
-#include "MorphoTreeAdjust.hpp"
-```
-
-Main C++ types:
-
-- `AdjacencyRelation`
-- `DynamicComponentTree`
-- `DynamicComponentTreeAdjustment`
-- `DynamicComponentTreeAdjustmentLeaf`
-- `ComponentTreeCasf`
-- `DynamicAreaComputer`
-- `DynamicBoundingBoxComputer`
-
-Main Python types:
-
-- `AdjacencyRelation`
-- `DynamicComponentTree`
-- `DynamicComponentTreeAdjustment`
-- `ComponentTreeCasf`
-
-Official public examples:
-
-- [examples/core_cpp_api_example.cpp](./examples/core_cpp_api_example.cpp)
-- [examples/core_python_api_example.py](./examples/core_python_api_example.py)
-
-Notebooks:
-
-- [notebooks/morphoTreeAdjust_example_leaf.ipynb](./notebooks/morphoTreeAdjust_example_leaf.ipynb)
-- [notebooks/morphoTreeAdjust_example_subtree.ipynb](./notebooks/morphoTreeAdjust_example_subtree.ipynb)
-
-For the maintained API contract, see
-[docs/public_core_api.md](./docs/public_core_api.md).
-
 ## Repository Layout
 
 - Public C++ entrypoint:
@@ -140,6 +119,8 @@ For the maintained API contract, see
   [morphoTreeAdjust/morphoTreeAdjust.cpp](./morphoTreeAdjust/morphoTreeAdjust.cpp)
 - Examples:
   [examples](./examples)
+- Notebooks:
+  [notebooks](./notebooks)
 - Documentation:
   [docs](./docs)
 - Developer tools and benchmarks:
@@ -150,45 +131,6 @@ Recommended documentation entry points:
 - [docs/README.md](./docs/README.md)
 - [docs/public_core_api.md](./docs/public_core_api.md)
 - [docs/tree_code_overview.md](./docs/tree_code_overview.md)
-- [CONTRIBUTING.md](./CONTRIBUTING.md)
-
-## Contribution and Releases
-
-The repository uses Conventional Commit style pull request titles together with
-`release-please` automation.
-
-- merge regular pull requests with **Squash and merge**;
-- keep the PR title and the final squash commit title in Conventional Commit
-  form, such as `feat: ...`, `fix: ...`, or `docs: ...`;
-- when `main` accumulates releasable changes, `release-please` opens or updates
-  a release PR;
-- the Python package version is derived from Git tags via `setuptools-scm`;
-- merging that release PR creates the version tag, updates `CHANGELOG.md`, and
-  creates the GitHub release;
-- publication to PyPI remains a local manual step.
-
-For the expected contribution workflow, see [CONTRIBUTING.md](./CONTRIBUTING.md).
-
-## Research Context
-
-The repository is motivated by dynamic update problems on component trees.
-Given an image `f`, its min-tree and max-tree, and a local change applied on one
-tree, the central question is how to update the dual tree efficiently instead of
-recomputing it from scratch.
-
-This is the basis for the dynamic primal/dual adjustment work and for CASF
-implementations built on top of those structures.
-
-Related papers:
-
-- Wonder Alves, Nicolas Passat, Dênnis José da Silva, Alexandre Morimitsu,
-  Ronaldo F. Hashimoto. *Efficient connected alternating sequential filters
-  based on component trees*. International Conference on Discrete Geometry and
-  Mathematical Morphology (DGMM), November 2025, Groningen, Netherlands.
-  [hal-05163556](https://hal.science/hal-05163556/)
-- Wonder Alves, Nicolas Passat, Dênnis José da Silva, Alexandre Morimitsu,
-  Ronaldo F. Hashimoto. *Component tree: Update rather than rebuild*. Journal
-  of Mathematical Imaging and Vision (under review), 2026.
 
 ## Developer Tools
 
