@@ -1,0 +1,36 @@
+name: Unit Tests
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build g++
+
+      - name: Configure
+        run: |
+          cmake -S dev-tools \
+            -B "$RUNNER_TEMP/MorphoTreeAdjust-build" \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DMTA_BUILD_TESTS=ON \
+            -DMTA_BUILD_TOOLS=OFF \
+            -DMTA_BUILD_BENCHMARKS=OFF
+
+      - name: Build
+        run: cmake --build "$RUNNER_TEMP/MorphoTreeAdjust-build"
+
+      - name: Run tests
+        run: ctest --test-dir "$RUNNER_TEMP/MorphoTreeAdjust-build" --output-on-failure
