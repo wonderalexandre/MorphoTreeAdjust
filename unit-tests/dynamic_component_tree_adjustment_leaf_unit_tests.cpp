@@ -74,11 +74,15 @@ ImageUInt8Ptr make_random_image(int numRows,
                                 std::mt19937 &rng,
                                 int maxValueInclusive) {
     auto image = ImageUInt8::create(numRows, numCols);
-    std::uniform_int_distribution<int> dist(0, maxValueInclusive);
     for (int pixelId = 0; pixelId < numRows * numCols; ++pixelId) {
-        (*image)[pixelId] = static_cast<uint8_t>(dist(rng));
+        (*image)[pixelId] = static_cast<uint8_t>(rng() % static_cast<std::mt19937::result_type>(maxValueInclusive + 1));
     }
     return image;
+}
+
+int deterministic_int(std::mt19937 &rng, int minValue, int maxValue) {
+    const auto span = static_cast<std::mt19937::result_type>(maxValue - minValue + 1);
+    return minValue + static_cast<int>(rng() % span);
 }
 
 std::vector<NodeId> getNodesToPrune(const DynamicComponentTree &tree,
@@ -242,16 +246,13 @@ void testDirectLeafAdjustOverloadsKeepTreesConsistent() {
 void testDynamicLeafRandomStressMatchesNaiveLeaf() {
     constexpr int kNumCases = 80;
     std::mt19937 rng(789123u);
-    std::uniform_int_distribution<int> rowsDist(2, 6);
-    std::uniform_int_distribution<int> colsDist(2, 6);
-    std::uniform_int_distribution<int> radiusIndexDist(0, 1);
     const std::array<double, 2> radii = {1.0, 1.5};
 
     for (int caseIndex = 0; caseIndex < kNumCases; ++caseIndex) {
-        const int numRows = rowsDist(rng);
-        const int numCols = colsDist(rng);
+        const int numRows = deterministic_int(rng, 2, 6);
+        const int numCols = deterministic_int(rng, 2, 6);
         auto image = make_random_image(numRows, numCols, rng, 7);
-        const double radius = radii[static_cast<size_t>(radiusIndexDist(rng))];
+        const double radius = radii[static_cast<size_t>(deterministic_int(rng, 0, 1))];
         auto adj = std::make_shared<AdjacencyRelation>(numRows, numCols, radius);
 
         DynamicComponentTree maxTree(image, true, adj);
