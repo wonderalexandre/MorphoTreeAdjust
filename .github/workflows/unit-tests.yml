@@ -16,9 +16,6 @@ concurrency:
 
 jobs:
   unit-tests:
-    defaults:
-      run:
-        shell: bash
     strategy:
       fail-fast: false
       matrix:
@@ -49,7 +46,17 @@ jobs:
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
 
+      - name: Ensure Ninja (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (-not (Get-Command ninja -ErrorAction SilentlyContinue)) {
+            choco install ninja --no-progress -y
+          }
+
       - name: Configure
+        if: runner.os != 'Windows'
+        shell: bash
         run: |
           cmake -S dev-tools \
             -B "$RUNNER_TEMP/MorphoTreeAdjust-build" \
@@ -59,11 +66,37 @@ jobs:
             -DMTA_BUILD_TOOLS=OFF \
             -DMTA_BUILD_BENCHMARKS=OFF
 
+      - name: Configure (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          cmake -S dev-tools `
+            -B "$env:RUNNER_TEMP/MorphoTreeAdjust-build" `
+            -G Ninja `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DMTA_BUILD_TESTS=ON `
+            -DMTA_BUILD_TOOLS=OFF `
+            -DMTA_BUILD_BENCHMARKS=OFF
+
       - name: Build
+        if: runner.os != 'Windows'
+        shell: bash
         run: cmake --build "$RUNNER_TEMP/MorphoTreeAdjust-build"
 
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: cmake --build "$env:RUNNER_TEMP/MorphoTreeAdjust-build"
+
       - name: Run tests
+        if: runner.os != 'Windows'
+        shell: bash
         run: ctest --test-dir "$RUNNER_TEMP/MorphoTreeAdjust-build" -L core --output-on-failure
+
+      - name: Run tests (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ctest --test-dir "$env:RUNNER_TEMP/MorphoTreeAdjust-build" -L core --output-on-failure
 
   unit-tests-linux-compilers:
     runs-on: ubuntu-latest
