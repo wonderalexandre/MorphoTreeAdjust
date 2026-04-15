@@ -1,10 +1,11 @@
-# build
-# cmake -DPYTHON_LIBRARY_DIR=$(python -c "import sysconfig; print(sysconfig.get_config_var('LIBDIR'))") -DPYTHON_EXECUTABLE=$(python -c "import sys; print(sys.executable)") ../
-# make
-# make install
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.15)
 include("${CMAKE_CURRENT_LIST_DIR}/cmake/AppleSdkFix.cmake")
-project(MorphoTreeAdjust LANGUAGES CXX)
+
+if(SKBUILD)
+  project(${SKBUILD_PROJECT_NAME} VERSION ${SKBUILD_PROJECT_VERSION} LANGUAGES CXX)
+else()
+  project(MorphoTreeAdjust LANGUAGES CXX)
+endif()
 include(GNUInstallDirs)
 
 # C++20 without compiler-specific extensions
@@ -28,8 +29,13 @@ message(STATUS "Compiler: ${CMAKE_CXX_COMPILER}")
 message(STATUS "C++ Standard: C++${CMAKE_CXX_STANDARD}")
 
 option(MTA_INSTALL_PUBLIC_CORE_HEADERS "Install only the public C++ core headers." ON)
-set(MTA_PYTHON_PACKAGE_INSTALL_DIR "${CMAKE_INSTALL_LIBDIR}/morphoTreeAdjust" CACHE PATH
-  "Install directory for the Python package relative to the install prefix.")
+if(SKBUILD)
+  set(MTA_PYTHON_PACKAGE_INSTALL_DIR "morphoTreeAdjust" CACHE PATH
+    "Install directory for the Python package relative to the install prefix.")
+else()
+  set(MTA_PYTHON_PACKAGE_INSTALL_DIR "${CMAKE_INSTALL_LIBDIR}/morphoTreeAdjust" CACHE PATH
+    "Install directory for the Python package relative to the install prefix.")
+endif()
 
 include_directories("${CMAKE_SOURCE_DIR}/python")
 
@@ -55,7 +61,12 @@ set(MTA_PUBLIC_CORE_HEADER_FILES
 # Set up such that XCode organizes the files
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCE_FILES} ${HEADER_FILES} ${PYTHON_FILES} )
 
-include(pybind11.cmake)
+if(SKBUILD)
+  set(PYBIND11_FINDPYTHON ON)
+  find_package(pybind11 CONFIG REQUIRED)
+else()
+  include(pybind11.cmake)
+endif()
 pybind11_add_module(morphoTreeAdjust 
 	${SOURCE_FILES}
 	${HEADER_FILES}
@@ -81,10 +92,12 @@ install(TARGETS morphoTreeAdjust
   LIBRARY DESTINATION "${MTA_PYTHON_PACKAGE_INSTALL_DIR}"
   )
 
-install(FILES ${MTA_PYTHON_PACKAGE_FILES}
-  COMPONENT python
-  DESTINATION "${MTA_PYTHON_PACKAGE_INSTALL_DIR}"
-)
+if(NOT SKBUILD)
+  install(FILES ${MTA_PYTHON_PACKAGE_FILES}
+    COMPONENT python
+    DESTINATION "${MTA_PYTHON_PACKAGE_INSTALL_DIR}"
+  )
+endif()
 
 if(MTA_INSTALL_PUBLIC_CORE_HEADERS)
   install(FILES ${MTA_PUBLIC_CORE_HEADER_FILES}

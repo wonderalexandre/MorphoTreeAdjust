@@ -31,6 +31,9 @@ repository root:
 python -m pip install .
 ```
 
+The package build is `pyproject.toml`-driven and uses `scikit-build-core`
+with CMake for the native extension.
+
 Then use the public module:
 
 ```python

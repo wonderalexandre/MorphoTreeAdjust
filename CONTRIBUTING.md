@@ -3,6 +3,9 @@
 This repository uses GitHub Actions for CI and `release-please` for automated
 versioning, changelog updates, tags, and GitHub releases.
 
+Packaging is `pyproject.toml`-first and uses `scikit-build-core` together with
+CMake for the native extension build.
+
 ## Development Flow
 
 1. Open a feature branch from `main`.
