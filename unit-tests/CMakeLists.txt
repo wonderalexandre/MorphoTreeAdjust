@@ -12,10 +12,12 @@ include_directories(
   "${MTA_STB_DIR}"
 )
 
-set_source_files_properties(
-  "${MTA_STB_DIR}/stb_image.cpp"
-  PROPERTIES COMPILE_OPTIONS "-Wno-deprecated-declarations;-Wno-missing-field-initializers"
-)
+if(NOT MSVC)
+  set_source_files_properties(
+    "${MTA_STB_DIR}/stb_image.cpp"
+    PROPERTIES COMPILE_OPTIONS "-Wno-deprecated-declarations;-Wno-missing-field-initializers"
+  )
+endif()
 
 set(MTA_COMMON_SOURCES
   "${MTA_STB_DIR}/stb_image.cpp"

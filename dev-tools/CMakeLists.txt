@@ -11,8 +11,11 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
 endif()
 
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -Wextra -Wpedantic")
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Wall -Wextra -Wpedantic")
+if(MSVC)
+  add_compile_options(/W4)
+else()
+  add_compile_options(-Wall -Wextra -Wpedantic)
+endif()
 
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "Compiler: ${CMAKE_CXX_COMPILER}")
@@ -30,10 +33,12 @@ include_directories(
   "${MTA_STB_DIR}"
 )
 
-set_source_files_properties(
-  "${MTA_STB_DIR}/stb_image.cpp"
-  PROPERTIES COMPILE_OPTIONS "-Wno-deprecated-declarations;-Wno-missing-field-initializers"
-)
+if(NOT MSVC)
+  set_source_files_properties(
+    "${MTA_STB_DIR}/stb_image.cpp"
+    PROPERTIES COMPILE_OPTIONS "-Wno-deprecated-declarations;-Wno-missing-field-initializers"
+  )
+endif()
 
 set(MTA_COMMON_SOURCES
   "${MTA_STB_DIR}/stb_image.cpp"
