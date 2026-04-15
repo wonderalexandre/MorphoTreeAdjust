@@ -7,11 +7,8 @@ import subprocess
 
 from pathlib import Path
 from packaging.version import Version
-from setuptools import setup, Extension, find_packages
+from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
-
-ROOT_DIR = Path(__file__).resolve().parent
-README_TEXT = (ROOT_DIR / "README.md").read_text(encoding="utf-8")
 
 class CMakeExtension(Extension):
     def __init__(self, name, sourcedir=""):
@@ -89,48 +86,7 @@ class CMakeBuild(build_ext):
         dest_directory.mkdir(parents=True, exist_ok=True)
         self.copy_file(source_path, dest_path)
 
-        
-
-
-
-        
-system = platform.system()
-
-if system == "Linux":
-    native_ext = "*.so"
-elif system == "Darwin":
-    native_ext = "*.so"
-elif system == "Windows":
-    native_ext = "*.dll"
-else:
-    raise RuntimeError(f"Unsupported platform: {system}!")
-
 setup(
-    name="morphoTreeAdjust",
-    version="0.2",
-    description="Core C++/Python implementation of MorphoTreeAdjust for dynamic component-tree adjustment.",
-    long_description=README_TEXT,
-    long_description_content_type="text/markdown",
-    author="Wonder Alexandre Luz Alves",
-    author_email="worderalexandre@gmail.com",
-    license="GPL-3.0",
-    url="https://github.com/wonderalexandre/MorphoTreeAdjust",
-    keywords="machine learning, morphological trees, mathematical morphology",
-    classifiers=[
-        "Development Status :: 3 - Alpha",
-        "Intended Audience :: Science/Research",
-        "Topic :: Scientific/Engineering :: Image Processing",
-        "Programming Language :: Python",
-        "Programming Language :: C++",
-    ],
-    packages=find_packages(where="python", include=["morphoTreeAdjust", "morphoTreeAdjust.*"]),
-    package_dir={"": "python"},
-    ext_modules=[CMakeExtension('morphoTreeAdjust.morphoTreeAdjust')],
+    ext_modules=[CMakeExtension("morphoTreeAdjust.morphoTreeAdjust")],
     cmdclass=dict(build_ext=CMakeBuild),
-    zip_safe=False,
-    include_package_data=True,
-    package_data={"morphoTreeAdjust": ["*.py", native_ext]},
-    extras_require={
-        "viz": ["numpy", "matplotlib"],
-    }
 )

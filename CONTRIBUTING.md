@@ -63,6 +63,10 @@ pull request. When that release PR is merged, the workflow will:
 3. create the GitHub release;
 4. build the Python distributions and attach them to the workflow run.
 
+The package version is derived from Git tags via `setuptools-scm`, so release
+tags and built artifacts should stay aligned without editing a hardcoded
+version string.
+
 ## Versioning Convention
 
 This repository follows SemVer through Conventional Commits and
@@ -111,6 +115,7 @@ After a release PR is merged and the release workflow finishes, publish from a
 local, reviewed checkout:
 
 ```sh
+git fetch --tags
 python -m build
 python -m twine check dist/*
 python -m twine upload dist/*

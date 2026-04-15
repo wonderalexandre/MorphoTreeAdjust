@@ -51,7 +51,11 @@ jobs:
         if: ${{ steps.release.outputs.release_created == 'true' }}
         run: |
           python -m pip install --upgrade pip
-          python -m pip install build twine
+          python -m pip install build twine setuptools-scm
+
+      - name: Show inferred version
+        if: ${{ steps.release.outputs.release_created == 'true' }}
+        run: python -m setuptools_scm
 
       - name: Build distributions
         if: ${{ steps.release.outputs.release_created == 'true' }}

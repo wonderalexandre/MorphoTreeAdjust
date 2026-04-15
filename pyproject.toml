@@ -1,9 +1,49 @@
 [build-system]
 requires = [
-  "setuptools>=61",
+  "setuptools>=80",
+  "setuptools-scm>=8",
   "wheel",
   "cmake>=3.14",
   "packaging>=21",
 ]
 build-backend = "setuptools.build_meta"
 
+[project]
+name = "morphoTreeAdjust"
+dynamic = ["version"]
+description = "Core C++/Python implementation of MorphoTreeAdjust for dynamic component-tree adjustment."
+readme = "README.md"
+authors = [
+  { name = "Wonder Alexandre Luz Alves", email = "worderalexandre@gmail.com" },
+]
+license = "GPL-3.0"
+keywords = ["machine learning", "morphological trees", "mathematical morphology"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering :: Image Processing",
+  "Programming Language :: Python",
+  "Programming Language :: C++",
+]
+
+[project.urls]
+Homepage = "https://github.com/wonderalexandre/MorphoTreeAdjust"
+
+[project.optional-dependencies]
+viz = ["numpy", "matplotlib"]
+
+[tool.setuptools]
+zip-safe = false
+include-package-data = true
+package-dir = { "" = "python" }
+
+[tool.setuptools.packages.find]
+where = ["python"]
+include = ["morphoTreeAdjust", "morphoTreeAdjust.*"]
+
+[tool.setuptools.package-data]
+morphoTreeAdjust = ["*.so", "*.dll", "*.pyd"]
+
+[tool.setuptools_scm]
+fallback_version = "0.0.dev0"
+version_file = "python/morphoTreeAdjust/version.py"

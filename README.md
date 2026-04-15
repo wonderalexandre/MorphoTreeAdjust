@@ -159,6 +159,7 @@ The repository uses Conventional Commit style pull request titles together with
   form, such as `feat: ...`, `fix: ...`, or `docs: ...`;
 - when `main` accumulates releasable changes, `release-please` opens or updates
   a release PR;
+- the Python package version is derived from Git tags via `setuptools-scm`;
 - merging that release PR creates the version tag, updates `CHANGELOG.md`, and
   creates the GitHub release;
 - publication to PyPI remains a local manual step.
