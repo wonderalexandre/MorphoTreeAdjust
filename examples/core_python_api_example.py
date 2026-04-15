@@ -21,7 +21,7 @@ adjust = mta.DynamicComponentTreeAdjustment(mintree, maxtree)
 adjust.refreshAttributes()
 
 casf = mta.ComponentTreeCasf(image, "area", adj)
-filtered = casf.filter([1, 2], "hybrid")
+filtered = casf.filter([1, 2])
 
 print("num nodes (max-tree):", maxtree.numNodes)
 print("filtered image:")

@@ -25,11 +25,10 @@ int main() {
     DynamicAreaComputer minAreaComputer(&minTree);
     auto maxArea = maxAreaComputer.compute();
     auto minArea = minAreaComputer.compute();
-    adjust.setAttributeComputer(minAreaComputer, maxAreaComputer,
-                                std::span<float>(minArea), std::span<float>(maxArea));
+    adjust.setAttributeComputer(minAreaComputer, maxAreaComputer, std::span<float>(minArea), std::span<float>(maxArea));
 
     ComponentTreeCasf<AltitudeType> casf(image->clone(), adj, AREA);
-    auto filtered = casf.filter(std::vector<int>{1, 2}, ComponentTreeCasf<AltitudeType>::Mode::Hybrid);
+    auto filtered = casf.filter(std::vector<int>{1, 2}, ComponentTreeCasf<AltitudeType>::Mode::Updating);
 
     return filtered == nullptr ? 1 : 0;
 }

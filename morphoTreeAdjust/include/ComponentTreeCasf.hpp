@@ -42,9 +42,7 @@ private:
         return normalized;
     }
 
-    static std::vector<NodeId> getNodesToPrune(const DynamicComponentTree &tree,
-                                               const std::vector<float> &attribute,
-                                               int threshold) {
+    static std::vector<NodeId> getNodesToPrune(const DynamicComponentTree &tree, const std::vector<float> &attribute, int threshold) {
         std::vector<NodeId> out;
         FastQueue<NodeId> queue;
         queue.push(tree.getRoot());
@@ -95,10 +93,7 @@ private:
     void refreshAttributeBuffers() {
         maxAttribute_ = computeAttribute(*maxtree_, attribute_);
         minAttribute_ = computeAttribute(*mintree_, attribute_);
-        adjust_->setAttributeComputer(*minAttributeComputer_,
-                                      *maxAttributeComputer_,
-                                      std::span<float>(minAttribute_),
-                                      std::span<float>(maxAttribute_));
+        adjust_->setAttributeComputer(*minAttributeComputer_, *maxAttributeComputer_, std::span<float>(minAttribute_), std::span<float>(maxAttribute_));
     }
 
     void applyUpdatingThreshold(int threshold) {
@@ -133,19 +128,13 @@ private:
     }
 
 public:
-    ComponentTreeCasf(ImageUInt8Ptr image,
-                      double radiusAdj,
-                      Attribute attribute = AREA)
-        : adjacency_(image ? std::make_shared<AdjacencyRelation>(image->getNumRows(), image->getNumCols(), radiusAdj) : nullptr),
-          attribute_(attribute) {
+    ComponentTreeCasf(ImageUInt8Ptr image, double radiusAdj, Attribute attribute = AREA)
+        : adjacency_(image ? std::make_shared<AdjacencyRelation>(image->getNumRows(), image->getNumCols(), radiusAdj) : nullptr), attribute_(attribute) {
         rebuildFromImage(image);
     }
 
-    ComponentTreeCasf(ImageUInt8Ptr image,
-                      AdjacencyRelationPtr adjacency,
-                      Attribute attribute = AREA)
-        : adjacency_(std::move(adjacency)),
-          attribute_(attribute) {
+    ComponentTreeCasf(ImageUInt8Ptr image, AdjacencyRelationPtr adjacency, Attribute attribute = AREA)
+        : adjacency_(std::move(adjacency)), attribute_(attribute) {
         if (adjacency_ == nullptr) {
             throw std::runtime_error("ComponentTreeCasf requires a valid adjacency relation.");
         }

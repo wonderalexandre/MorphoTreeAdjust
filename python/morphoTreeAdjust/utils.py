@@ -13,6 +13,55 @@ except Exception:  # pragma: no cover
     mta = None  # for type hints; at runtime, install the [viz] extra
 
 
+def _is_dynamic_tree(tree) -> bool:
+    return all(hasattr(tree, attr) for attr in (
+        "nodes",
+        "root",
+        "getChildren",
+        "getAltitude",
+        "getPixelsOfCC",
+        "reconstructionImage",
+    ))
+
+
+def _as_image(image, *, num_rows=None, num_cols=None):
+    array = np.asarray(image)
+    if array.ndim == 1 and num_rows is not None and num_cols is not None:
+        return array.reshape(num_rows, num_cols)
+    return array
+
+
+def _dynamic_tree_pixels(tree, node_id, *, use_subtree=False):
+    if use_subtree and hasattr(tree, "getNodeSubtree"):
+        pixels = []
+        for subtree_node in tree.getNodeSubtree(node_id):
+            pixels.extend(tree.getPixelsOfCC(subtree_node))
+        return pixels
+    return list(tree.getPixelsOfCC(node_id))
+
+
+def _dynamic_tree_value(tree, node_id, attrs):
+    values = []
+    for attr in attrs:
+        if attr == "id":
+            values.append(node_id)
+        elif attr in {"level", "altitude"}:
+            values.append(tree.getAltitude(node_id))
+        elif attr == "area":
+            values.append(len(tree.getPixelsOfCC(node_id)))
+        elif attr == "parent":
+            values.append(tree.getNodeParent(node_id))
+        elif attr == "children":
+            values.append(tree.getChildren(node_id))
+        elif attr == "num_children":
+            values.append(len(tree.getChildren(node_id)))
+        elif attr == "subtree_size" and hasattr(tree, "getNodeSubtree"):
+            values.append(len(tree.getNodeSubtree(node_id)))
+        else:
+            values.append(f"<unsupported:{attr}>")
+    return ": ".join(str(value) for value in values)
+
+
 
 # --- Minimal ANSI-aware utilities ---
 _ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
@@ -163,6 +212,15 @@ class PrintTree:
 
 
 def printTree(root, attrs=['id', 'level', 'area']):
+    if _is_dynamic_tree(root):
+        tree = root
+        _printTree = PrintTree(
+            lambda node_id: tree.getChildren(node_id),
+            lambda node_id: _dynamic_tree_value(tree, node_id, attrs),
+            color='\x1b[40m\x1b[37m'
+        )
+        return _printTree(tree.root)
+
     _printTree = PrintTree(
         lambda n: n.children,
         lambda n: ": ".join(str(getattr(n, a)) for a in attrs),
@@ -232,6 +290,32 @@ def showLevelSets(img_f):
 
 
 def showTree(tree):
+    if _is_dynamic_tree(tree):
+        if(tree.isMaxtree):
+            print("Image and its max-tree representation. The indices of max-tree nodes are shown as labels on the image.")
+        else:
+            print("Image and its min-tree representation. The indices of min-tree nodes are shown as labels on the image.")
+
+        image = _as_image(tree.reconstructionImage(), num_rows=tree.numRows, num_cols=tree.numCols)
+        ids_position = []
+        for node_id in tree.nodes:
+            pixels = tree.getPixelsOfCC(node_id)
+            r, c = computeCentroid(pixels, tree.numCols)
+            ids_position.append((node_id, r, c))
+
+        plt.figure(figsize=(8, 6))
+        ax = plt.gca()
+        ax.add_patch(plt.Rectangle((0, 0), image.shape[1] - 1, image.shape[0] - 1, edgecolor='red', linewidth=0.5, fill=False))
+        plt.imshow(image, cmap='gray')
+
+        for node_id, y, x in ids_position:
+            plt.text(x, y, f'•{node_id}', color='red', fontsize=9)
+
+        plt.axis('off')
+        plt.show()
+        printTree(tree)
+        return
+
     if(tree.isMaxtree):
         print("Image and its max-tree representation. The indices of max-tree nodes are shown as labels on the image.")
     else:
@@ -265,6 +349,32 @@ def showTree(tree):
 
     
 def showNode(tree, node, showCNPs=False):
+    if _is_dynamic_tree(tree):
+        pixels = _dynamic_tree_pixels(tree, node, use_subtree=False)
+        image = _as_image(tree.reconstructionImage(), num_rows=tree.numRows, num_cols=tree.numCols)
+        mask = np.zeros((tree.numRows, tree.numCols), dtype=np.uint8)
+        for p in pixels:
+            row, col = divmod(p, tree.numCols)
+            mask[row, col] = 1
+
+        fig, ax = plt.subplots(figsize=(6, 6))
+        ax.imshow(image, cmap='gray_r')
+        ax.imshow(mask, cmap='autumn', alpha=0.55)
+        ax.add_patch(plt.Rectangle((0, 0), image.shape[1] - 1, image.shape[0] - 1, edgecolor='red', linewidth=0.5, fill=False))
+
+        if showCNPs:
+            for p in pixels:
+                row, col = divmod(p, tree.numCols)
+                ax.scatter(col, row, color='red', s=6)
+
+        ax.set_title(
+            f"node={node} level={tree.getAltitude(node)} "
+            f"pixels={len(pixels)}"
+        )
+        ax.axis("off")
+        plt.show()
+        return
+
     image = tree.reconstructionNode(node).reshape(tree.numRows, tree.numCols)
     ax = plt.gca()  # Get the current axis
     ax.imshow(image, cmap='gray_r')
@@ -278,3 +388,54 @@ def showNode(tree, node, showCNPs=False):
 
     ax.set_title(f"{node}")
     ax.axis("off")
+
+
+def showSubtree(tree, node, showCNPs=False):
+    if _is_dynamic_tree(tree):
+        pixels = _dynamic_tree_pixels(tree, node, use_subtree=True)
+        image = _as_image(tree.reconstructionImage(), num_rows=tree.numRows, num_cols=tree.numCols)
+        mask = np.zeros((tree.numRows, tree.numCols), dtype=np.uint8)
+        for p in pixels:
+            row, col = divmod(p, tree.numCols)
+            mask[row, col] = 1
+
+        fig, ax = plt.subplots(figsize=(8, 6))
+        ax.imshow(image, cmap='gray_r')
+        ax.imshow(mask, cmap='autumn', alpha=0.55)
+        ax.add_patch(plt.Rectangle((0, 0), image.shape[1] - 1, image.shape[0] - 1, edgecolor='red', linewidth=0.5, fill=False))
+
+        if showCNPs:
+            for p in pixels:
+                row, col = divmod(p, tree.numCols)
+                ax.scatter(col, row, color='red', s=6)
+
+        subtree_size = len(tree.getNodeSubtree(node)) if hasattr(tree, "getNodeSubtree") else 1
+        ax.set_title(
+            f"subtree root={node} level={tree.getAltitude(node)} "
+            f"subtree_size={subtree_size}"
+        )
+        ax.axis("off")
+        plt.show()
+        return
+
+    return showNode(tree, node, showCNPs=showCNPs)
+
+
+def treeRows(tree):
+    if not _is_dynamic_tree(tree):
+        raise TypeError("treeRows currently supports only the dynamic tree API.")
+
+    rows = []
+    for node_id in tree.nodes:
+        row = {
+            "node": node_id,
+            "altitude": tree.getAltitude(node_id),
+            "parent": tree.getNodeParent(node_id),
+            "children": tree.getChildren(node_id),
+            "num_pixels": len(tree.getPixelsOfCC(node_id)),
+            "is_leaf": tree.isLeaf(node_id),
+        }
+        if hasattr(tree, "getNodeSubtree"):
+            row["subtree_size"] = len(tree.getNodeSubtree(node_id))
+        rows.append(row)
+    return rows

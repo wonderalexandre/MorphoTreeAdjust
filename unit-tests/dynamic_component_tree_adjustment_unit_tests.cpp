@@ -282,9 +282,9 @@ void testDynamicAdjustmentMatchesNaiveBaseline() {
 }
 
 void testDynamicAdjustmentMatchesNaiveOnRecordedSubtreeRegression() {
-    const std::string inputPath =
-        "/Users/wonderalexandre/GitHub/MorphoTreeAdjust/dev-tools/dat/misc256/dynamic_subtree_bug_repro_crop_30x219.pgm";
-    const std::vector<int> thresholds = {655, 1311, 1966, 2621, 3277, 3932, 4588, 5243, 5898, 6554};
+    const auto inputPath =
+        (std::filesystem::path(__FILE__).parent_path().parent_path() / "dat/cameraman.pgm").string();
+    const std::vector<int> thresholds = {32, 64, 96, 128, 160, 192};
 
     auto input = loadPgmImage(inputPath);
     auto adj = std::make_shared<AdjacencyRelation>(input->getNumRows(), input->getNumCols(), 1.0);

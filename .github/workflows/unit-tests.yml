@@ -1,23 +1,45 @@
-name: Unit Tests
+name: CI
 
 on:
+  workflow_dispatch:
   pull_request:
   push:
     branches:
       - main
 
+permissions:
+  contents: read
+
+concurrency:
+  group: unit-tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   unit-tests:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install toolchain
+      - name: Install toolchain (Ubuntu)
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build g++
+          sudo apt-get install -y cmake ninja-build g++ clang
+
+      - name: Install toolchain (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          command -v cmake >/dev/null || brew install cmake
+          command -v ninja >/dev/null || brew install ninja
 
       - name: Configure
         run: |
@@ -33,4 +55,58 @@ jobs:
         run: cmake --build "$RUNNER_TEMP/MorphoTreeAdjust-build"
 
       - name: Run tests
-        run: ctest --test-dir "$RUNNER_TEMP/MorphoTreeAdjust-build" --output-on-failure
+        run: ctest --test-dir "$RUNNER_TEMP/MorphoTreeAdjust-build" -L core --output-on-failure
+
+  build-distributions:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build g++
+
+      - name: Install packaging tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build twine
+
+      - name: Build distributions
+        run: python -m build
+
+      - name: Check distributions
+        run: python -m twine check dist/*
+
+      - name: Smoke test wheel install
+        run: |
+          python -m venv .venv-ci
+          . .venv-ci/bin/activate
+          python -m pip install --upgrade pip
+          python -m pip install dist/*.whl
+          python - <<'PY'
+          import morphoTreeAdjust as mta
+          required = [
+              "AdjacencyRelation",
+              "DynamicComponentTree",
+              "DynamicComponentTreeAdjustment",
+              "ComponentTreeCasf",
+          ]
+          missing = [name for name in required if not hasattr(mta, name)]
+          if missing:
+              raise SystemExit(f"Missing public symbols after wheel install: {missing}")
+          print("wheel smoke test: OK")
+          PY
+
+      - name: Upload distributions
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-distributions
+          path: dist/*

@@ -303,7 +303,7 @@ void testDynamicLeafRandomStressMatchesNaiveLeaf() {
 void testDynamicLeafHouseThreshold50Regression() {
     constexpr int kThreshold = 50;
     const auto housePath =
-        (std::filesystem::path(__FILE__).parent_path().parent_path() / "dev-tools/dat/misc256/house.png").string();
+        (std::filesystem::path(__FILE__).parent_path().parent_path() / "dat/misc256/house.png").string();
     auto image = load_gray_image(housePath);
     auto adj = std::make_shared<AdjacencyRelation>(image->getNumRows(), image->getNumCols(), 1.0);
 
