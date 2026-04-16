@@ -1,0 +1,12 @@
+# Sensitive automation and repository policy
+/.github/workflows/* @wonderalexandre
+/.github/CODEOWNERS @wonderalexandre
+
+# Packaging and release surface
+/pyproject.toml @wonderalexandre
+/CMakeLists.txt @wonderalexandre
+/cmake/* @wonderalexandre
+
+# Python extension and package surface
+/morphoTreeAdjust/morphoTreeAdjust.cpp @wonderalexandre
+/python/morphoTreeAdjust/* @wonderalexandre
