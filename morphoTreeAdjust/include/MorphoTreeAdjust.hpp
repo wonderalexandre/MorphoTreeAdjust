@@ -7,7 +7,7 @@
  * repository:
  *
  * - per-pixel dynamic trees;
- * - primal/dual dynamic adjustment;
+ * - dual min/max tree incremental filtering;
  * - CASF on the main per-pixel line.
  *
  * It defines the published C++ surface of the repository.
@@ -18,5 +18,5 @@
 #include "Common.hpp"
 #include "ComponentTreeCasf.hpp"
 #include "DynamicComponentTree.hpp"
-#include "DynamicComponentTreeAdjustment.hpp"
-#include "DynamicComponentTreeAdjustmentLeaf.hpp"
+#include "DualMinMaxTreeIncrementalFilter.hpp"
+#include "DualMinMaxTreeIncrementalFilterLeaf.hpp"

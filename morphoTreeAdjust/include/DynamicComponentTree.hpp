@@ -21,7 +21,7 @@
  *
  * - image pixels are indexed by `PixelId`;
  * - hierarchy nodes are indexed by `NodeId`, in a dense id space from `0` to
- *   `numInternalNodeSlots_ - 1`;
+ *   `nodeParent_.size() - 1`;
  * - each live node represents a connected component at one level;
  * - each pixel belongs directly to exactly one live node;
  * - the full support of a node is given by its subtree.
@@ -29,22 +29,22 @@
  * Hierarchy encoding:
  *
  * - the parent relation is encoded by `nodeParent_`, which stores the direct
- *   parent of each node and therefore has size `numInternalNodeSlots_`;
+ *   parent of each node and therefore defines the node id space;
  * - the child relation is encoded by the doubly linked child backend
  *   `firstChild_`, `lastChild_`, `nextSibling_`, and `prevSibling_`; each of
- *   these arrays has size `numInternalNodeSlots_`;
+ *   these arrays has size `nodeParent_.size()`;
  * - the node-to-pixel relation for direct proper parts is encoded by
  *   `properHead_`, `properTail_`, `nextProperPart_`, and `prevProperPart_`;
  *   `properHead_` and `properTail_` are node-indexed and have size
- *   `numInternalNodeSlots_`, while `nextProperPart_` and `prevProperPart_` are
- *   pixel-indexed and have size `numTotalProperParts_`;
+ *   `nodeParent_.size()`, while `nextProperPart_` and `prevProperPart_` are
+ *   pixel-indexed and have size `properPartOwner_.size()`;
  * - the pixel-to-node relation is encoded by `properPartOwner_`, which stores
  *   the current direct owner of each pixel and has size
- *   `numTotalProperParts_`;
+ *   `properPartOwner_.size()`;
  * - `altitude_` stores the canonical level associated with each node and has
- *   size `numInternalNodeSlots_`;
+ *   size `nodeParent_.size()`;
  * - `freeNodeIds_` stores released node slots that may later be reused; its
- *   current size is dynamic and never exceeds `numInternalNodeSlots_`.
+ *   current size is dynamic and never exceeds `nodeParent_.size()`.
 
  *
  * Fundamental invariants:
@@ -127,10 +127,9 @@ private:
     int numCols_ = 0;
     bool isMaxtree_ = true;
 
-    // Size of the pixel domain and the node domain.
-    int numTotalProperParts_ = 0;
-    int numInternalNodeSlots_ = 0;
+    // Current root and live-node cache.
     NodeId rootNodeId_ = InvalidNode;
+    int numNodes_ = 0;
 
     // Main hierarchy structure indexed only by nodes.
     std::vector<int> altitude_; //This is unique attribute of the node, so it is stored in a separate vector for better cache performance.
@@ -165,9 +164,8 @@ private:
      * The node vectors and pixel vectors are kept separate.
      */
     void initializeStorage(int numProperParts, int numInternalNodeSlots) {
-        numTotalProperParts_ = numProperParts;
-        numInternalNodeSlots_ = numInternalNodeSlots;
         rootNodeId_ = InvalidNode;
+        numNodes_ = 0;
 
         altitude_.assign((size_t) std::max(0, numInternalNodeSlots), 0);
         freeNodeIds_.clear();
@@ -181,9 +179,9 @@ private:
         properTail_.assign((size_t) std::max(0, numInternalNodeSlots), InvalidNode);
         numProperPartsByNode_.assign((size_t) std::max(0, numInternalNodeSlots), 0);
 
-        properPartOwner_.assign((size_t) std::max(0, numTotalProperParts_), InvalidNode);
-        nextProperPart_.assign((size_t) std::max(0, numTotalProperParts_), InvalidNode);
-        prevProperPart_.assign((size_t) std::max(0, numTotalProperParts_), InvalidNode);
+        properPartOwner_.assign((size_t) std::max(0, numProperParts), InvalidNode);
+        nextProperPart_.assign((size_t) std::max(0, numProperParts), InvalidNode);
+        prevProperPart_.assign((size_t) std::max(0, numProperParts), InvalidNode);
 
         nodeStructureVersion_ = 0;
         topologyVersion_ = 0;
@@ -309,6 +307,7 @@ private:
         nodeParent_[nodeId] = InvalidNode;
         altitude_[nodeId] = 0;
         freeNodeIds_.push_back(nodeId);
+        numNodes_--;
     }
 
 public:
@@ -487,6 +486,7 @@ public:
                 nodeParent_[dynamicNodeId] = dynamicNodeId;
                 pixelToNodeId[p] = dynamicNodeId;
                 altitude_[dynamicNodeId] = img[p];
+                numNodes_++;
             } else if (img[p] != img[parent[p]]) {
                 const NodeId dynamicNodeId = nextNodeId++;
                 const NodeId dynamicParentId = pixelToNodeId[parent[p]];
@@ -494,6 +494,7 @@ public:
                 linkChildBack(dynamicParentId, dynamicNodeId);
                 pixelToNodeId[p] = dynamicNodeId;
                 altitude_[dynamicNodeId] = img[p];
+                numNodes_++;
             } else {
                 pixelToNodeId[p] = pixelToNodeId[parent[p]];
             }
@@ -509,18 +510,14 @@ public:
     /**
      * @brief Total number of image pixels.
      */
-    int getNumTotalProperParts() const { return numTotalProperParts_; }
+    int getNumTotalProperParts() const { return static_cast<int>(properPartOwner_.size()); }
     /**
      * @brief Total number of node indices maintained by the instance.
      *
      * Some of these nodes may be live, while others may already have been
      * released for reuse.
      */
-    int getNumInternalNodeSlots() const { return numInternalNodeSlots_; }
-    /**
-     * @brief Size of the node domain.
-     */
-    int getGlobalIdSpaceSize() const { return numInternalNodeSlots_; }
+    int getNumInternalNodeSlots() const { return static_cast<int>(nodeParent_.size()); }
     /**
      * @brief Id of the current hierarchy root.
      */
@@ -552,7 +549,7 @@ public:
      * This does not imply that the node is live; for that, use `isAlive`.
      */
     bool isNode(NodeId nodeId) const {
-        return nodeId >= 0 && nodeId < getGlobalIdSpaceSize();
+        return nodeId >= 0 && nodeId < getNumInternalNodeSlots();
     }
 
     /**
@@ -568,15 +565,7 @@ public:
      * Unlike `getNumInternalNodeSlots()`, this function ignores nodes that have
      * already been released.
      */
-    int getNumNodes() const {
-        int count = 0;
-        for (NodeId nodeId = 0; nodeId < getGlobalIdSpaceSize(); ++nodeId) {
-            if (isAlive(nodeId)) {
-                ++count;
-            }
-        }
-        return count;
-    }
+    int getNumNodes() const { return numNodes_; }
 
     /**
      * @brief Tests whether a node is currently live.
@@ -788,6 +777,7 @@ public:
         properTail_[nodeId] = InvalidNode;
         numProperPartsByNode_[nodeId] = 0;
         altitude_[nodeId] = 0;
+        numNodes_++;
         nodeStructureVersion_++;
         return nodeId;
     }
@@ -817,9 +807,7 @@ public:
         }
         unlinkChild(childId);
         if (releaseNodeFlag) {
-            nodeParent_[childId] = InvalidNode;
-            altitude_[childId] = 0;
-            freeNodeIds_.push_back(childId);
+            releaseNodeSlot(childId);
             nodeStructureVersion_++;
         } else {
             nodeParent_[childId] = childId;
@@ -955,7 +943,7 @@ public:
     ImageUInt8Ptr reconstructionImage() const {
         auto image = ImageUInt8::create(numRows_, numCols_, 0);
         auto *data = image->rawData();
-        for (PixelId pixelId = 0; pixelId < numTotalProperParts_; ++pixelId) {
+        for (PixelId pixelId = 0; pixelId < getNumTotalProperParts(); ++pixelId) {
             const NodeId ownerId = properPartOwner_[pixelId];
             if (ownerId == InvalidNode) {
                 continue;

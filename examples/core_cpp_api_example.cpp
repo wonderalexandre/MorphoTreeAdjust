@@ -20,7 +20,7 @@ int main() {
     DynamicComponentTree maxTree(image->clone(), true, adj);
     DynamicComponentTree minTree(image->clone(), false, adj);
 
-    DynamicComponentTreeAdjustment<AltitudeType> adjust(&minTree, &maxTree, *adj);
+    DualMinMaxTreeIncrementalFilter<AltitudeType> adjust(&minTree, &maxTree, *adj);
     DynamicAreaComputer maxAreaComputer(&maxTree);
     DynamicAreaComputer minAreaComputer(&minTree);
     auto maxArea = maxAreaComputer.compute();

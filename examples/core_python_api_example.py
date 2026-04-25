@@ -17,8 +17,7 @@ adj = mta.AdjacencyRelation(image.shape[0], image.shape[1], 1.5)
 maxtree = mta.DynamicComponentTree(image, True, adj)
 mintree = mta.DynamicComponentTree(image, False, adj)
 
-adjust = mta.DynamicComponentTreeAdjustment(mintree, maxtree)
-adjust.refreshAttributes()
+adjust = mta.DualMinMaxTreeIncrementalFilter(mintree, maxtree)
 
 casf = mta.ComponentTreeCasf(image, "area", adj)
 filtered = casf.filter([1, 2])

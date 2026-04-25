@@ -12,7 +12,7 @@
 #include "AttributeComputer.hpp"
 #include "Common.hpp"
 #include "DynamicComponentTree.hpp"
-#include "DynamicComponentTreeAdjustment.hpp"
+#include "DualMinMaxTreeIncrementalFilter.hpp"
 
 template<typename PixelType = AltitudeType>
 class ComponentTreeCasf {
@@ -32,7 +32,7 @@ private:
     std::unique_ptr<DynamicAttributeComputer> minAttributeComputer_;
     std::vector<float> maxAttribute_;
     std::vector<float> minAttribute_;
-    std::unique_ptr<DynamicComponentTreeAdjustment<PixelType>> adjust_;
+    std::unique_ptr<DualMinMaxTreeIncrementalFilter<PixelType>> adjust_;
 
     static std::string normalizeToken(std::string_view token) {
         std::string normalized(token.begin(), token.end());
@@ -86,7 +86,7 @@ private:
         mintree_ = std::make_unique<DynamicComponentTree>(image->clone(), false, adjacency_);
         maxAttributeComputer_ = makeAttributeComputer(maxtree_.get(), attribute_);
         minAttributeComputer_ = makeAttributeComputer(mintree_.get(), attribute_);
-        adjust_ = std::make_unique<DynamicComponentTreeAdjustment<PixelType>>(mintree_.get(), maxtree_.get(), *adjacency_);
+        adjust_ = std::make_unique<DualMinMaxTreeIncrementalFilter<PixelType>>(mintree_.get(), maxtree_.get(), *adjacency_);
         refreshAttributeBuffers();
     }
 

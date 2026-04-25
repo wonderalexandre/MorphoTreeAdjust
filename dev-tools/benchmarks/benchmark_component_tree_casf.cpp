@@ -16,7 +16,7 @@
 #include "../../morphoTreeAdjust/include/AttributeComputer.hpp"
 #include "../../morphoTreeAdjust/include/Common.hpp"
 #include "../../morphoTreeAdjust/include/DynamicComponentTree.hpp"
-#include "../../morphoTreeAdjust/include/DynamicComponentTreeAdjustmentInstrumented.hpp"
+#include "../../morphoTreeAdjust/include/DualMinMaxTreeIncrementalFilterInstrumented.hpp"
 
 namespace {
 
@@ -348,10 +348,10 @@ bool validate_area_buffer(const DynamicComponentTree &tree,
                           const char *treeName,
                           int threshold,
                           std::string &error) {
-    std::vector<float> fullArea(tree.getGlobalIdSpaceSize(), 0.0f);
+    std::vector<float> fullArea(tree.getNumInternalNodeSlots(), 0.0f);
     areaComputer.compute(std::span<float>(fullArea));
 
-    for (NodeId nodeId = 0; nodeId < tree.getGlobalIdSpaceSize(); ++nodeId) {
+    for (NodeId nodeId = 0; nodeId < tree.getNumInternalNodeSlots(); ++nodeId) {
         if (!tree.isAlive(nodeId)) {
             continue;
         }
@@ -381,7 +381,7 @@ private:
     AdjacencyRelationPtr adjacency_;
     DynamicComponentTree maxTree_;
     DynamicComponentTree minTree_;
-    DynamicComponentTreeAdjustmentInstrumented<AltitudeType> adjust_;
+    DualMinMaxTreeIncrementalFilterInstrumented<AltitudeType> adjust_;
     DynamicAreaComputer maxAreaComputer_;
     DynamicAreaComputer minAreaComputer_;
     std::vector<float> maxArea_;
@@ -396,8 +396,8 @@ public:
           adjust_(&minTree_, &maxTree_, *adjacency_),
           maxAreaComputer_(&maxTree_),
           minAreaComputer_(&minTree_),
-          maxArea_(maxTree_.getGlobalIdSpaceSize(), 0.0f),
-          minArea_(minTree_.getGlobalIdSpaceSize(), 0.0f) {
+          maxArea_(maxTree_.getNumInternalNodeSlots(), 0.0f),
+          minArea_(minTree_.getNumInternalNodeSlots(), 0.0f) {
         maxAreaComputer_.compute(std::span<float>(maxArea_));
         minAreaComputer_.compute(std::span<float>(minArea_));
         adjust_.setAttributeComputer(minAreaComputer_,

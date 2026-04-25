@@ -20,7 +20,7 @@
 #include "../../morphoTreeAdjust/include/AttributeComputer.hpp"
 #include "../../morphoTreeAdjust/include/Common.hpp"
 #include "../../morphoTreeAdjust/include/DynamicComponentTree.hpp"
-#include "../../morphoTreeAdjust/include/DynamicComponentTreeAdjustmentInstrumented.hpp"
+#include "../../morphoTreeAdjust/include/DualMinMaxTreeIncrementalFilterInstrumented.hpp"
 
 #include "../external/stb/stb_image.h"
 
@@ -1014,7 +1014,7 @@ static MethodResult runOurSubtreeMethod(ImageUInt8Ptr image, const BenchOptions 
         buildMinSw.pause();
         buildSw.pause();
 
-        DynamicComponentTreeAdjustmentInstrumented<AltitudeType> adjust(&minTree, &maxTree, *adj);
+        DualMinMaxTreeIncrementalFilterInstrumented<AltitudeType> adjust(&minTree, &maxTree, *adj);
         auto minAttributeComputer = makeIncrementalAttributeComputer(&minTree, options.attributeMode);
         auto maxAttributeComputer = makeIncrementalAttributeComputer(&maxTree, options.attributeMode);
         std::vector<float> minAreaBuffer = computeAttributeVector(&minTree, options.attributeMode);

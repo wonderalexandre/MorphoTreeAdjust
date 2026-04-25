@@ -13,6 +13,6 @@ __all__ = [
     '__version__',
     'AdjacencyRelation',
     'DynamicComponentTree',
-    'DynamicComponentTreeAdjustment',
+    'DualMinMaxTreeIncrementalFilter',
     'ComponentTreeCasf',
 ]

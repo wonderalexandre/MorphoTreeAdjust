@@ -84,7 +84,7 @@ int nid(const tree_t &tree, int oldNodeId) {
 
 int count_alive_nodes(const tree_t &tree) {
     int count = 0;
-    for (int nodeId = 0; nodeId < tree.getGlobalIdSpaceSize(); ++nodeId) {
+    for (int nodeId = 0; nodeId < tree.getNumInternalNodeSlots(); ++nodeId) {
         if (tree.isAlive(nodeId)) {
             ++count;
         }
@@ -93,14 +93,14 @@ int count_alive_nodes(const tree_t &tree) {
 }
 
 bool has_unreachable_alive_nodes(const tree_t &tree) {
-    std::vector<bool> reachable((size_t) tree.getGlobalIdSpaceSize(), false);
+    std::vector<bool> reachable((size_t) tree.getNumInternalNodeSlots(), false);
     if (tree.getRoot() != InvalidNode && tree.isAlive(tree.getRoot())) {
         for (int nodeId : tree.getNodeSubtree(tree.getRoot())) {
             reachable[(size_t) nodeId] = true;
         }
     }
 
-    for (int nodeId = 0; nodeId < tree.getGlobalIdSpaceSize(); ++nodeId) {
+    for (int nodeId = 0; nodeId < tree.getNumInternalNodeSlots(); ++nodeId) {
         if (tree.isAlive(nodeId) && !reachable[(size_t) nodeId]) {
             return true;
         }
@@ -124,7 +124,7 @@ void require_tree_consistency(const tree_t &tree) {
     int totalProperParts = 0;
     std::vector<bool> seen((size_t) tree.getNumTotalProperParts(), false);
 
-    for (int nodeId = 0; nodeId < tree.getGlobalIdSpaceSize(); ++nodeId) {
+    for (int nodeId = 0; nodeId < tree.getNumInternalNodeSlots(); ++nodeId) {
         if (!tree.isAlive(nodeId)) {
             continue;
         }
@@ -159,7 +159,7 @@ void test_initial_maxtree_matches_reference() {
     auto tree = make_component_tree_from_demo(true);
 
     require(tree.getNumTotalProperParts() == 144, "unexpected number of proper parts");
-    require(tree.getGlobalIdSpaceSize() == 15, "unexpected node domain size");
+    require(tree.getNumInternalNodeSlots() == 15, "unexpected node domain size");
     require(count_alive_nodes(tree) == 15, "unexpected number of alive internal nodes");
     require(tree.getRoot() == nid(tree, 144), "unexpected root id");
     require(tree.getAltitude(tree.getRoot()) == 1, "unexpected root altitude");

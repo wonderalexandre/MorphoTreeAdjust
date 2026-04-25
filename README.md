@@ -25,7 +25,7 @@ The central question is:
 
 > How to modify `T_f^max` to obtain `T_g^max`?
 
-This is the basis for the dynamic primal/dual adjustment work and for CASF
+This is the basis for the dual min/max tree incremental filtering work and for CASF
 implementations derived from those structures.
 
 Related papers:
@@ -77,8 +77,7 @@ adj = mta.AdjacencyRelation(image.shape[0], image.shape[1], 1.5)
 maxtree = mta.DynamicComponentTree(image, True, adj)
 mintree = mta.DynamicComponentTree(image, False, adj)
 
-adjust = mta.DynamicComponentTreeAdjustment(mintree, maxtree)
-adjust.refreshAttributes()
+adjust = mta.DualMinMaxTreeIncrementalFilter(mintree, maxtree)
 
 casf = mta.ComponentTreeCasf(image, "area", adj)
 filtered = casf.filter([1, 2])

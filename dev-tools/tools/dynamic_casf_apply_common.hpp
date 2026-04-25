@@ -14,8 +14,8 @@
 #include "../../morphoTreeAdjust/include/AttributeComputer.hpp"
 #include "../../morphoTreeAdjust/include/Common.hpp"
 #include "../../morphoTreeAdjust/include/DynamicComponentTree.hpp"
-#include "../../morphoTreeAdjust/include/DynamicComponentTreeAdjustment.hpp"
-#include "../../morphoTreeAdjust/include/DynamicComponentTreeAdjustmentLeaf.hpp"
+#include "../../morphoTreeAdjust/include/DualMinMaxTreeIncrementalFilter.hpp"
+#include "../../morphoTreeAdjust/include/DualMinMaxTreeIncrementalFilterLeaf.hpp"
 
 #include "../external/stb/stb_image.h"
 #include "../external/stb/stb_image_write.h"
@@ -58,7 +58,7 @@ inline std::unique_ptr<DynamicAttributeComputer> makeAttributeComputer(DynamicCo
 
 inline std::vector<float> computeAttributeVector(DynamicComponentTree *tree, Attribute attribute) {
     auto computer = makeAttributeComputer(tree, attribute);
-    std::vector<float> buffer(static_cast<std::size_t>(tree->getGlobalIdSpaceSize()), 0.0f);
+    std::vector<float> buffer(static_cast<std::size_t>(tree->getNumInternalNodeSlots()), 0.0f);
     if (attribute == AREA) {
         static_cast<DynamicAreaComputer *>(computer.get())->compute(std::span<float>(buffer));
     } else {
@@ -233,7 +233,7 @@ private:
     AdjacencyRelationPtr adj_;
     DynamicComponentTree maxTree_;
     DynamicComponentTree minTree_;
-    DynamicComponentTreeAdjustment<AltitudeType> adjust_;
+    DualMinMaxTreeIncrementalFilter<AltitudeType> adjust_;
     std::unique_ptr<DynamicAttributeComputer> maxAttributeComputer_;
     std::unique_ptr<DynamicAttributeComputer> minAttributeComputer_;
     Attribute attribute_;
@@ -257,8 +257,8 @@ public:
               return makeAttributeComputer(&minTree_, attribute);
           })),
           attribute_(attribute),
-          maxArea_(maxTree_.getGlobalIdSpaceSize(), 0.0f),
-          minArea_(minTree_.getGlobalIdSpaceSize(), 0.0f) {
+          maxArea_(maxTree_.getNumInternalNodeSlots(), 0.0f),
+          minArea_(minTree_.getNumInternalNodeSlots(), 0.0f) {
         timedCall(initStats_.max_attribute_values_us, [&]() {
             maxArea_ = computeAttributeVector(&maxTree_, attribute_);
         });
@@ -317,7 +317,7 @@ private:
     AdjacencyRelationPtr adj_;
     DynamicComponentTree maxTree_;
     DynamicComponentTree minTree_;
-    DynamicComponentTreeAdjustmentLeaf<AltitudeType> adjust_;
+    DualMinMaxTreeIncrementalFilterLeaf<AltitudeType> adjust_;
     std::unique_ptr<DynamicAttributeComputer> maxAttributeComputer_;
     std::unique_ptr<DynamicAttributeComputer> minAttributeComputer_;
     Attribute attribute_;
@@ -341,8 +341,8 @@ public:
               return makeAttributeComputer(&minTree_, attribute);
           })),
           attribute_(attribute),
-          maxArea_(maxTree_.getGlobalIdSpaceSize(), 0.0f),
-          minArea_(minTree_.getGlobalIdSpaceSize(), 0.0f) {
+          maxArea_(maxTree_.getNumInternalNodeSlots(), 0.0f),
+          minArea_(minTree_.getNumInternalNodeSlots(), 0.0f) {
         timedCall(initStats_.max_attribute_values_us, [&]() {
             maxArea_ = computeAttributeVector(&maxTree_, attribute_);
         });

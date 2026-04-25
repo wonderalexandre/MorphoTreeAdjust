@@ -34,7 +34,7 @@ struct DynamicBoundingBoxState {
  * - merge child contributions through `mergeProcessing`;
  * - materialize the final scalar value in `postProcessing`.
  *
- * `DynamicComponentTreeAdjustment` depends only on this interface, which makes
+ * `DualMinMaxTreeIncrementalFilter` depends only on this interface, which makes
  * it possible to swap the incremental attribute without changing the
  * structural-adjustment logic.
  */
@@ -179,8 +179,8 @@ protected:
     DynamicSummaryComputer(DynamicComponentTree *tree, Policy policy)
         : tree_(tree),
           policy_(std::move(policy)),
-          local_((size_t) (tree ? tree->getGlobalIdSpaceSize() : 0)),
-          subtree_((size_t) (tree ? tree->getGlobalIdSpaceSize() : 0)) {
+          local_((size_t) (tree ? tree->getNumInternalNodeSlots() : 0)),
+          subtree_((size_t) (tree ? tree->getNumInternalNodeSlots() : 0)) {
         initializeSummaries();
     }
 
@@ -280,7 +280,7 @@ public:
      * incremental flow.
      */
     std::vector<float> compute() const {
-        std::vector<float> buffer((size_t) (tree_ ? tree_->getGlobalIdSpaceSize() : 0), 0.0f);
+        std::vector<float> buffer((size_t) (tree_ ? tree_->getNumInternalNodeSlots() : 0), 0.0f);
         compute(std::span<float>(buffer));
         return buffer;
     }
@@ -306,7 +306,7 @@ public:
  * - the areas of all children in the subtree.
  *
  * The class also exposes the `preProcessing` / `mergeProcessing` /
- * `postProcessing` interface used by `DynamicComponentTreeAdjustment` to
+ * `postProcessing` interface used by `DualMinMaxTreeIncrementalFilter` to
  * recompute only the nodes affected by a local mutation.
  *
  * The implementation remains intentionally explicit: for `AREA`, the
@@ -370,7 +370,7 @@ public:
      * @brief Computes the full tree area and returns a new buffer.
      */
     std::vector<float> compute() {
-        std::vector<float> buffer((size_t) tree_->getGlobalIdSpaceSize(), 0.0f);
+        std::vector<float> buffer((size_t) tree_->getNumInternalNodeSlots(), 0.0f);
         compute(std::span<float>(buffer));
         return buffer;
     }

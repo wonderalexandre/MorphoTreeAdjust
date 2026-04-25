@@ -12,8 +12,8 @@
 #include "../../morphoTreeAdjust/include/AttributeComputer.hpp"
 #include "../../morphoTreeAdjust/include/Common.hpp"
 #include "../../morphoTreeAdjust/include/DynamicComponentTree.hpp"
-#include "../../morphoTreeAdjust/include/DynamicComponentTreeAdjustment.hpp"
-#include "../../morphoTreeAdjust/include/DynamicComponentTreeAdjustmentInstrumented.hpp"
+#include "../../morphoTreeAdjust/include/DualMinMaxTreeIncrementalFilter.hpp"
+#include "../../morphoTreeAdjust/include/DualMinMaxTreeIncrementalFilterInstrumented.hpp"
 
 #include "../external/stb/stb_image.h"
 
@@ -63,8 +63,8 @@ static std::vector<float> computeAreaAttribute(DynamicComponentTree *tree) {
 
 static std::vector<NodeId> getNodesThreshold(DynamicComponentTree *tree, const std::vector<float> &attribute, int threshold) {
     std::vector<NodeId> nodesToPrune;
-    nodesToPrune.reserve(static_cast<std::size_t>(std::max(0, tree->getGlobalIdSpaceSize() / 8)));
-    for (NodeId nodeId = 0; nodeId < tree->getGlobalIdSpaceSize(); ++nodeId) {
+    nodesToPrune.reserve(static_cast<std::size_t>(std::max(0, tree->getNumInternalNodeSlots() / 8)));
+    for (NodeId nodeId = 0; nodeId < tree->getNumInternalNodeSlots(); ++nodeId) {
         if (!tree->isNode(nodeId) || !tree->isAlive(nodeId) || tree->isRoot(nodeId)) {
             continue;
         }
@@ -110,7 +110,7 @@ static RunResult runBase(ImageUInt8Ptr image, double radioAdj, const std::vector
     auto adj = std::make_shared<AdjacencyRelation>(image->getNumRows(), image->getNumCols(), radioAdj);
     DynamicComponentTree maxTree(image, true, adj);
     DynamicComponentTree minTree(image, false, adj);
-    DynamicComponentTreeAdjustment<AltitudeType> adjust(&minTree, &maxTree, *adj);
+    DualMinMaxTreeIncrementalFilter<AltitudeType> adjust(&minTree, &maxTree, *adj);
     adjust.setRuntimePostConditionValidationEnabled(true);
 
     Stopwatch phase1UpdateSw;
@@ -149,7 +149,7 @@ static RunResult runInstrumented(ImageUInt8Ptr image, double radioAdj, const std
     auto adj = std::make_shared<AdjacencyRelation>(image->getNumRows(), image->getNumCols(), radioAdj);
     DynamicComponentTree maxTree(image, true, adj);
     DynamicComponentTree minTree(image, false, adj);
-    DynamicComponentTreeAdjustmentInstrumented<AltitudeType> adjust(&minTree, &maxTree, *adj);
+    DualMinMaxTreeIncrementalFilterInstrumented<AltitudeType> adjust(&minTree, &maxTree, *adj);
     adjust.setRuntimePostConditionValidationEnabled(true);
 
     Stopwatch phase1UpdateSw;

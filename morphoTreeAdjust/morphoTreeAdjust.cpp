@@ -3,7 +3,7 @@
 #include "include/Common.hpp"
 #include "include/ComponentTreeCasf.hpp"
 #include "include/DynamicComponentTree.hpp"
-#include "include/DynamicComponentTreeAdjustment.hpp"
+#include "include/DualMinMaxTreeIncrementalFilter.hpp"
 
 #include <memory>
 #include <span>
@@ -76,7 +76,7 @@ Attribute parse_attribute_string(const std::string &attribute) {
 std::vector<NodeId> alive_nodes(const DynamicComponentTree &tree) {
     std::vector<NodeId> nodes;
     nodes.reserve(static_cast<size_t>(tree.getNumNodes()));
-    for (NodeId nodeId = 0; nodeId < tree.getGlobalIdSpaceSize(); ++nodeId) {
+    for (NodeId nodeId = 0; nodeId < tree.getNumInternalNodeSlots(); ++nodeId) {
         if (tree.isAlive(nodeId)) {
             nodes.push_back(nodeId);
         }
@@ -119,7 +119,7 @@ std::vector<NodeId> breadth_first_nodes_of(const DynamicComponentTree &tree) {
     return nodes;
 }
 
-class PyDynamicComponentTreeAdjustment {
+class PyDualMinMaxTreeIncrementalFilter {
 private:
     std::shared_ptr<DynamicComponentTree> mintree_;
     std::shared_ptr<DynamicComponentTree> maxtree_;
@@ -127,30 +127,51 @@ private:
     DynamicAreaComputer maxAreaComputer_;
     std::vector<float> minArea_;
     std::vector<float> maxArea_;
-    DynamicComponentTreeAdjustment<AltitudeType> adjust_;
+    DualMinMaxTreeIncrementalFilter<AltitudeType> adjust_;
+
+    static DynamicComponentTree *requireTree(const std::shared_ptr<DynamicComponentTree> &tree, const char *name) {
+        if (tree == nullptr) {
+            throw std::runtime_error(std::string("DualMinMaxTreeIncrementalFilter requires a valid ") + name + ".");
+        }
+        return tree.get();
+    }
+
+    static AdjacencyRelation &requireAdjacency(const std::shared_ptr<DynamicComponentTree> &mintree,
+                                               const std::shared_ptr<DynamicComponentTree> &maxtree) {
+        DynamicComponentTree *minTreePtr = requireTree(mintree, "min-tree");
+        DynamicComponentTree *maxTreePtr = requireTree(maxtree, "max-tree");
+        if (minTreePtr->getAdjacencyRelation() == nullptr || maxTreePtr->getAdjacencyRelation() == nullptr) {
+            throw std::runtime_error("DualMinMaxTreeIncrementalFilter requires trees with adjacency information.");
+        }
+        return *minTreePtr->getAdjacencyRelation();
+    }
+
+    static std::vector<float> liveNodeAreaSnapshot(const DynamicComponentTree &tree, const std::vector<float> &area) {
+        std::vector<float> snapshot = area;
+        snapshot.resize(static_cast<size_t>(tree.getNumInternalNodeSlots()), 0.0f);
+        for (NodeId nodeId = 0; nodeId < tree.getNumInternalNodeSlots(); ++nodeId) {
+            if (!tree.isAlive(nodeId)) {
+                snapshot[static_cast<size_t>(nodeId)] = 0.0f;
+            }
+        }
+        return snapshot;
+    }
 
     void refreshAreaBuffers() {
-        minArea_.assign(static_cast<size_t>(mintree_->getGlobalIdSpaceSize()), 0.0f);
-        maxArea_.assign(static_cast<size_t>(maxtree_->getGlobalIdSpaceSize()), 0.0f);
+        minArea_.assign(static_cast<size_t>(mintree_->getNumInternalNodeSlots()), 0.0f);
+        maxArea_.assign(static_cast<size_t>(maxtree_->getNumInternalNodeSlots()), 0.0f);
         minAreaComputer_.compute(std::span<float>(minArea_));
         maxAreaComputer_.compute(std::span<float>(maxArea_));
         adjust_.setAttributeComputer(minAreaComputer_, maxAreaComputer_, std::span<float>(minArea_), std::span<float>(maxArea_));
     }
 
 public:
-    PyDynamicComponentTreeAdjustment(std::shared_ptr<DynamicComponentTree> mintree,
-                                     std::shared_ptr<DynamicComponentTree> maxtree)
+    PyDualMinMaxTreeIncrementalFilter(std::shared_ptr<DynamicComponentTree> mintree, std::shared_ptr<DynamicComponentTree> maxtree)
         : mintree_(std::move(mintree)),
           maxtree_(std::move(maxtree)),
-          minAreaComputer_(mintree_.get()),
-          maxAreaComputer_(maxtree_.get()),
-          adjust_(mintree_.get(), maxtree_.get(), *mintree_->getAdjacencyRelation()) {
-        if (mintree_ == nullptr || maxtree_ == nullptr) {
-            throw std::runtime_error("DynamicComponentTreeAdjustment requires valid min-tree and max-tree.");
-        }
-        if (mintree_->getAdjacencyRelation() == nullptr || maxtree_->getAdjacencyRelation() == nullptr) {
-            throw std::runtime_error("DynamicComponentTreeAdjustment requires trees with adjacency information.");
-        }
+          minAreaComputer_(requireTree(mintree_, "min-tree")),
+          maxAreaComputer_(requireTree(maxtree_, "max-tree")),
+          adjust_(mintree_.get(), maxtree_.get(), requireAdjacency(mintree_, maxtree_)) {
         refreshAreaBuffers();
     }
 
@@ -159,22 +180,22 @@ public:
     }
 
     void updateTree(const std::shared_ptr<DynamicComponentTree> &tree, NodeId subtreeRoot) {
+        if (tree.get() != mintree_.get() && tree.get() != maxtree_.get()) {
+            throw std::runtime_error("DualMinMaxTreeIncrementalFilter.updateTree requires one of the filter trees.");
+        }
         adjust_.updateTree(tree.get(), subtreeRoot);
-        refreshAreaBuffers();
     }
 
     void pruneMaxTreeAndUpdateMinTree(std::vector<NodeId> nodesToPrune) {
         adjust_.pruneMaxTreeAndUpdateMinTree(nodesToPrune);
-        refreshAreaBuffers();
     }
 
     void pruneMinTreeAndUpdateMaxTree(std::vector<NodeId> nodesToPrune) {
         adjust_.pruneMinTreeAndUpdateMaxTree(nodesToPrune);
-        refreshAreaBuffers();
     }
 
-    std::vector<float> getMinArea() const { return minArea_; }
-    std::vector<float> getMaxArea() const { return maxArea_; }
+    std::vector<float> getMinArea() const { return liveNodeAreaSnapshot(*mintree_, minArea_); }
+    std::vector<float> getMaxArea() const { return liveNodeAreaSnapshot(*maxtree_, maxArea_); }
     std::shared_ptr<DynamicComponentTree> getMinTree() const { return mintree_; }
     std::shared_ptr<DynamicComponentTree> getMaxTree() const { return maxtree_; }
     std::string getOutputLog() const { return adjust_.getOutputLog(); }
@@ -303,20 +324,20 @@ void init_dynamic_component_tree(py::module_ &m) {
 
 }
 
-void init_dynamic_component_tree_adjustment(py::module_ &m) {
-    py::class_<PyDynamicComponentTreeAdjustment>(m, "DynamicComponentTreeAdjustment")
+void init_dual_min_max_tree_incremental_filter(py::module_ &m) {
+    py::class_<PyDualMinMaxTreeIncrementalFilter>(m, "DualMinMaxTreeIncrementalFilter")
         .def(py::init<std::shared_ptr<DynamicComponentTree>, std::shared_ptr<DynamicComponentTree>>(),
              py::keep_alive<1, 2>(),
              py::keep_alive<1, 3>())
-        .def("refreshAttributes", &PyDynamicComponentTreeAdjustment::refreshAttributes)
-        .def("updateTree", &PyDynamicComponentTreeAdjustment::updateTree)
-        .def("pruneMaxTreeAndUpdateMinTree", &PyDynamicComponentTreeAdjustment::pruneMaxTreeAndUpdateMinTree)
-        .def("pruneMinTreeAndUpdateMaxTree", &PyDynamicComponentTreeAdjustment::pruneMinTreeAndUpdateMaxTree)
-        .def_property_readonly("minTree", &PyDynamicComponentTreeAdjustment::getMinTree)
-        .def_property_readonly("maxTree", &PyDynamicComponentTreeAdjustment::getMaxTree)
-        .def_property_readonly("minArea", &PyDynamicComponentTreeAdjustment::getMinArea)
-        .def_property_readonly("maxArea", &PyDynamicComponentTreeAdjustment::getMaxArea)
-        .def("log", &PyDynamicComponentTreeAdjustment::getOutputLog);
+        .def("refreshAttributes", &PyDualMinMaxTreeIncrementalFilter::refreshAttributes)
+        .def("updateTree", &PyDualMinMaxTreeIncrementalFilter::updateTree)
+        .def("pruneMaxTreeAndUpdateMinTree", &PyDualMinMaxTreeIncrementalFilter::pruneMaxTreeAndUpdateMinTree)
+        .def("pruneMinTreeAndUpdateMaxTree", &PyDualMinMaxTreeIncrementalFilter::pruneMinTreeAndUpdateMaxTree)
+        .def_property_readonly("minTree", &PyDualMinMaxTreeIncrementalFilter::getMinTree)
+        .def_property_readonly("maxTree", &PyDualMinMaxTreeIncrementalFilter::getMaxTree)
+        .def_property_readonly("minArea", &PyDualMinMaxTreeIncrementalFilter::getMinArea)
+        .def_property_readonly("maxArea", &PyDualMinMaxTreeIncrementalFilter::getMaxArea)
+        .def("log", &PyDualMinMaxTreeIncrementalFilter::getOutputLog);
 }
 
 void init_component_tree_casf(py::module_ &m) {
@@ -351,6 +372,6 @@ PYBIND11_MODULE(morphoTreeAdjust, m) {
 
     init_adjacency_relation(m);
     init_dynamic_component_tree(m);
-    init_dynamic_component_tree_adjustment(m);
+    init_dual_min_max_tree_incremental_filter(m);
     init_component_tree_casf(m);
 }

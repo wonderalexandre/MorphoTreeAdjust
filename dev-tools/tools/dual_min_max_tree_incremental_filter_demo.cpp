@@ -5,7 +5,7 @@
 #include "../../morphoTreeAdjust/include/AdjacencyRelation.hpp"
 #include "../../morphoTreeAdjust/include/Common.hpp"
 #include "../../morphoTreeAdjust/include/DynamicComponentTree.hpp"
-#include "../../morphoTreeAdjust/include/DynamicComponentTreeAdjustment.hpp"
+#include "../../morphoTreeAdjust/include/DualMinMaxTreeIncrementalFilter.hpp"
 
 static std::vector<int> getNodesThreshold(const DynamicComponentTree &tree,
                                           const std::vector<float> &area,
@@ -59,38 +59,38 @@ int main() {
     DynamicComponentTree dynamicMaxTree(input, true, adj);
     DynamicComponentTree dynamicMinTree(input, false, adj);
 
-    DynamicComponentTreeAdjustment<AltitudeType> adjust(&dynamicMinTree, &dynamicMaxTree, *adj);
+    DualMinMaxTreeIncrementalFilter<AltitudeType> adjust(&dynamicMinTree, &dynamicMaxTree, *adj);
     DynamicAreaComputer maxAreaComputer(&dynamicMaxTree);
     DynamicAreaComputer minAreaComputer(&dynamicMinTree);
-    std::vector<float> areaMax((size_t) dynamicMaxTree.getGlobalIdSpaceSize(), 0.0f);
-    std::vector<float> areaMin((size_t) dynamicMinTree.getGlobalIdSpaceSize(), 0.0f);
+    std::vector<float> areaMax((size_t) dynamicMaxTree.getNumInternalNodeSlots(), 0.0f);
+    std::vector<float> areaMin((size_t) dynamicMinTree.getNumInternalNodeSlots(), 0.0f);
     maxAreaComputer.compute(std::span<float>(areaMax));
     minAreaComputer.compute(std::span<float>(areaMin));
     adjust.setAttributeComputer(minAreaComputer, maxAreaComputer, std::span<float>(areaMin), std::span<float>(areaMax));
     auto nodesToPrune = getNodesThreshold(dynamicMaxTree, areaMax, kThreshold);
     if (nodesToPrune.empty()) {
-        std::cerr << "dynamic_component_tree_adjustment_demo: no nodes to prune\n";
+        std::cerr << "dual_min_max_tree_incremental_filter_demo: no nodes to prune\n";
         return 1;
     }
 
     adjust.pruneMaxTreeAndUpdateMinTree(nodesToPrune);
 
     if (!dynamicMinTree.isAlive(dynamicMinTree.getRoot()) || !dynamicMaxTree.isAlive(dynamicMaxTree.getRoot())) {
-        std::cerr << "dynamic_component_tree_adjustment_demo: root became invalid after adjustMinTree\n";
+        std::cerr << "dual_min_max_tree_incremental_filter_demo: root became invalid after adjustMinTree\n";
         return 1;
     }
-    if (dynamicMinTree.getGlobalIdSpaceSize() <= 0 || dynamicMaxTree.getGlobalIdSpaceSize() <= 0) {
-        std::cerr << "dynamic_component_tree_adjustment_demo: invalid internal node slot count after adjustMinTree\n";
+    if (dynamicMinTree.getNumInternalNodeSlots() <= 0 || dynamicMaxTree.getNumInternalNodeSlots() <= 0) {
+        std::cerr << "dual_min_max_tree_incremental_filter_demo: invalid internal node slot count after adjustMinTree\n";
         return 1;
     }
 
     const auto dynamicImage = dynamicMinTree.reconstructionImage();
     const auto baselineImage = runBaselineAdjustMin(input, adj, kThreshold);
     if (!dynamicImage->isEqual(baselineImage)) {
-        std::cerr << "dynamic_component_tree_adjustment_demo: dynamic result diverges from rebuild baseline\n";
+        std::cerr << "dual_min_max_tree_incremental_filter_demo: dynamic result diverges from rebuild baseline\n";
         return 1;
     }
 
-    std::cout << "DynamicComponentTreeAdjustment demo: OK\n";
+    std::cout << "DualMinMaxTreeIncrementalFilter demo: OK\n";
     return 0;
 }

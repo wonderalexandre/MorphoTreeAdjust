@@ -41,11 +41,11 @@ int main() {
 
     DynamicAreaComputer maxAreaComputer(&maxTree);
     const auto maxArea = maxAreaComputer.compute();
-    require(maxArea.size() == static_cast<size_t>(maxTree.getGlobalIdSpaceSize()),
+    require(maxArea.size() == static_cast<size_t>(maxTree.getNumInternalNodeSlots()),
             "area buffer size must match the tree global id space");
 
-    DynamicComponentTreeAdjustment<AltitudeType> subtreeAdjust(&minTree, &maxTree, *adj);
-    DynamicComponentTreeAdjustmentLeaf<AltitudeType> leafAdjust(&minTree, &maxTree, *adj);
+    DualMinMaxTreeIncrementalFilter<AltitudeType> subtreeAdjust(&minTree, &maxTree, *adj);
+    DualMinMaxTreeIncrementalFilterLeaf<AltitudeType> leafAdjust(&minTree, &maxTree, *adj);
     static_cast<void>(subtreeAdjust);
     static_cast<void>(leafAdjust);
 

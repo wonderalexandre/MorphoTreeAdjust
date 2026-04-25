@@ -56,8 +56,8 @@ set(MTA_PUBLIC_CORE_HEADER_FILES
   "${CMAKE_CURRENT_SOURCE_DIR}/morphoTreeAdjust/include/Common.hpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/morphoTreeAdjust/include/ComponentTreeCasf.hpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/morphoTreeAdjust/include/DynamicComponentTree.hpp"
-  "${CMAKE_CURRENT_SOURCE_DIR}/morphoTreeAdjust/include/DynamicComponentTreeAdjustment.hpp"
-  "${CMAKE_CURRENT_SOURCE_DIR}/morphoTreeAdjust/include/DynamicComponentTreeAdjustmentLeaf.hpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/morphoTreeAdjust/include/DualMinMaxTreeIncrementalFilter.hpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/morphoTreeAdjust/include/DualMinMaxTreeIncrementalFilterLeaf.hpp"
 )
 
 # Set up such that XCode organizes the files

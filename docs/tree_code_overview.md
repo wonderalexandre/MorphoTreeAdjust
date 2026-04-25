@@ -21,10 +21,10 @@ The central points of the repository are:
   dynamic max-tree and min-tree representation
 - [AttributeComputer.hpp](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/morphoTreeAdjust/include/AttributeComputer.hpp)
   incremental attributes associated with each node
-- [DynamicComponentTreeAdjustment.hpp](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/morphoTreeAdjust/include/DynamicComponentTreeAdjustment.hpp)
-  dynamic subtree-based adjustment
-- [DynamicComponentTreeAdjustmentLeaf.hpp](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/morphoTreeAdjust/include/DynamicComponentTreeAdjustmentLeaf.hpp)
-  dynamic leaf-based adjustment
+- [DualMinMaxTreeIncrementalFilter.hpp](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/morphoTreeAdjust/include/DualMinMaxTreeIncrementalFilter.hpp)
+  subtree-based dual min/max incremental filter
+- [DualMinMaxTreeIncrementalFilterLeaf.hpp](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/morphoTreeAdjust/include/DualMinMaxTreeIncrementalFilterLeaf.hpp)
+  leaf-based dual min/max incremental filter
 - [ComponentTreeCasf.hpp](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/morphoTreeAdjust/include/ComponentTreeCasf.hpp)
   CASF over the dynamic-tree core
 - [morphoTreeAdjust.cpp](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/morphoTreeAdjust/morphoTreeAdjust.cpp)
@@ -37,8 +37,8 @@ The main code flow can be read as follows:
 1. `AdjacencyRelation` defines the domain and connectivity.
 2. `DynamicComponentTree` materializes the base dynamic tree.
 3. `AttributeComputer` and the dynamic attributes track the nodes.
-4. `DynamicComponentTreeAdjustment` and
-   `DynamicComponentTreeAdjustmentLeaf` update the dual tree after pruning in
+4. `DualMinMaxTreeIncrementalFilter` and
+   `DualMinMaxTreeIncrementalFilterLeaf` update the dual tree after pruning in
    the primal tree.
 5. `ComponentTreeCasf` organizes that mechanism to apply CASF.
 6. `morphoTreeAdjust.cpp` exposes the same layer to Python.
@@ -49,9 +49,9 @@ The most important costs in the repository today are in:
 
 - initial construction of `DynamicComponentTree`;
 - incremental update executed by
-  `DynamicComponentTreeAdjustment`;
+  `DualMinMaxTreeIncrementalFilter`;
 - the leaf-based variant in
-  `DynamicComponentTreeAdjustmentLeaf`;
+  `DualMinMaxTreeIncrementalFilterLeaf`;
 - repeated filter application in `ComponentTreeCasf`.
 
 In practical terms:
@@ -78,7 +78,7 @@ If you want to understand the repository core in sequence:
 1. [MorphoTreeAdjust.hpp](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/morphoTreeAdjust/include/MorphoTreeAdjust.hpp)
 2. [DynamicComponentTree.hpp](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/morphoTreeAdjust/include/DynamicComponentTree.hpp)
 3. [AttributeComputer.hpp](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/morphoTreeAdjust/include/AttributeComputer.hpp)
-4. [DynamicComponentTreeAdjustment.hpp](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/morphoTreeAdjust/include/DynamicComponentTreeAdjustment.hpp)
-5. [DynamicComponentTreeAdjustmentLeaf.hpp](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/morphoTreeAdjust/include/DynamicComponentTreeAdjustmentLeaf.hpp)
+4. [DualMinMaxTreeIncrementalFilter.hpp](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/morphoTreeAdjust/include/DualMinMaxTreeIncrementalFilter.hpp)
+5. [DualMinMaxTreeIncrementalFilterLeaf.hpp](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/morphoTreeAdjust/include/DualMinMaxTreeIncrementalFilterLeaf.hpp)
 6. [ComponentTreeCasf.hpp](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/morphoTreeAdjust/include/ComponentTreeCasf.hpp)
 7. [morphoTreeAdjust.cpp](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/morphoTreeAdjust/morphoTreeAdjust.cpp)

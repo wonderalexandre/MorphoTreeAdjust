@@ -12,7 +12,7 @@
 #include "../morphoTreeAdjust/include/Common.hpp"
 #include "../morphoTreeAdjust/include/AttributeComputer.hpp"
 #include "../morphoTreeAdjust/include/DynamicComponentTree.hpp"
-#include "../morphoTreeAdjust/include/DynamicComponentTreeAdjustment.hpp"
+#include "../morphoTreeAdjust/include/DualMinMaxTreeIncrementalFilter.hpp"
 
 namespace {
 
@@ -170,7 +170,7 @@ ImageUInt8Ptr applyNaiveThreshold(ImageUInt8Ptr input,
 
 int count_alive_nodes(const DynamicComponentTree &tree) {
     int count = 0;
-    for (int nodeId = 0; nodeId < tree.getGlobalIdSpaceSize(); ++nodeId) {
+    for (int nodeId = 0; nodeId < tree.getNumInternalNodeSlots(); ++nodeId) {
         if (tree.isAlive(nodeId)) {
             ++count;
         }
@@ -179,14 +179,14 @@ int count_alive_nodes(const DynamicComponentTree &tree) {
 }
 
 bool has_unreachable_alive_nodes(const DynamicComponentTree &tree) {
-    std::vector<bool> reachable((size_t) tree.getGlobalIdSpaceSize(), false);
+    std::vector<bool> reachable((size_t) tree.getNumInternalNodeSlots(), false);
     if (tree.getRoot() != InvalidNode && tree.isAlive(tree.getRoot())) {
         for (int nodeId : tree.getNodeSubtree(tree.getRoot())) {
             reachable[(size_t) nodeId] = true;
         }
     }
 
-    for (int nodeId = 0; nodeId < tree.getGlobalIdSpaceSize(); ++nodeId) {
+    for (int nodeId = 0; nodeId < tree.getNumInternalNodeSlots(); ++nodeId) {
         if (tree.isAlive(nodeId) && !reachable[(size_t) nodeId]) {
             return true;
         }
@@ -201,7 +201,7 @@ void require_tree_consistency(const DynamicComponentTree &tree) {
 
     int totalProperParts = 0;
     std::vector<bool> seen((size_t) tree.getNumTotalProperParts(), false);
-    for (int nodeId = 0; nodeId < tree.getGlobalIdSpaceSize(); ++nodeId) {
+    for (int nodeId = 0; nodeId < tree.getNumInternalNodeSlots(); ++nodeId) {
         if (!tree.isAlive(nodeId)) {
             continue;
         }
@@ -236,7 +236,7 @@ void testUpdateTreeEmitsAdjustmentLog() {
     auto adj = std::make_shared<AdjacencyRelation>(input->getNumRows(), input->getNumCols(), 1.5);
     DynamicComponentTree maxTree(input, true, adj);
     DynamicComponentTree minTree(input, false, adj);
-    DynamicComponentTreeAdjustment<AltitudeType> adjust(&minTree, &maxTree, *adj);
+    DualMinMaxTreeIncrementalFilter<AltitudeType> adjust(&minTree, &maxTree, *adj);
     adjust.setRuntimePostConditionValidationEnabled(true);
 
     const NodeId rootSubtree = firstNonRootNode(maxTree);
@@ -259,12 +259,12 @@ void testDynamicAdjustmentMatchesNaiveBaseline() {
 
     DynamicComponentTree maxTree(input, true, adj);
     DynamicComponentTree minTree(input, false, adj);
-    DynamicComponentTreeAdjustment<AltitudeType> adjust(&minTree, &maxTree, *adj);
+    DualMinMaxTreeIncrementalFilter<AltitudeType> adjust(&minTree, &maxTree, *adj);
     adjust.setRuntimePostConditionValidationEnabled(true);
     DynamicAreaComputer maxAreaComputer(&maxTree);
     DynamicAreaComputer minAreaComputer(&minTree);
-    std::vector<float> maxArea((size_t) maxTree.getGlobalIdSpaceSize(), 0.0f);
-    std::vector<float> minArea((size_t) minTree.getGlobalIdSpaceSize(), 0.0f);
+    std::vector<float> maxArea((size_t) maxTree.getNumInternalNodeSlots(), 0.0f);
+    std::vector<float> minArea((size_t) minTree.getNumInternalNodeSlots(), 0.0f);
     maxAreaComputer.compute(std::span<float>(maxArea));
     minAreaComputer.compute(std::span<float>(minArea));
     adjust.setAttributeComputer(minAreaComputer, maxAreaComputer,
@@ -292,12 +292,12 @@ void testDynamicAdjustmentMatchesNaiveOnRecordedSubtreeRegression() {
 
     DynamicComponentTree maxTree(input, true, adj);
     DynamicComponentTree minTree(input, false, adj);
-    DynamicComponentTreeAdjustment<AltitudeType> adjust(&minTree, &maxTree, *adj);
+    DualMinMaxTreeIncrementalFilter<AltitudeType> adjust(&minTree, &maxTree, *adj);
     adjust.setRuntimePostConditionValidationEnabled(true);
     DynamicAreaComputer maxAreaComputer(&maxTree);
     DynamicAreaComputer minAreaComputer(&minTree);
-    std::vector<float> maxArea((size_t) maxTree.getGlobalIdSpaceSize(), 0.0f);
-    std::vector<float> minArea((size_t) minTree.getGlobalIdSpaceSize(), 0.0f);
+    std::vector<float> maxArea((size_t) maxTree.getNumInternalNodeSlots(), 0.0f);
+    std::vector<float> minArea((size_t) minTree.getNumInternalNodeSlots(), 0.0f);
     maxAreaComputer.compute(std::span<float>(maxArea));
     minAreaComputer.compute(std::span<float>(minArea));
     adjust.setAttributeComputer(minAreaComputer, maxAreaComputer,
@@ -316,7 +316,7 @@ void testDynamicAdjustmentMatchesNaiveOnRecordedSubtreeRegression() {
 
     const auto dynamicImage = minTree.reconstructionImage();
     require(dynamicImage->isEqual(baseline),
-            "DynamicComponentTreeAdjustment diverged from the naive baseline in the documented regression case");
+            "DualMinMaxTreeIncrementalFilter diverged from the naive baseline in the documented regression case");
 }
 
 void testSequentialMintreePrunesMatchDualReconstructionOnLargeFixture() {
@@ -325,7 +325,7 @@ void testSequentialMintreePrunesMatchDualReconstructionOnLargeFixture() {
 
     DynamicComponentTree maxTree(input, true, adj);
     DynamicComponentTree minTree(input, false, adj);
-    DynamicComponentTreeAdjustment<AltitudeType> adjust(&minTree, &maxTree, *adj);
+    DualMinMaxTreeIncrementalFilter<AltitudeType> adjust(&minTree, &maxTree, *adj);
 
     for (int pixelId : {32, 82}) {
         const NodeId rootSubtree = minTree.getSmallestComponent(pixelId);
@@ -348,11 +348,11 @@ void testUpdateTreeKeepsFinalTreeConnectedAndAreaConsistent() {
     for (int pixelId : {32, 37, 63}) {
         DynamicComponentTree maxTree(input, true, adj);
         DynamicComponentTree minTree(input, false, adj);
-        DynamicComponentTreeAdjustment<AltitudeType> adjust(&minTree, &maxTree, *adj);
+        DualMinMaxTreeIncrementalFilter<AltitudeType> adjust(&minTree, &maxTree, *adj);
         DynamicAreaComputer maxAreaComputer(&maxTree);
         DynamicAreaComputer minAreaComputer(&minTree);
-        std::vector<float> maxArea((size_t) maxTree.getGlobalIdSpaceSize(), 0.0f);
-        std::vector<float> minArea((size_t) minTree.getGlobalIdSpaceSize(), 0.0f);
+        std::vector<float> maxArea((size_t) maxTree.getNumInternalNodeSlots(), 0.0f);
+        std::vector<float> minArea((size_t) minTree.getNumInternalNodeSlots(), 0.0f);
         maxAreaComputer.compute(std::span<float>(maxArea));
         minAreaComputer.compute(std::span<float>(minArea));
         adjust.setAttributeComputer(minAreaComputer, maxAreaComputer,
@@ -381,7 +381,7 @@ void testUpdateTreeRemainsStructurallyValidOnAllSharedRoots() {
         DynamicComponentTree referenceMin(input, false, adj);
 
         std::vector<NodeId> sharedRoots;
-        for (int nodeId = 0; nodeId < referenceMax.getGlobalIdSpaceSize(); ++nodeId) {
+        for (int nodeId = 0; nodeId < referenceMax.getNumInternalNodeSlots(); ++nodeId) {
             if (referenceMax.isAlive(nodeId) && referenceMin.isAlive(nodeId) &&
                 !referenceMax.isRoot(nodeId) && !referenceMin.isRoot(nodeId)) {
                 sharedRoots.push_back(nodeId);
@@ -391,11 +391,11 @@ void testUpdateTreeRemainsStructurallyValidOnAllSharedRoots() {
         for (NodeId rootSubtree : sharedRoots) {
             DynamicComponentTree maxTree(input, true, adj);
             DynamicComponentTree minTree(input, false, adj);
-            DynamicComponentTreeAdjustment<AltitudeType> adjust(&minTree, &maxTree, *adj);
+            DualMinMaxTreeIncrementalFilter<AltitudeType> adjust(&minTree, &maxTree, *adj);
             DynamicAreaComputer maxAreaComputer(&maxTree);
             DynamicAreaComputer minAreaComputer(&minTree);
-            std::vector<float> maxArea((size_t) maxTree.getGlobalIdSpaceSize(), 0.0f);
-            std::vector<float> minArea((size_t) minTree.getGlobalIdSpaceSize(), 0.0f);
+            std::vector<float> maxArea((size_t) maxTree.getNumInternalNodeSlots(), 0.0f);
+            std::vector<float> minArea((size_t) minTree.getNumInternalNodeSlots(), 0.0f);
             maxAreaComputer.compute(std::span<float>(maxArea));
             minAreaComputer.compute(std::span<float>(minArea));
             adjust.setAttributeComputer(minAreaComputer, maxAreaComputer,
@@ -428,10 +428,10 @@ int main() {
         testUpdateTreeKeepsFinalTreeConnectedAndAreaConsistent();
         testUpdateTreeRemainsStructurallyValidOnAllSharedRoots();
     } catch (const std::exception &e) {
-        std::cerr << "dynamic_component_tree_adjustment_unit_tests: " << e.what() << "\n";
+        std::cerr << "dual_min_max_tree_incremental_filter_unit_tests: " << e.what() << "\n";
         return 1;
     }
 
-    std::cout << "dynamic_component_tree_adjustment_unit_tests: OK\n";
+    std::cout << "dual_min_max_tree_incremental_filter_unit_tests: OK\n";
     return 0;
 }

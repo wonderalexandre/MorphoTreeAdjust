@@ -12,7 +12,7 @@
 #include "../morphoTreeAdjust/include/AttributeComputer.hpp"
 #include "../morphoTreeAdjust/include/Common.hpp"
 #include "../morphoTreeAdjust/include/DynamicComponentTree.hpp"
-#include "../morphoTreeAdjust/include/DynamicComponentTreeAdjustmentLeaf.hpp"
+#include "../morphoTreeAdjust/include/DualMinMaxTreeIncrementalFilterLeaf.hpp"
 
 #include "../dev-tools/external/stb/stb_image.h"
 
@@ -126,7 +126,7 @@ void require_tree_has_no_empty_live_nodes(const DynamicComponentTree &tree,
                                           const std::string &treeName) {
     require(tree.isNode(tree.getRoot()) && tree.isAlive(tree.getRoot()),
             treeName + ": the root must remain alive");
-    for (NodeId nodeId = 0; nodeId < tree.getGlobalIdSpaceSize(); ++nodeId) {
+    for (NodeId nodeId = 0; nodeId < tree.getNumInternalNodeSlots(); ++nodeId) {
         if (!tree.isNode(nodeId) || !tree.isAlive(nodeId)) {
             continue;
         }
@@ -200,11 +200,11 @@ void testDynamicLeafAdjustmentMatchesNaiveLeafBaseline() {
 
     DynamicComponentTree maxTree(input, true, adj);
     DynamicComponentTree minTree(input, false, adj);
-    DynamicComponentTreeAdjustmentLeaf<AltitudeType> adjust(&minTree, &maxTree, *adj);
+    DualMinMaxTreeIncrementalFilterLeaf<AltitudeType> adjust(&minTree, &maxTree, *adj);
     DynamicAreaComputer maxAreaComputer(&maxTree);
     DynamicAreaComputer minAreaComputer(&minTree);
-    std::vector<float> maxArea(static_cast<size_t>(maxTree.getGlobalIdSpaceSize()), 0.0f);
-    std::vector<float> minArea(static_cast<size_t>(minTree.getGlobalIdSpaceSize()), 0.0f);
+    std::vector<float> maxArea(static_cast<size_t>(maxTree.getNumInternalNodeSlots()), 0.0f);
+    std::vector<float> minArea(static_cast<size_t>(minTree.getNumInternalNodeSlots()), 0.0f);
     maxAreaComputer.compute(std::span<float>(maxArea));
     minAreaComputer.compute(std::span<float>(minArea));
     adjust.setAttributeComputer(minAreaComputer, maxAreaComputer,
@@ -228,7 +228,7 @@ void testDirectLeafAdjustOverloadsKeepTreesConsistent() {
 
     DynamicComponentTree maxTree(input, true, adj);
     DynamicComponentTree minTree(input, false, adj);
-    DynamicComponentTreeAdjustmentLeaf<AltitudeType> adjust(&minTree, &maxTree, *adj);
+    DualMinMaxTreeIncrementalFilterLeaf<AltitudeType> adjust(&minTree, &maxTree, *adj);
 
     NodeId maxLeafId = firstNonRootLeaf(maxTree);
     require(maxLeafId != InvalidNode, "expected a non-root leaf in the max-tree");
@@ -257,11 +257,11 @@ void testDynamicLeafRandomStressMatchesNaiveLeaf() {
 
         DynamicComponentTree maxTree(image, true, adj);
         DynamicComponentTree minTree(image, false, adj);
-        DynamicComponentTreeAdjustmentLeaf<AltitudeType> adjust(&minTree, &maxTree, *adj);
+        DualMinMaxTreeIncrementalFilterLeaf<AltitudeType> adjust(&minTree, &maxTree, *adj);
         DynamicAreaComputer maxAreaComputer(&maxTree);
         DynamicAreaComputer minAreaComputer(&minTree);
-        std::vector<float> maxArea(maxTree.getGlobalIdSpaceSize(), 0.0f);
-        std::vector<float> minArea(minTree.getGlobalIdSpaceSize(), 0.0f);
+        std::vector<float> maxArea(maxTree.getNumInternalNodeSlots(), 0.0f);
+        std::vector<float> minArea(minTree.getNumInternalNodeSlots(), 0.0f);
         maxAreaComputer.compute(std::span<float>(maxArea));
         minAreaComputer.compute(std::span<float>(minArea));
         adjust.setAttributeComputer(minAreaComputer, maxAreaComputer,
@@ -310,11 +310,11 @@ void testDynamicLeafHouseThreshold50Regression() {
 
     DynamicComponentTree maxTree(image, true, adj);
     DynamicComponentTree minTree(image, false, adj);
-    DynamicComponentTreeAdjustmentLeaf<AltitudeType> adjust(&minTree, &maxTree, *adj);
+    DualMinMaxTreeIncrementalFilterLeaf<AltitudeType> adjust(&minTree, &maxTree, *adj);
     DynamicAreaComputer maxAreaComputer(&maxTree);
     DynamicAreaComputer minAreaComputer(&minTree);
-    std::vector<float> maxArea(maxTree.getGlobalIdSpaceSize(), 0.0f);
-    std::vector<float> minArea(minTree.getGlobalIdSpaceSize(), 0.0f);
+    std::vector<float> maxArea(maxTree.getNumInternalNodeSlots(), 0.0f);
+    std::vector<float> minArea(minTree.getNumInternalNodeSlots(), 0.0f);
     maxAreaComputer.compute(std::span<float>(maxArea));
     minAreaComputer.compute(std::span<float>(minArea));
     adjust.setAttributeComputer(minAreaComputer, maxAreaComputer,
@@ -343,10 +343,10 @@ int main() {
         testDynamicLeafRandomStressMatchesNaiveLeaf();
         testDynamicLeafHouseThreshold50Regression();
     } catch (const std::exception &e) {
-        std::cerr << "dynamic_component_tree_adjustment_leaf_unit_tests: " << e.what() << "\n";
+        std::cerr << "dual_min_max_tree_incremental_filter_leaf_unit_tests: " << e.what() << "\n";
         return 1;
     }
 
-    std::cout << "dynamic_component_tree_adjustment_leaf_unit_tests: OK\n";
+    std::cout << "dual_min_max_tree_incremental_filter_leaf_unit_tests: OK\n";
     return 0;
 }

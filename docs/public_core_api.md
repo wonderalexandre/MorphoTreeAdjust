@@ -13,7 +13,7 @@ For general documentation navigation, first see:
 Today, the official API of the main repository is the `core` line, namely:
 
 - per-pixel dynamic trees;
-- per-pixel primal/dual dynamic adjustment;
+- per-pixel dual min/max tree incremental filtering;
 - CASF over that main line;
 - Python bindings for the same layer.
 
@@ -39,8 +39,8 @@ Main types in the C++ surface:
 
 - `AdjacencyRelation`
 - `DynamicComponentTree`
-- `DynamicComponentTreeAdjustment`
-- `DynamicComponentTreeAdjustmentLeaf`
+- `DualMinMaxTreeIncrementalFilter`
+- `DualMinMaxTreeIncrementalFilterLeaf`
 - `ComponentTreeCasf`
 - `DynamicAreaComputer`
 - `DynamicBoundingBoxComputer`
@@ -61,7 +61,7 @@ Main types in the Python surface:
 
 - `AdjacencyRelation`
 - `DynamicComponentTree`
-- `DynamicComponentTreeAdjustment`
+- `DualMinMaxTreeIncrementalFilter`
 - `ComponentTreeCasf`
 
 Official example:

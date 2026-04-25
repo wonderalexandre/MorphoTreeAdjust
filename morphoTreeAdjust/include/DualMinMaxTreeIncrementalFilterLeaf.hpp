@@ -23,7 +23,7 @@
 /**
  * @brief Leaf-by-leaf incremental updater for the dynamic min-tree / max-tree pair.
  *
- * This class is the `leaf` variant of `DynamicComponentTreeAdjustment`. The
+ * This class is the `leaf` variant of `DualMinMaxTreeIncrementalFilter`. The
  * main difference is not in the final CASF semantics, but in the granularity
  * of the update:
  *
@@ -72,7 +72,7 @@
  *
  * - `O(P_L + A_L + M_L + K_L)`.
  *
- * The practical difference relative to `DynamicComponentTreeAdjustment` lies in
+ * The practical difference relative to `DualMinMaxTreeIncrementalFilter` lies in
  * the number of steps: the total cost of a `leaf` threshold can be the sum of
  * many small steps, whereas `subtree` aggregates many of those changes into
  * fewer, larger steps.
@@ -84,7 +84,7 @@
  * - its cost is the large number of dual updates.
  */
 template<typename PixelType = AltitudeType>
-class DynamicComponentTreeAdjustmentLeaf {
+class DualMinMaxTreeIncrementalFilterLeaf {
 public:
     class MergedNodesCollection {
     private:
@@ -498,10 +498,10 @@ public:
      * The public `prune*AndUpdate*` methods act on this same pair and do not
      * rebind trees per call.
      */
-    DynamicComponentTreeAdjustmentLeaf(DynamicComponentTree *mintree, DynamicComponentTree *maxtree, AdjacencyRelation &graph)
+    DualMinMaxTreeIncrementalFilterLeaf(DynamicComponentTree *mintree, DynamicComponentTree *maxtree, AdjacencyRelation &graph)
         : mintree_(mintree), maxtree_(maxtree), graph_(&graph),
-          mergeNodesByLevel_(std::max(mintree ? mintree->getGlobalIdSpaceSize() : 0, maxtree ? maxtree->getGlobalIdSpaceSize() : 0)),
-          removedMarks_(std::max(mintree ? mintree->getGlobalIdSpaceSize() : 0, maxtree ? maxtree->getGlobalIdSpaceSize() : 0)),
+          mergeNodesByLevel_(std::max(mintree ? mintree->getNumInternalNodeSlots() : 0, maxtree ? maxtree->getNumInternalNodeSlots() : 0)),
+          removedMarks_(std::max(mintree ? mintree->getNumInternalNodeSlots() : 0, maxtree ? maxtree->getNumInternalNodeSlots() : 0)),
           pixelsInLeafMarks_([mintree, maxtree]() {
               const DynamicComponentTree *tree = mintree != nullptr ? mintree : maxtree;
               if (tree == nullptr) {
@@ -509,8 +509,8 @@ public:
               }
               return tree->getNumRowsOfImage() * tree->getNumColsOfImage();
           }()),
-          climbedNodeMarks_(std::max(mintree ? mintree->getGlobalIdSpaceSize() : 0, maxtree ? maxtree->getGlobalIdSpaceSize() : 0)),
-          attributeUpdateMarks_(std::max(mintree ? mintree->getGlobalIdSpaceSize() : 0, maxtree ? maxtree->getGlobalIdSpaceSize() : 0)) {
+          climbedNodeMarks_(std::max(mintree ? mintree->getNumInternalNodeSlots() : 0, maxtree ? maxtree->getNumInternalNodeSlots() : 0)),
+          attributeUpdateMarks_(std::max(mintree ? mintree->getNumInternalNodeSlots() : 0, maxtree ? maxtree->getNumInternalNodeSlots() : 0)) {
         assert(mintree_ != nullptr);
         assert(maxtree_ != nullptr);
         assert(graph_ != nullptr);

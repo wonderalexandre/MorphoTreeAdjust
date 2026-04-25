@@ -140,7 +140,7 @@ struct DynamicSubtreeMetrics {
  *
  * This variant works in `subtree` mode: the caller provides subtree roots to
  * prune, and the adjuster processes the entire affected region in one shot.
- * The `leaf` variant lives in `DynamicComponentTreeAdjustmentLeaf`.
+ * The `leaf` variant lives in `DualMinMaxTreeIncrementalFilterLeaf`.
  *
  * Complexity:
  *
@@ -182,7 +182,7 @@ struct DynamicSubtreeMetrics {
  * as the associated `DynamicComponentTree`.
  */
 template<typename PixelType = AltitudeType>
-class DynamicComponentTreeAdjustmentInstrumented {
+class DualMinMaxTreeIncrementalFilterInstrumented {
 public:
     /**
      * @brief Collection of merged and nested nodes grouped by altitude.
@@ -989,7 +989,7 @@ private:
         }
 
         int offenders = 0;
-        for (NodeId nodeId = 0; nodeId < tree->getGlobalIdSpaceSize(); ++nodeId) {
+        for (NodeId nodeId = 0; nodeId < tree->getNumInternalNodeSlots(); ++nodeId) {
             if (!tree->isNode(nodeId) || !tree->isAlive(nodeId)) {
                 continue; // Nonexistent or dead nodes do not participate in the post-condition.
             }
@@ -998,7 +998,7 @@ private:
             }
             if (offenders < 16) {
                 std::fprintf(stderr,
-                             "DynamicComponentTreeAdjustment post-condition failed: alive node without proper parts"
+                             "DualMinMaxTreeIncrementalFilter post-condition failed: alive node without proper parts"
                              " id=%d parent=%d altitude=%d children=%d root=%d removed_marked=%d\n",
                              nodeId,
                              tree->getNodeParent(nodeId),
@@ -1010,7 +1010,7 @@ private:
             ++offenders;
         }
         if (offenders != 0) {
-            throw std::runtime_error("DynamicComponentTreeAdjustment post-condition failed: alive nodes without proper parts");
+            throw std::runtime_error("DualMinMaxTreeIncrementalFilter post-condition failed: alive nodes without proper parts");
         }
     }
 
@@ -1137,14 +1137,14 @@ public:
      * @param maxtree Pointer to the dynamic max-tree owned externally.
      * @param graph Adjacency relation shared by both trees.
      */
-    DynamicComponentTreeAdjustmentInstrumented(DynamicComponentTree *mintree, DynamicComponentTree *maxtree, AdjacencyRelation &graph)
+    DualMinMaxTreeIncrementalFilterInstrumented(DynamicComponentTree *mintree, DynamicComponentTree *maxtree, AdjacencyRelation &graph)
         : mintree_(mintree), maxtree_(maxtree), graph_(&graph),
-          mergeNodesByLevel_(std::max(mintree ? mintree->getGlobalIdSpaceSize() : 0, maxtree ? maxtree->getGlobalIdSpaceSize() : 0)),
-          removedMarks_(std::max(mintree ? mintree->getGlobalIdSpaceSize() : 0, maxtree ? maxtree->getGlobalIdSpaceSize() : 0)),
+          mergeNodesByLevel_(std::max(mintree ? mintree->getNumInternalNodeSlots() : 0, maxtree ? maxtree->getNumInternalNodeSlots() : 0)),
+          removedMarks_(std::max(mintree ? mintree->getNumInternalNodeSlots() : 0, maxtree ? maxtree->getNumInternalNodeSlots() : 0)),
           pixelsInCMarks_(std::max(mintree ? mintree->getNumTotalProperParts() : 0, maxtree ? maxtree->getNumTotalProperParts() : 0)),
-          climbedNodeMarks_(std::max(mintree ? mintree->getGlobalIdSpaceSize() : 0, maxtree ? maxtree->getGlobalIdSpaceSize() : 0)),
-          attributeRecomputedMarks_(std::max(mintree ? mintree->getGlobalIdSpaceSize() : 0, maxtree ? maxtree->getGlobalIdSpaceSize() : 0)),
-          attributeUpdateMarks_(std::max(mintree ? mintree->getGlobalIdSpaceSize() : 0, maxtree ? maxtree->getGlobalIdSpaceSize() : 0)) {
+          climbedNodeMarks_(std::max(mintree ? mintree->getNumInternalNodeSlots() : 0, maxtree ? maxtree->getNumInternalNodeSlots() : 0)),
+          attributeRecomputedMarks_(std::max(mintree ? mintree->getNumInternalNodeSlots() : 0, maxtree ? maxtree->getNumInternalNodeSlots() : 0)),
+          attributeUpdateMarks_(std::max(mintree ? mintree->getNumInternalNodeSlots() : 0, maxtree ? maxtree->getNumInternalNodeSlots() : 0)) {
         assert(mintree_ != nullptr);
         assert(maxtree_ != nullptr);
         assert(graph_ != nullptr);
@@ -1337,7 +1337,7 @@ public:
         DynamicComponentTree *primalTree = isMaxtree ? mintree_ : maxtree_;
 
         assert(primalTree != nullptr);
-        assert(subtreeRoot >= 0 && subtreeRoot < primalTree->getGlobalIdSpaceSize());
+        assert(subtreeRoot >= 0 && subtreeRoot < primalTree->getNumInternalNodeSlots());
         assert(primalTree->isNode(subtreeRoot) && primalTree->isAlive(subtreeRoot));
 
         const NodeId subtreeParentId = primalTree->getNodeParent(subtreeRoot);
@@ -1617,7 +1617,7 @@ public:
      * @param nodesToPrune Roots of the subtrees removed from the max-tree.
      */
     void pruneMaxTreeAndUpdateMinTree(std::vector<NodeId> &nodesToPrune) {
-        assert(removedMarks_.stamp.size() >= static_cast<std::size_t>(std::max(mintree_ ? mintree_->getGlobalIdSpaceSize() : 0, maxtree_ ? maxtree_->getGlobalIdSpaceSize() : 0)));
+        assert(removedMarks_.stamp.size() >= static_cast<std::size_t>(std::max(mintree_ ? mintree_->getNumInternalNodeSlots() : 0, maxtree_ ? maxtree_->getNumInternalNodeSlots() : 0)));
         for (NodeId rootSubtree : nodesToPrune) {
             if (rootSubtree == InvalidNode || rootSubtree == maxtree_->getRoot() || !maxtree_->isNode(rootSubtree) || !maxtree_->isAlive(rootSubtree)) {
                 continue; // Ignore invalid roots, the global root, and nodes already removed.
@@ -1640,7 +1640,7 @@ public:
      * @param nodesToPrune Roots of the subtrees removed from the min-tree.
      */
     void pruneMinTreeAndUpdateMaxTree(std::vector<NodeId> &nodesToPrune) {
-        assert(removedMarks_.stamp.size() >= static_cast<std::size_t>(std::max(mintree_ ? mintree_->getGlobalIdSpaceSize() : 0, maxtree_ ? maxtree_->getGlobalIdSpaceSize() : 0)));
+        assert(removedMarks_.stamp.size() >= static_cast<std::size_t>(std::max(mintree_ ? mintree_->getNumInternalNodeSlots() : 0, maxtree_ ? maxtree_->getNumInternalNodeSlots() : 0)));
         for (NodeId rootSubtree : nodesToPrune) {
             if (rootSubtree == InvalidNode || rootSubtree == mintree_->getRoot() || !mintree_->isNode(rootSubtree) || !mintree_->isAlive(rootSubtree)) {
                 continue; // Ignore invalid roots, the global root, and nodes already removed.
