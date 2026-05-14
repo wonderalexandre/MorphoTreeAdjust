@@ -60,17 +60,20 @@ Attribute parse_attribute_string(const std::string &attribute) {
     if (normalized == "area") {
         return AREA;
     }
-    if (normalized == "box_width" || normalized == "box-width" || normalized == "width") {
+    if (normalized == "bbox_width" || normalized == "bbox-width" ||
+        normalized == "box_width" || normalized == "box-width" || normalized == "width") {
         return BOX_WIDTH;
     }
-    if (normalized == "box_height" || normalized == "box-height" || normalized == "height") {
+    if (normalized == "bbox_height" || normalized == "bbox-height" ||
+        normalized == "box_height" || normalized == "box-height" || normalized == "height") {
         return BOX_HEIGHT;
     }
-    if (normalized == "diagonal_length" || normalized == "diagonal-length" || normalized == "diagonal") {
+    if (normalized == "bbox_diagonal" || normalized == "bbox-diagonal" ||
+        normalized == "diagonal_length" || normalized == "diagonal-length" || normalized == "diagonal") {
         return DIAGONAL_LENGTH;
     }
 
-    throw std::runtime_error("Unknown attribute. Expected one of: area, box_width, box_height, diagonal_length.");
+    throw std::runtime_error("Unknown attribute. Expected one of: area, bbox_width, bbox_height, bbox_diagonal.");
 }
 
 std::vector<NodeId> alive_nodes(const DynamicComponentTree &tree) {

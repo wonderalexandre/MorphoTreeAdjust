@@ -155,6 +155,37 @@ void test_bounding_box_sequences_match_naive_baseline() {
     }
 }
 
+void test_bounding_box_dirty_target_move_matches_fresh_recompute() {
+    auto input = make_demo_image();
+    auto adj = std::make_shared<AdjacencyRelation>(input->getNumRows(), input->getNumCols(), 1.0);
+    DynamicComponentTree tree(input, true, adj);
+    DynamicBoundingBoxComputer cachedComputer(&tree, BOX_HEIGHT);
+
+    const NodeId donor = tree.getSmallestComponent(32);
+    const NodeId singlePixelChild = tree.getSmallestComponent(44);
+    const NodeId receiver = tree.getSmallestComponent(96);
+
+    tree.moveProperPart(receiver, donor, 32);
+    cachedComputer.onMoveProperPart(receiver, donor, 32);
+
+    tree.moveProperPart(donor, singlePixelChild, 44);
+    cachedComputer.onMoveProperPart(donor, singlePixelChild, 44);
+
+    tree.moveProperPart(receiver, donor, 44);
+    cachedComputer.onMoveProperPart(receiver, donor, 44);
+
+    const auto cached = cachedComputer.compute();
+    DynamicBoundingBoxComputer freshComputer(&tree, BOX_HEIGHT);
+    const auto fresh = freshComputer.compute();
+
+    for (NodeId nodeId = 0; nodeId < tree.getNumInternalNodeSlots(); ++nodeId) {
+        if (tree.isAlive(nodeId)) {
+            require(cached[(size_t) nodeId] == fresh[(size_t) nodeId],
+                    "bounding box cache must not duplicate border counts when a dirty target receives a pixel");
+        }
+    }
+}
+
 void test_casf_is_deterministic_and_empty_sequence_is_noop() {
     auto input = make_demo_image();
     const std::vector<int> thresholds = {1, 14, 15, 100};
@@ -220,6 +251,7 @@ int main() {
     try {
         test_area_sequence_matches_naive_baseline();
         test_bounding_box_sequences_match_naive_baseline();
+        test_bounding_box_dirty_target_move_matches_fresh_recompute();
         test_casf_is_deterministic_and_empty_sequence_is_noop();
         test_area_stress_matches_naive_sequence_on_structured_images();
         test_naive_and_hybrid_modes_match_baseline();

@@ -690,8 +690,11 @@ public:
             return;
         }
 
+        const bool targetWasDirty = target.dirty;
         ensureLocal(tree, targetId, target);
-        expandLocalBoxWithPixel(target, pixelId);
+        if (!targetWasDirty) {
+            expandLocalBoxWithPixel(target, pixelId);
+        }
         target.dirty = false;
 
         if (!tree->isAlive(sourceId) || tree->getNumProperParts(sourceId) == 0) {
