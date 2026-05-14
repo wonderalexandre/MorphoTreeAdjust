@@ -5,8 +5,8 @@ This document records the recommended public surface of
 
 For general documentation navigation, first see:
 
-- [README.md](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/README.md)
-- [docs/README.md](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/docs/README.md)
+- [README.md](../README.md)
+- [docs/README.md](./README.md)
 
 ## Official Scope
 
@@ -47,7 +47,7 @@ Main types in the C++ surface:
 
 Official example:
 
-- [examples/core_cpp_api_example.cpp](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/examples/core_cpp_api_example.cpp)
+- [examples/core_cpp_api_example.cpp](../examples/core_cpp_api_example.cpp)
 
 ## Python Entry Point
 
@@ -66,12 +66,12 @@ Main types in the Python surface:
 
 Official example:
 
-- [examples/core_python_api_example.py](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/examples/core_python_api_example.py)
+- [examples/core_python_api_example.py](../examples/core_python_api_example.py)
 
 Official notebooks:
 
-- [morphoTreeAdjust_example_leaf.ipynb](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/notebooks/morphoTreeAdjust_example_leaf.ipynb)
-- [morphoTreeAdjust_example_subtree.ipynb](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/notebooks/morphoTreeAdjust_example_subtree.ipynb)
+- [morphoTreeAdjust_example_leaf.ipynb](../notebooks/morphoTreeAdjust_example_leaf.ipynb)
+- [morphoTreeAdjust_example_subtree.ipynb](../notebooks/morphoTreeAdjust_example_subtree.ipynb)
 
 ## Usage Rules
 

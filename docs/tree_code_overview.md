@@ -5,29 +5,29 @@ This document summarizes only the published main line of
 
 For public use, read first:
 
-- [README.md](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/README.md)
-- [docs/README.md](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/docs/README.md)
-- [public_core_api.md](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/docs/public_core_api.md)
+- [README.md](../README.md)
+- [docs/README.md](./README.md)
+- [public_core_api.md](./public_core_api.md)
 
 ## Code Map
 
 The central points of the repository are:
 
-- [MorphoTreeAdjust.hpp](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/morphoTreeAdjust/include/MorphoTreeAdjust.hpp)
+- [MorphoTreeAdjust.hpp](../morphoTreeAdjust/include/MorphoTreeAdjust.hpp)
   recommended public entry point for C++
-- [AdjacencyRelation.hpp](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/morphoTreeAdjust/include/AdjacencyRelation.hpp)
+- [AdjacencyRelation.hpp](../morphoTreeAdjust/include/AdjacencyRelation.hpp)
   adjacency relation used on the image
-- [DynamicComponentTree.hpp](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/morphoTreeAdjust/include/DynamicComponentTree.hpp)
+- [DynamicComponentTree.hpp](../morphoTreeAdjust/include/DynamicComponentTree.hpp)
   dynamic max-tree and min-tree representation
-- [AttributeComputer.hpp](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/morphoTreeAdjust/include/AttributeComputer.hpp)
+- [AttributeComputer.hpp](../morphoTreeAdjust/include/AttributeComputer.hpp)
   incremental attributes associated with each node
-- [DualMinMaxTreeIncrementalFilter.hpp](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/morphoTreeAdjust/include/DualMinMaxTreeIncrementalFilter.hpp)
+- [DualMinMaxTreeIncrementalFilter.hpp](../morphoTreeAdjust/include/DualMinMaxTreeIncrementalFilter.hpp)
   subtree-based dual min/max incremental filter
-- [DualMinMaxTreeIncrementalFilterLeaf.hpp](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/morphoTreeAdjust/include/DualMinMaxTreeIncrementalFilterLeaf.hpp)
+- [DualMinMaxTreeIncrementalFilterLeaf.hpp](../morphoTreeAdjust/include/DualMinMaxTreeIncrementalFilterLeaf.hpp)
   leaf-based dual min/max incremental filter
-- [ComponentTreeCasf.hpp](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/morphoTreeAdjust/include/ComponentTreeCasf.hpp)
+- [ComponentTreeCasf.hpp](../morphoTreeAdjust/include/ComponentTreeCasf.hpp)
   CASF over the dynamic-tree core
-- [morphoTreeAdjust.cpp](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/morphoTreeAdjust/morphoTreeAdjust.cpp)
+- [morphoTreeAdjust.cpp](../morphoTreeAdjust/morphoTreeAdjust.cpp)
   bindings Python via pybind11
 
 ## Structural Reading
@@ -65,20 +65,20 @@ In practical terms:
 
 To study or validate the core, the most useful places are:
 
-- [unit-tests](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/unit-tests)
-- [dev-tools/tools](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/dev-tools/tools)
-- [dev-tools/benchmarks/jmiv2026_benchmark.cpp](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/dev-tools/benchmarks/jmiv2026_benchmark.cpp)
-- [examples/core_cpp_api_example.cpp](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/examples/core_cpp_api_example.cpp)
-- [examples/core_python_api_example.py](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/examples/core_python_api_example.py)
+- [unit-tests](../unit-tests)
+- [dev-tools/tools](../dev-tools/tools)
+- [dev-tools/benchmarks/jmiv2026_benchmark.cpp](../dev-tools/benchmarks/jmiv2026_benchmark.cpp)
+- [examples/core_cpp_api_example.cpp](../examples/core_cpp_api_example.cpp)
+- [examples/core_python_api_example.py](../examples/core_python_api_example.py)
 
 ## Suggested Reading Order
 
 If you want to understand the repository core in sequence:
 
-1. [MorphoTreeAdjust.hpp](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/morphoTreeAdjust/include/MorphoTreeAdjust.hpp)
-2. [DynamicComponentTree.hpp](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/morphoTreeAdjust/include/DynamicComponentTree.hpp)
-3. [AttributeComputer.hpp](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/morphoTreeAdjust/include/AttributeComputer.hpp)
-4. [DualMinMaxTreeIncrementalFilter.hpp](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/morphoTreeAdjust/include/DualMinMaxTreeIncrementalFilter.hpp)
-5. [DualMinMaxTreeIncrementalFilterLeaf.hpp](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/morphoTreeAdjust/include/DualMinMaxTreeIncrementalFilterLeaf.hpp)
-6. [ComponentTreeCasf.hpp](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/morphoTreeAdjust/include/ComponentTreeCasf.hpp)
-7. [morphoTreeAdjust.cpp](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/morphoTreeAdjust/morphoTreeAdjust.cpp)
+1. [MorphoTreeAdjust.hpp](../morphoTreeAdjust/include/MorphoTreeAdjust.hpp)
+2. [DynamicComponentTree.hpp](../morphoTreeAdjust/include/DynamicComponentTree.hpp)
+3. [AttributeComputer.hpp](../morphoTreeAdjust/include/AttributeComputer.hpp)
+4. [DualMinMaxTreeIncrementalFilter.hpp](../morphoTreeAdjust/include/DualMinMaxTreeIncrementalFilter.hpp)
+5. [DualMinMaxTreeIncrementalFilterLeaf.hpp](../morphoTreeAdjust/include/DualMinMaxTreeIncrementalFilterLeaf.hpp)
+6. [ComponentTreeCasf.hpp](../morphoTreeAdjust/include/ComponentTreeCasf.hpp)
+7. [morphoTreeAdjust.cpp](../morphoTreeAdjust/morphoTreeAdjust.cpp)

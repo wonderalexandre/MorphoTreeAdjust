@@ -7,10 +7,10 @@ This directory gathers the documentation for the published
 
 If you want to use or integrate the repository, start with:
 
-- [public_core_api.md](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/docs/public_core_api.md)
+- [public_core_api.md](./public_core_api.md)
 
 ## Maintenance
 
 If you are maintaining the code, use:
 
-- [tree_code_overview.md](/Users/wonderalexandre/GitHub/MorphoTreeAdjust/docs/tree_code_overview.md)
+- [tree_code_overview.md](./tree_code_overview.md)

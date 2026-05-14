@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.0.0](https://github.com/wonderalexandre/MorphoTreeAdjust/compare/morphoTreeAdjust-v0.4.0...morphoTreeAdjust-v1.0.0) (2026-04-25)
+## [1.0.0](https://github.com/wonderalexandre/MorphoTreeAdjust/compare/v0.4.0...morphoTreeAdjust-v1.0.0) (2026-04-25)
 
 
 ### ⚠ BREAKING CHANGES
