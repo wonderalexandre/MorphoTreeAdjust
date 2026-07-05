@@ -42,9 +42,8 @@ endif()
 
 include_directories("${CMAKE_SOURCE_DIR}/python")
 
-file (GLOB SOURCE_FILES "morphoTreeAdjust/src/*.cpp")
 file (GLOB HEADER_FILES "morphoTreeAdjust/include/*.hpp" "morphoTreeAdjust/include/*.tpp")
-set(PYTHON_FILES "morphoTreeAdjust/morphoTreeAdjust.cpp")
+set(MTA_PYBIND_SOURCE "morphoTreeAdjust/morphoTreeAdjust.cpp")
 set(MTA_PYTHON_PACKAGE_FILES
   "${CMAKE_CURRENT_SOURCE_DIR}/python/morphoTreeAdjust/__init__.py"
   "${CMAKE_CURRENT_SOURCE_DIR}/python/morphoTreeAdjust/utils.py"
@@ -62,7 +61,7 @@ set(MTA_PUBLIC_CORE_HEADER_FILES
 )
 
 # Set up such that XCode organizes the files
-source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCE_FILES} ${HEADER_FILES} ${PYTHON_FILES} )
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${HEADER_FILES} ${MTA_PYBIND_SOURCE} )
 
 if(SKBUILD)
   set(PYBIND11_FINDPYTHON ON)
@@ -71,9 +70,8 @@ else()
   include(pybind11.cmake)
 endif()
 pybind11_add_module(morphoTreeAdjust 
-	${SOURCE_FILES}
 	${HEADER_FILES}
-	${PYTHON_FILES}
+	${MTA_PYBIND_SOURCE}
 )
 
 target_include_directories(morphoTreeAdjust PUBLIC

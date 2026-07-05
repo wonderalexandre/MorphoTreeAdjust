@@ -1,6 +1,5 @@
 set(MTA_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/..")
 set(MTA_INCLUDE_DIR "${MTA_ROOT_DIR}/morphoTreeAdjust/include")
-set(MTA_SRC_DIR "${MTA_ROOT_DIR}/morphoTreeAdjust/src")
 set(MTA_TESTS_DIR "${MTA_ROOT_DIR}/dev-tools")
 set(MTA_STB_DIR "${MTA_TESTS_DIR}/external/stb")
 
