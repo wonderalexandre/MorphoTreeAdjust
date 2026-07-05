@@ -15,4 +15,5 @@ __all__ = [
     'DynamicComponentTree',
     'DualMinMaxTreeIncrementalFilter',
     'ComponentTreeCasf',
+    'ComponentTreeCasfNonIncreasing',
 ]

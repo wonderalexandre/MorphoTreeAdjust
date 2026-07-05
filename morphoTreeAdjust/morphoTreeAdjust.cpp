@@ -2,6 +2,7 @@
 #include "include/AttributeComputer.hpp"
 #include "include/Common.hpp"
 #include "include/ComponentTreeCasf.hpp"
+#include "include/ComponentTreeCasfNonIncreasing.hpp"
 #include "include/DynamicComponentTree.hpp"
 #include "include/DualMinMaxTreeIncrementalFilter.hpp"
 
@@ -72,8 +73,12 @@ Attribute parse_attribute_string(const std::string &attribute) {
         normalized == "diagonal_length" || normalized == "diagonal-length" || normalized == "diagonal") {
         return DIAGONAL_LENGTH;
     }
+    if (normalized == "area_per_box_perimeter" || normalized == "area-per-box-perimeter" ||
+        normalized == "box_area_perimeter_ratio" || normalized == "box-area-perimeter-ratio") {
+        return AREA_PER_BOX_PERIMETER;
+    }
 
-    throw std::runtime_error("Unknown attribute. Expected one of: area, bbox_width, bbox_height, bbox_diagonal.");
+    throw std::runtime_error("Unknown attribute. Expected one of: area, bbox_width, bbox_height, bbox_diagonal, area_per_box_perimeter.");
 }
 
 std::vector<NodeId> alive_nodes(const DynamicComponentTree &tree) {
@@ -232,6 +237,34 @@ public:
     }
 };
 
+class PyComponentTreeCasfNonIncreasing : public std::enable_shared_from_this<PyComponentTreeCasfNonIncreasing> {
+private:
+    std::unique_ptr<ComponentTreeCasfNonIncreasing<AltitudeType>> casf_;
+
+public:
+    PyComponentTreeCasfNonIncreasing(const py::array_t<uint8_t, py::array::c_style | py::array::forcecast> &input,
+                                     const std::string &attribute,
+                                     double radiusAdj)
+        : casf_(std::make_unique<ComponentTreeCasfNonIncreasing<AltitudeType>>(image_from_numpy(input), radiusAdj, parse_attribute_string(attribute))) {}
+
+    PyComponentTreeCasfNonIncreasing(const py::array_t<uint8_t, py::array::c_style | py::array::forcecast> &input,
+                                     const std::string &attribute,
+                                     const std::shared_ptr<AdjacencyRelation> &adj)
+        : casf_(std::make_unique<ComponentTreeCasfNonIncreasing<AltitudeType>>(image_from_numpy(input), adj, parse_attribute_string(attribute))) {}
+
+    py::array_t<uint8_t> filter(const std::vector<float> &thresholds) {
+        return numpy_from_image(casf_->filter(thresholds));
+    }
+
+    std::shared_ptr<DynamicComponentTree> getMinTree() const {
+        return std::shared_ptr<DynamicComponentTree>(this->shared_from_this(), const_cast<DynamicComponentTree *>(&casf_->getMinTree()));
+    }
+
+    std::shared_ptr<DynamicComponentTree> getMaxTree() const {
+        return std::shared_ptr<DynamicComponentTree>(this->shared_from_this(), const_cast<DynamicComponentTree *>(&casf_->getMaxTree()));
+    }
+};
+
 void init_adjacency_relation(py::module_ &m) {
     py::class_<AdjacencyRelation, std::shared_ptr<AdjacencyRelation>>(m, "AdjacencyRelation")
         .def(py::init<int, int, double>())
@@ -368,6 +401,31 @@ void init_component_tree_casf(py::module_ &m) {
         .def_property_readonly("maxTree", &PyComponentTreeCasf::getMaxTree);
 }
 
+void init_component_tree_casf_non_increasing(py::module_ &m) {
+    py::class_<PyComponentTreeCasfNonIncreasing, std::shared_ptr<PyComponentTreeCasfNonIncreasing>>(m, "ComponentTreeCasfNonIncreasing")
+        .def(py::init([](const py::array_t<uint8_t, py::array::c_style | py::array::forcecast> &input,
+                         const std::string &attribute,
+                         double radiusAdj) {
+                return std::make_shared<PyComponentTreeCasfNonIncreasing>(input, attribute, radiusAdj);
+            }),
+             py::arg("image"),
+             py::arg("attribute") = "area_per_box_perimeter",
+             py::arg("radiusAdj") = 1.5)
+        .def(py::init([](const py::array_t<uint8_t, py::array::c_style | py::array::forcecast> &input,
+                         const std::string &attribute,
+                         const std::shared_ptr<AdjacencyRelation> &adj) {
+                return std::make_shared<PyComponentTreeCasfNonIncreasing>(input, attribute, adj);
+            }),
+             py::arg("image"),
+             py::arg("attribute") = "area_per_box_perimeter",
+             py::arg("adj"))
+        .def("filter", &PyComponentTreeCasfNonIncreasing::filter, py::arg("thresholds"))
+        .def("getMinTree", &PyComponentTreeCasfNonIncreasing::getMinTree)
+        .def("getMaxTree", &PyComponentTreeCasfNonIncreasing::getMaxTree)
+        .def_property_readonly("minTree", &PyComponentTreeCasfNonIncreasing::getMinTree)
+        .def_property_readonly("maxTree", &PyComponentTreeCasfNonIncreasing::getMaxTree);
+}
+
 }  // namespace
 
 PYBIND11_MODULE(morphoTreeAdjust, m) {
@@ -377,4 +435,5 @@ PYBIND11_MODULE(morphoTreeAdjust, m) {
     init_dynamic_component_tree(m);
     init_dual_min_max_tree_incremental_filter(m);
     init_component_tree_casf(m);
+    init_component_tree_casf_non_increasing(m);
 }
