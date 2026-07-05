@@ -22,11 +22,11 @@ busca de contraexemplos.
 Este texto usa os documentos:
 
 ```text
-docs/problem1_casf_fast_gate_condition.md
-docs/problem1_general_workspace_unique_root.md
-docs/problem1_nodeca_closure_root_absorption.md
-docs/problem1_frontier_bucket_completeness_lemma.md
-docs/problem1_integrated_local_correctness_theorem.md
+research/docs/problem1_casf_fast_gate_condition.md
+research/docs/problem1_general_workspace_unique_root.md
+research/docs/problem1_nodeca_closure_root_absorption.md
+research/docs/problem1_frontier_bucket_completeness_lemma.md
+research/docs/problem1_integrated_local_correctness_theorem.md
 ```
 
 e o helper experimental:
@@ -203,7 +203,7 @@ Logo H5 vale.
 Depois de H1 e H2, estamos exatamente nas hipoteses de:
 
 ```text
-docs/problem1_general_workspace_unique_root.md
+research/docs/problem1_general_workspace_unique_root.md
 ```
 
 Como `C` e conexo, todos os owners materializados de `C` pertencem ao mesmo
@@ -239,7 +239,7 @@ O `nodeCa` operacional e escolhido entre os owners de `C` de nivel extremo
 bloco de nivel `a`. Pela absorcao:
 
 ```text
-docs/problem1_nodeca_closure_root_absorption.md
+research/docs/problem1_nodeca_closure_root_absorption.md
 ```
 
 temos:
@@ -259,7 +259,7 @@ Logo H7 vale.
 Depois de H1-H7, aplicamos:
 
 ```text
-docs/problem1_frontier_bucket_completeness_lemma.md
+research/docs/problem1_frontier_bucket_completeness_lemma.md
 ```
 
 Por C6, toda adjacencia entre `C` e `Omega \ C` e examinada. Seja

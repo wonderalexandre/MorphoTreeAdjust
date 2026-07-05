@@ -96,17 +96,17 @@ tem produzido a mesma arvore canonica que o rebuild nos casos testados. Isso
 sugere que parte dos `C_v^+` pode estar sendo representada implicitamente por
 candidatos locais seguidos de contracao canonica.
 
-O ponto teorico foi refinado em `docs/problem1_intermediate_gap_lemma.md`: para
+O ponto teorico foi refinado em `research/docs/problem1_intermediate_gap_lemma.md`: para
 o workspace single-`nodeCa`, se `v != b` e o bucket por valuation
 `MergeNodes(v,-)` esta vazio, entao `C_v^+` e implicito. As arestas `Hasse+`
 podem ser escritas diretamente sobre `Intervalle(C)`, usando o representante
 canonico do proximo nivel materializado.
 
 A ponte com a mutacao concreta esta em
-`docs/problem1_explicit_region_mutation_proof.md`, que localiza essa
+`research/docs/problem1_explicit_region_mutation_proof.md`, que localiza essa
 canonicalizacao no fechamento de `updateTreeWithExplicitRegion`.
 
-A nota `docs/problem1_intermediate_level_gap_note.md` registra a
+A nota `research/docs/problem1_intermediate_level_gap_note.md` registra a
 instrumentacao adicionada para medir essa diferenca. O resultado inicial e que
 lacunas intermediarias sao frequentes mesmo quando a arvore final bate
 estruturalmente o rebuild. A classificacao contra a arvore rebuild mostrou,

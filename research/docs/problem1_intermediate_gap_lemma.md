@@ -449,7 +449,7 @@ apos materializacao local de `C`. As secoes seguintes tambem fixam a forma
 esparsa de `Hasse+` e a canonicalizacao same-level como quociente canonico.
 Para transformar isso em uma prova completa do updater experimental alem do
 escopo single-`nodeCa`, ainda falta fechar a extensao de regiao geral
-registrada em `docs/problem1_general_region_multi_anchor.md`:
+registrada em `research/docs/problem1_general_region_multi_anchor.md`:
 
 ```text
 1. a extensao alem do contrato single-nodeCa, caso que ainda pertence ao plano
@@ -457,7 +457,7 @@ registrada em `docs/problem1_general_region_multi_anchor.md`:
 ```
 
 As obrigacoes internas ao escopo single-`nodeCa` foram movidas para
-`docs/problem1_explicit_region_mutation_proof.md`: equivalencia entre
+`research/docs/problem1_explicit_region_mutation_proof.md`: equivalencia entre
 `S_code` e `I_C^star`, recomposicao mutavel, quocientes por nos vazios,
 canonicalizacao same-level e forma dual min-tree.
 

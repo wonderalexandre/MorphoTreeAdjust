@@ -4,7 +4,7 @@ Este texto inicia a extensao teorica do Problema 1 para regioes conexas `C`
 que nao satisfazem o contrato single-`nodeCa` ja fechado em:
 
 ```text
-docs/problem1_explicit_region_mutation_proof.md
+research/docs/problem1_explicit_region_mutation_proof.md
 ```
 
 O objetivo aqui nao e promover uma implementacao nova. O objetivo e separar o
@@ -523,7 +523,7 @@ regra simultanea por floresta.
 Esse teorema foi formalizado em:
 
 ```text
-docs/problem1_general_workspace_unique_root.md
+research/docs/problem1_general_workspace_unique_root.md
 ```
 
 Conclusao parcial: sob as hipoteses do Problema 1, apos materializacao local
@@ -558,7 +558,7 @@ canonicalizada ate a mesma estrutura que teria sido obtida fechando
 diretamente em `closureRoot`.
 
 Essa pergunta foi refinada em
-`docs/problem1_nodeca_closure_root_absorption.md`. Nos marcos sinteticos
+`research/docs/problem1_nodeca_closure_root_absorption.md`. Nos marcos sinteticos
 atuais, todo `nodeCa` alcanca `closureRoot` por um caminho same-level, com
 comprimento maximo 1. Assim, a diferenca observada entre a ancora operacional
 e a raiz teorica e explicada por uma contracao canonica local, nao por uma
@@ -579,11 +579,11 @@ entre workspace owner-interval e buckets de fronteira. Ela deve demonstrar que
 todo no com uma proper part direta externa a `C`, fora do caminho de
 fechamento, precisa aparecer em algum bucket `MergeNodes_valuation(v,-)`.
 Essa formulacao foi registrada como lema em
-`docs/problem1_frontier_bucket_completeness_lemma.md`.
+`research/docs/problem1_frontier_bucket_completeness_lemma.md`.
 
 Com esse lema, a raiz unica do workspace geral e a absorcao
 `nodeCa -> closureRoot`, o criterio local suficiente para a correcao foi
-integrado em `docs/problem1_integrated_local_correctness_theorem.md`.
+integrado em `research/docs/problem1_integrated_local_correctness_theorem.md`.
 
 ## Criterio de avanco
 

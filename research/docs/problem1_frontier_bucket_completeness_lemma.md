@@ -4,8 +4,8 @@ Este texto transforma o diagnostico de completude dos buckets em uma
 obrigacao teorica local para o Problema 1. Ele complementa:
 
 ```text
-docs/problem1_general_workspace_unique_root.md
-docs/problem1_nodeca_closure_root_absorption.md
+research/docs/problem1_general_workspace_unique_root.md
+research/docs/problem1_nodeca_closure_root_absorption.md
 ```
 
 O objetivo nao e provar que os buckets de fronteira sao iguais ao workspace

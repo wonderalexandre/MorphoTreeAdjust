@@ -6,10 +6,10 @@ Este documento integra os resultados teoricos ja registrados para o Problema
 Ele usa:
 
 ```text
-docs/problem1_general_workspace_unique_root.md
-docs/problem1_nodeca_closure_root_absorption.md
-docs/problem1_frontier_bucket_completeness_lemma.md
-docs/problem1_explicit_region_mutation_proof.md
+research/docs/problem1_general_workspace_unique_root.md
+research/docs/problem1_nodeca_closure_root_absorption.md
+research/docs/problem1_frontier_bucket_completeness_lemma.md
+research/docs/problem1_explicit_region_mutation_proof.md
 ```
 
 O objetivo e enunciar uma condicao local suficiente para que a recomposicao
@@ -136,9 +136,9 @@ H8. Nao ha gap de bucket nao explicado:
 As hipoteses H6, H7 e H8 correspondem, respectivamente, aos documentos:
 
 ```text
-H6 -> docs/problem1_general_workspace_unique_root.md
-H7 -> docs/problem1_nodeca_closure_root_absorption.md
-H8 -> docs/problem1_frontier_bucket_completeness_lemma.md
+H6 -> research/docs/problem1_general_workspace_unique_root.md
+H7 -> research/docs/problem1_nodeca_closure_root_absorption.md
+H8 -> research/docs/problem1_frontier_bucket_completeness_lemma.md
 ```
 
 ## Teorema
@@ -521,7 +521,7 @@ agora sao de politica de uso, validacao ampliada e promocao:
    experimental, ou se alguns eventos devem cair para o caminho antigo;
 2. ampliar o benchmark de fallback para crops maiores e mais imagens reais;
 3. revisar e consolidar
-   `docs/problem1_casf_fast_gate_release_theorem.md` como condicao
+   `research/docs/problem1_casf_fast_gate_release_theorem.md` como condicao
    teorica/operacional para eventos `rootSubtree -> C,b`;
 4. registrar contraexemplos minimizados quando H6, H7 ou H8 falharem;
 5. decidir promocao ao CASF apenas depois da politica de fallback e dos

@@ -1,7 +1,7 @@
 # Teorema da raiz unica do workspace geral no Problema 1
 
 Este texto formaliza a observacao experimental registrada em
-`docs/problem1_general_region_multi_anchor.md`: mesmo quando a regiao conexa
+`research/docs/problem1_general_region_multi_anchor.md`: mesmo quando a regiao conexa
 `C` possui multiplos owners depois da materializacao local, o workspace geral
 medido pelo diagnostico possui uma unica ancora local.
 
@@ -295,7 +295,7 @@ vazios e canonicalizacao same-level, transporta corretamente a cadeia de
 Essa ponte foi formalizada em:
 
 ```text
-docs/problem1_nodeca_closure_root_absorption.md
+research/docs/problem1_nodeca_closure_root_absorption.md
 ```
 
 Conclusao: nos marcos atuais, `nodeCa` sempre alcanca `closureRoot(C,b)` por

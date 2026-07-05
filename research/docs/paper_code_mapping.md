@@ -20,7 +20,7 @@ C = union of proper parts of all nodes in subtree(subtreeRoot)
 ```
 
 For the implementation closure of this published merge scope, see
-`docs/published_merge_closure.md`.
+`research/docs/published_merge_closure.md`.
 
 The experimental path introduces an explicit descriptor:
 

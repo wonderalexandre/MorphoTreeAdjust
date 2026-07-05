@@ -30,8 +30,8 @@ organiza a prova para o contrato atual:
 Este texto usa os resultados registrados em:
 
 ```text
-docs/problem1_intermediate_gap_lemma.md
-docs/problem1_same_level_canonicalization_note.md
+research/docs/problem1_intermediate_gap_lemma.md
+research/docs/problem1_same_level_canonicalization_note.md
 ```
 
 Em particular:
@@ -954,7 +954,7 @@ O uso desses argumentos dentro do contrato geral do Problema 1, com multiplos
 owners de `C`, esta organizado em:
 
 ```text
-docs/problem1_integrated_local_correctness_theorem.md
+research/docs/problem1_integrated_local_correctness_theorem.md
 ```
 
 A relacao entre `S_code` e `Intervalle(C)` tambem fica fechada sob o contrato
@@ -975,7 +975,7 @@ single-`nodeCa` atualmente implementado.
 
 Permanece fora do escopo atual: casos de multiplos `nodeCa` ou decomposicao
 multi-anchor. Eles pertencem ao plano de regiao geral iniciado em
-`docs/problem1_general_region_multi_anchor.md`.
+`research/docs/problem1_general_region_multi_anchor.md`.
 
 ## Leitura operacional
 

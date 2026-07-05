@@ -1,17 +1,11 @@
 #pragma once
 
 /**
- * @brief Public entry point for the MorphoTreeAdjust `core`.
+ * @brief Aggregate entry point for the algorithm-alignment research snapshot.
  *
- * This header aggregates the C++ surface considered official for the main
- * repository:
- *
- * - per-pixel dynamic trees;
- * - dual min/max tree incremental filtering;
- * - CASF on the main per-pixel line;
- * - non-increasing CASF on the promoted updating path.
- *
- * It defines the published C++ surface of the repository.
+ * This header keeps the study header-only and self-contained under
+ * `research/include/morphoTreeAdjustResearch`. It is not the public product
+ * API installed from `morphoTreeAdjust/include`.
  */
 
 #include "AdjacencyRelation.hpp"

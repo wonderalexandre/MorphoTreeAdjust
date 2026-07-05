@@ -40,7 +40,7 @@ non-increasing CASF updating path against the naive rebuild oracle:
 
 ```bash
 cmake -DMTA_ROOT_DIR="$PWD" \
-      -P dev-tools/cmake/run_benchmark_non_increasing_casf_smoke.cmake
+      -P research/cmake/run_benchmark_non_increasing_casf_smoke.cmake
 ```
 
 The script runs `non_increasing_casf_apply` with the public clean local-update
@@ -178,7 +178,7 @@ this machine, so this run used the available 480p grayscale images under:
 Command:
 
 ```bash
-../build/MorphoTreeAdjust/dev-tools/compare_update_backends/tools/compare_update_backends \
+../build/MorphoTreeAdjust/research/research_compare_update_backends \
   --radio-adj 1.5 \
   /Users/wonderalexandre/GitHub/MorphoTreeAdjust_likeHigra/tests/dat/icdar_480p/test_000.png \
   /Users/wonderalexandre/GitHub/MorphoTreeAdjust_likeHigra/tests/dat/icdar_480p/test_001.png \
@@ -310,7 +310,7 @@ Configuration:
 Raw CSV:
 
 ```text
-results/jmiv2026/compare_update_backends_icdar_1080p_100_20260604.csv
+research/results/jmiv2026/compare_update_backends_icdar_1080p_100_20260604.csv
 ```
 
 Command:

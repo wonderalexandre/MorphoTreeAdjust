@@ -196,7 +196,7 @@ print-first-materialized-intermediate-gap:
 Nenhum contraexemplo foi encontrado nesses marcos.
 
 A formalizacao detalhada esta em
-`docs/problem1_intermediate_gap_lemma.md`. Ela separa explicitamente:
+`research/docs/problem1_intermediate_gap_lemma.md`. Ela separa explicitamente:
 
 - o componente de limiar `K_v^+(C)`;
 - o objeto de prova `C_v^+`;
@@ -207,7 +207,7 @@ A formalizacao detalhada esta em
 
 A ponte entre essa formulacao e a mutacao concreta de
 `updateTreeWithExplicitRegion` esta em
-`docs/problem1_explicit_region_mutation_proof.md`, que agora inclui a prova do
+`research/docs/problem1_explicit_region_mutation_proof.md`, que agora inclui a prova do
 invariante do sweep por buckets e a prova local das arestas de fronteira em
 `reattachOutsideIntervalChildren`, alem do fechamento em `nodeCa` e da
 absorcao de nos vazios. Ela tambem fecha a relacao entre o conjunto

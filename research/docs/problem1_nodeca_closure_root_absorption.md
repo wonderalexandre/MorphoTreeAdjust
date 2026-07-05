@@ -3,8 +3,8 @@
 Este texto complementa:
 
 ```text
-docs/problem1_general_workspace_unique_root.md
-docs/problem1_explicit_region_mutation_proof.md
+research/docs/problem1_general_workspace_unique_root.md
+research/docs/problem1_explicit_region_mutation_proof.md
 ```
 
 O objetivo e explicar por que a mutacao atual pode fechar a recomposicao em

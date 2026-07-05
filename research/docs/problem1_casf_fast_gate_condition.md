@@ -166,7 +166,7 @@ todos os eventos medidos.
 O proximo passo tecnico esta detalhado em:
 
 ```text
-docs/problem1_casf_fast_gate_release_theorem.md
+research/docs/problem1_casf_fast_gate_release_theorem.md
 ```
 
 Esse texto organiza a prova candidata:

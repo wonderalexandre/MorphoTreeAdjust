@@ -88,4 +88,4 @@ Para comparacoes de tempo, medir separadamente:
 - `research/include/morphoTreeAdjustResearch/debug/Algorithm2FlatRegionMergeUpdater.hpp`
 - `research/include/morphoTreeAdjustResearch/debug/Algorithm2FlatRaiseAreaAttributeUpdater.hpp`
 - `research/include/morphoTreeAdjustResearch/debug/AttributeDirtyRecomputer.hpp`
-- `unit-tests/debug_region_merge_updater_unit_tests.cpp`
+- `research/tests/debug_region_merge_updater_unit_tests.cpp`
