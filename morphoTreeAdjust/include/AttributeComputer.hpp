@@ -15,6 +15,7 @@ enum class Attribute {
     BOX_WIDTH,
     BOX_HEIGHT,
     DIAGONAL_LENGTH,
+    AREA_PER_BOX_PERIMETER,
 };
 using enum Attribute;
 
@@ -23,6 +24,7 @@ struct DynamicBoundingBoxState {
     int xmax = -1;
     int ymin = 0;
     int ymax = -1;
+    int area = 0;
     bool empty = true;
 };
 
@@ -125,6 +127,17 @@ private:
     mutable std::vector<LocalSummary> local_;
     mutable std::vector<SubtreeSummary> subtree_;
 
+    void ensureStorage() const {
+        const auto slots = static_cast<std::size_t>(
+            tree_ ? tree_->getNumInternalNodeSlots() : 0);
+        if (local_.size() < slots) {
+            local_.resize(slots);
+        }
+        if (subtree_.size() < slots) {
+            subtree_.resize(slots);
+        }
+    }
+
     /**
      * @brief Recursively recomputes the subtree of `nodeId` and writes the result into `buffer`.
      * @details This helper is used for full computations outside the adjuster's
@@ -132,6 +145,7 @@ private:
      * explicitly bootstrapping the attribute.
      */
     void computeNode(NodeId nodeId, std::span<float> buffer) const {
+        ensureStorage();
         preProcessing(nodeId, buffer);
         for (NodeId childId : tree_->getChildren(nodeId)) {
             computeNode(childId, buffer);
@@ -148,6 +162,7 @@ private:
      * the parent node.
      */
     void initializeSummariesFromNode(NodeId nodeId) const {
+        ensureStorage();
         policy_.ensureLocal(tree_, nodeId, local_[(size_t) nodeId]);
         policy_.copyLocalToSubtree(local_[(size_t) nodeId], subtree_[(size_t) nodeId]);
         for (NodeId childId : tree_->getChildren(nodeId)) {
@@ -200,6 +215,7 @@ protected:
      * node's direct proper parts.
      */
     LocalSummary &localSummary(NodeId nodeId) const {
+        ensureStorage();
         return local_[(size_t) nodeId];
     }
 
@@ -209,6 +225,7 @@ protected:
      * children, not just the node's direct contribution.
      */
     SubtreeSummary &subtreeSummary(NodeId nodeId) const {
+        ensureStorage();
         return subtree_[(size_t) nodeId];
     }
 
@@ -222,6 +239,7 @@ public:
      * on the external buffer is cheaper.
      */
     void preProcessing(NodeId nodeId, std::span<float>) const override {
+        ensureStorage();
         policy_.ensureLocal(tree_, nodeId, local_[(size_t) nodeId]);
         policy_.copyLocalToSubtree(local_[(size_t) nodeId], subtree_[(size_t) nodeId]);
     }
@@ -232,6 +250,7 @@ public:
      * generic infrastructure to remain independent of the attribute semantics.
      */
     void mergeProcessing(NodeId parentId, NodeId childId, std::span<float>) const override {
+        ensureStorage();
         policy_.mergeSubtree(subtree_[(size_t) parentId], subtree_[(size_t) childId]);
     }
 
@@ -241,6 +260,7 @@ public:
      * the internal state remains in the `local_` and `subtree_` vectors.
      */
     void postProcessing(NodeId nodeId, std::span<float> buffer) const override {
+        ensureStorage();
         buffer[(size_t) nodeId] = policy_.value(subtree_[(size_t) nodeId]);
     }
 
@@ -251,6 +271,7 @@ public:
      * pixel by pixel.
      */
     void onMoveProperParts(NodeId targetId, NodeId sourceId) const override {
+        ensureStorage();
         policy_.moveLocalSummary(tree_,
                                  targetId,
                                  sourceId,
@@ -265,6 +286,7 @@ public:
      * summary.
      */
     void onMoveProperPart(NodeId targetId, NodeId sourceId, PixelId pixelId) const override {
+        ensureStorage();
         policy_.movePixel(tree_,
                           targetId,
                           sourceId,
@@ -399,6 +421,7 @@ struct DynamicBoundingBoxLocalSummary {
     int xmax = -1;
     int ymin = 0;
     int ymax = -1;
+    int area = 0;
     int xminCount = 0;
     int xmaxCount = 0;
     int yminCount = 0;
@@ -434,6 +457,7 @@ private:
         local.xmax = -1;
         local.ymin = numRows_;
         local.ymax = -1;
+        local.area = 0;
         local.xminCount = 0;
         local.xmaxCount = 0;
         local.yminCount = 0;
@@ -457,10 +481,12 @@ private:
             local.xmaxCount = 1;
             local.yminCount = 1;
             local.ymaxCount = 1;
+            local.area = 1;
             local.empty = false;
             return;
         }
 
+        ++local.area;
         if (col < local.xmin) {
             local.xmin = col;
             local.xminCount = 1;
@@ -507,6 +533,7 @@ private:
             return;
         }
 
+        target.area += source.area;
         if (source.xmin < target.xmin) {
             target.xmin = source.xmin;
             target.xminCount = source.xminCount;
@@ -567,6 +594,7 @@ private:
             return;
         }
 
+        state.area += other.area;
         state.xmin = std::min(state.xmin, other.xmin);
         state.xmax = std::max(state.xmax, other.xmax);
         state.ymin = std::min(state.ymin, other.ymin);
@@ -620,6 +648,7 @@ public:
         subtree.xmax = local.xmax;
         subtree.ymin = local.ymin;
         subtree.ymax = local.ymax;
+        subtree.area = local.area;
         subtree.empty = local.empty;
     }
 
@@ -633,7 +662,8 @@ public:
     /**
      * @brief Converts the final subtree summary into the scalar attribute value.
      * @details The same policy serves `bbox_width`, `bbox_height`, and
-     * `bbox_diagonal`; only the final projection on the rectangle changes.
+     * `bbox_diagonal`, and `area_per_box_perimeter`; only the final
+     * projection on the rectangle changes.
      */
     float value(const SubtreeSummary &subtree) const {
         if (subtree.empty) {
@@ -647,6 +677,12 @@ public:
         }
         if (attribute_ == BOX_HEIGHT) {
             return height;
+        }
+        if (attribute_ == AREA_PER_BOX_PERIMETER) {
+            const float perimeter = 2.0f * width + 2.0f * height;
+            return perimeter > 0.0f
+                ? static_cast<float>(subtree.area) / perimeter
+                : 0.0f;
         }
         return std::sqrt(width * width + height * height);
     }
@@ -701,6 +737,9 @@ public:
             resetLocalBox(source);
             source.dirty = false;
         } else if (!source.dirty) {
+            if (source.area > 0) {
+                --source.area;
+            }
             const auto [row, col] = ImageUtils::to2D(pixelId, numCols_);
             bool exhaustsXmin = false;
             bool exhaustsXmax = false;
@@ -757,7 +796,8 @@ public:
  * of the attributes listed in `Attribute`:
  * - width;
  * - height;
- * - diagonal.
+ * - diagonal;
+ * - area divided by the bounding-box perimeter.
  */
 class DynamicBoundingBoxComputer : public DynamicSummaryComputer<DynamicBoundingBoxPolicy> {
 private:
@@ -775,6 +815,7 @@ private:
         local.xmax = -1;
         local.ymin = 0;
         local.ymax = -1;
+        local.area = 0;
         local.xminCount = 0;
         local.xmaxCount = 0;
         local.yminCount = 0;
@@ -794,6 +835,7 @@ private:
         subtree.xmax = -1;
         subtree.ymin = 0;
         subtree.ymax = -1;
+        subtree.area = 0;
         subtree.empty = true;
     }
 

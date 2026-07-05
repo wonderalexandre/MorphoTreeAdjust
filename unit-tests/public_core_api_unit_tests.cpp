@@ -55,5 +55,17 @@ int main() {
     require(filtered->getNumRows() == image->getNumRows(), "filtered image must preserve the number of rows");
     require(filtered->getNumCols() == image->getNumCols(), "filtered image must preserve the number of cols");
 
+    ComponentTreeCasfNonIncreasing<AltitudeType> nonIncreasingCasf(
+        image->clone(),
+        adj,
+        AREA_PER_BOX_PERIMETER);
+    auto nonIncreasingFiltered = nonIncreasingCasf.filter(std::vector<float>{0.25f});
+    require(nonIncreasingFiltered != nullptr,
+            "ComponentTreeCasfNonIncreasing must return a valid filtered image");
+    require(nonIncreasingFiltered->getNumRows() == image->getNumRows(),
+            "non-increasing filtered image must preserve the number of rows");
+    require(nonIncreasingFiltered->getNumCols() == image->getNumCols(),
+            "non-increasing filtered image must preserve the number of cols");
+
     return 0;
 }

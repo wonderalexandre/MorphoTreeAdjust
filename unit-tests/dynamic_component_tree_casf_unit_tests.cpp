@@ -1,12 +1,17 @@
+#include <algorithm>
+#include <cmath>
+#include <limits>
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include "../morphoTreeAdjust/include/AdjacencyRelation.hpp"
 #include "../morphoTreeAdjust/include/AttributeComputer.hpp"
 #include "../morphoTreeAdjust/include/Common.hpp"
 #include "../morphoTreeAdjust/include/ComponentTreeCasf.hpp"
+#include "../morphoTreeAdjust/include/ComponentTreeCasfNonIncreasing.hpp"
 #include "../morphoTreeAdjust/include/DynamicComponentTree.hpp"
 
 namespace {
@@ -83,6 +88,90 @@ std::vector<NodeId> getNodesToPrune(const DynamicComponentTree &tree,
     return out;
 }
 
+struct NonIncreasingCandidateOrderEntry {
+    NodeId nodeId = InvalidNode;
+    int altitude = 0;
+    PixelId supportMinPixel = std::numeric_limits<PixelId>::max();
+    int supportSize = 0;
+};
+
+std::vector<NodeId> getNodesToMergeForNonIncreasingAttribute(const DynamicComponentTree &tree,
+                                                             const std::vector<float> &attribute,
+                                                             float threshold) {
+    FastQueue<NodeId> queue;
+    std::vector<NodeId> traversalOrder;
+    std::vector<NodeId> scanOrder;
+    queue.push(tree.getRoot());
+    while (!queue.empty()) {
+        const NodeId nodeId = queue.pop();
+        if (nodeId == InvalidNode ||
+            !tree.isNode(nodeId) ||
+            !tree.isAlive(nodeId)) {
+            continue;
+        }
+
+        traversalOrder.push_back(nodeId);
+        if (nodeId != tree.getRoot() &&
+            static_cast<std::size_t>(nodeId) < attribute.size() &&
+            attribute[static_cast<std::size_t>(nodeId)] <= threshold) {
+            scanOrder.push_back(nodeId);
+        }
+
+        for (NodeId childId : tree.getChildren(nodeId)) {
+            queue.push(childId);
+        }
+    }
+
+    const auto nodeSlots = static_cast<std::size_t>(tree.getNumInternalNodeSlots());
+    std::vector<int> supportSizeByNode(nodeSlots, 0);
+    std::vector<PixelId> supportMinPixelByNode(
+        nodeSlots,
+        std::numeric_limits<PixelId>::max());
+
+    for (auto it = traversalOrder.rbegin(); it != traversalOrder.rend(); ++it) {
+        const NodeId nodeId = *it;
+        const auto index = static_cast<std::size_t>(nodeId);
+        int supportSize = tree.getNumProperParts(nodeId);
+        PixelId supportMinPixel = std::numeric_limits<PixelId>::max();
+
+        for (PixelId pixelId : tree.getProperParts(nodeId)) {
+            supportMinPixel = std::min(supportMinPixel, pixelId);
+        }
+
+        for (NodeId childId : tree.getChildren(nodeId)) {
+            const auto childIndex = static_cast<std::size_t>(childId);
+            supportSize += supportSizeByNode[childIndex];
+            supportMinPixel = std::min(supportMinPixel, supportMinPixelByNode[childIndex]);
+        }
+
+        supportSizeByNode[index] = supportSize;
+        supportMinPixelByNode[index] = supportMinPixel;
+    }
+
+    std::vector<NonIncreasingCandidateOrderEntry> ordered(scanOrder.size());
+    for (std::size_t index = 0; index < scanOrder.size(); ++index) {
+        const NodeId nodeId = scanOrder[index];
+        auto &entry = ordered[index];
+        entry.nodeId = nodeId;
+        entry.altitude = tree.getAltitude(nodeId);
+        const auto nodeIndex = static_cast<std::size_t>(nodeId);
+        entry.supportMinPixel = supportMinPixelByNode[nodeIndex];
+        entry.supportSize = supportSizeByNode[nodeIndex];
+    }
+
+    std::sort(ordered.begin(), ordered.end(), [](const auto &lhs, const auto &rhs) {
+        return std::tie(lhs.altitude, lhs.supportMinPixel, lhs.supportSize, lhs.nodeId) <
+               std::tie(rhs.altitude, rhs.supportMinPixel, rhs.supportSize, rhs.nodeId);
+    });
+
+    std::vector<NodeId> out;
+    out.reserve(ordered.size());
+    for (const auto &entry : ordered) {
+        out.push_back(entry.nodeId);
+    }
+    return out;
+}
+
 std::vector<float> compute_attribute(DynamicComponentTree &tree, Attribute attribute) {
     if (attribute == AREA) {
         DynamicAreaComputer computer(&tree);
@@ -116,6 +205,36 @@ ImageUInt8Ptr apply_naive_threshold(ImageUInt8Ptr input,
     return minTree.reconstructionImage();
 }
 
+ImageUInt8Ptr apply_naive_non_increasing_threshold(ImageUInt8Ptr input,
+                                                   AdjacencyRelationPtr adj,
+                                                   float threshold,
+                                                   Attribute attribute) {
+    DynamicComponentTree maxTree(input, true, adj);
+    const auto maxAttribute = compute_attribute(maxTree, attribute);
+    for (NodeId nodeId : getNodesToMergeForNonIncreasingAttribute(maxTree, maxAttribute, threshold)) {
+        if (nodeId != maxTree.getRoot() &&
+            maxTree.isNode(nodeId) &&
+            maxTree.isAlive(nodeId) &&
+            maxTree.getNumProperParts(nodeId) > 0) {
+            maxTree.mergeNodeIntoParent(nodeId);
+        }
+    }
+
+    auto current = maxTree.reconstructionImage();
+    DynamicComponentTree minTree(current, false, adj);
+    const auto minAttribute = compute_attribute(minTree, attribute);
+    for (NodeId nodeId : getNodesToMergeForNonIncreasingAttribute(minTree, minAttribute, threshold)) {
+        if (nodeId != minTree.getRoot() &&
+            minTree.isNode(nodeId) &&
+            minTree.isAlive(nodeId) &&
+            minTree.getNumProperParts(nodeId) > 0) {
+            minTree.mergeNodeIntoParent(nodeId);
+        }
+    }
+
+    return minTree.reconstructionImage();
+}
+
 ImageUInt8Ptr run_naive_sequence(ImageUInt8Ptr input,
                                  AdjacencyRelationPtr adj,
                                  const std::vector<int> &thresholds,
@@ -123,6 +242,17 @@ ImageUInt8Ptr run_naive_sequence(ImageUInt8Ptr input,
     auto current = input->clone();
     for (int threshold : thresholds) {
         current = apply_naive_threshold(current, adj, threshold, attribute);
+    }
+    return current;
+}
+
+ImageUInt8Ptr run_naive_non_increasing_sequence(ImageUInt8Ptr input,
+                                                AdjacencyRelationPtr adj,
+                                                const std::vector<float> &thresholds,
+                                                Attribute attribute) {
+    auto current = input->clone();
+    for (float threshold : thresholds) {
+        current = apply_naive_non_increasing_threshold(current, adj, threshold, attribute);
     }
     return current;
 }
@@ -245,6 +375,26 @@ void test_tree_accessors_expose_internal_trees() {
             "ComponentTreeCasf min-tree accessor must expose the internal tree state");
 }
 
+void test_non_increasing_box_area_perimeter_matches_naive_baseline() {
+    auto input = make_demo_image();
+    auto adj = std::make_shared<AdjacencyRelation>(input->getNumRows(), input->getNumCols(), 1.0);
+    const std::vector<float> thresholds = {0.25f, 0.4f, 0.75f};
+
+    ComponentTreeCasfNonIncreasing<AltitudeType> runner(
+        input,
+        adj,
+        AREA_PER_BOX_PERIMETER);
+    const auto filtered = runner.filter(thresholds);
+
+    const auto baseline = run_naive_non_increasing_sequence(
+        input,
+        adj,
+        thresholds,
+        AREA_PER_BOX_PERIMETER);
+    require(filtered->isEqual(baseline),
+            "non-increasing CASF by box area/perimeter must match the naive rebuild baseline");
+}
+
 } // namespace
 
 int main() {
@@ -256,6 +406,7 @@ int main() {
         test_area_stress_matches_naive_sequence_on_structured_images();
         test_naive_and_hybrid_modes_match_baseline();
         test_tree_accessors_expose_internal_trees();
+        test_non_increasing_box_area_perimeter_matches_naive_baseline();
     } catch (const std::exception &e) {
         std::cerr << "dynamic_component_tree_casf_unit_tests: FAIL\n" << e.what() << "\n";
         return 1;

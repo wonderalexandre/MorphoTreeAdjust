@@ -17,6 +17,7 @@
 #include "AttributeComputer.hpp"
 #include "Common.hpp"
 #include "ComponentTreeCasf.hpp"
+#include "ComponentTreeCasfNonIncreasing.hpp"
 #include "DynamicComponentTree.hpp"
 #include "DualMinMaxTreeIncrementalFilter.hpp"
 #include "DualMinMaxTreeIncrementalFilterLeaf.hpp"
