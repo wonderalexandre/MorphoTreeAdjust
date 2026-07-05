@@ -106,6 +106,38 @@ NodeId firstNonRootNode(const DynamicComponentTree &tree) {
     return InvalidNode;
 }
 
+NodeId firstStrictNonRootNode(const DynamicComponentTree &tree) {
+    for (int nodeId : tree.getNodeSubtree(tree.getRoot())) {
+        if (tree.isRoot(nodeId)) {
+            continue;
+        }
+
+        const NodeId parentId = tree.getNodeParent(nodeId);
+        if (parentId == InvalidNode || parentId == nodeId || !tree.isAlive(parentId)) {
+            continue;
+        }
+
+        const int parentLevel = tree.getAltitude(parentId);
+        const int nodeLevel = tree.getAltitude(nodeId);
+        if ((tree.isMaxtree() && parentLevel < nodeLevel) ||
+            (!tree.isMaxtree() && parentLevel > nodeLevel)) {
+            return nodeId;
+        }
+    }
+    return InvalidNode;
+}
+
+template <typename Fn>
+void requireThrows(Fn &&fn, const std::string &message) {
+    bool threw = false;
+    try {
+        fn();
+    } catch (const std::exception &) {
+        threw = true;
+    }
+    require(threw, message);
+}
+
 std::vector<NodeId> getNodesToPrune(const DynamicComponentTree &tree,
                                     const std::vector<float> &attribute,
                                     int threshold) {
@@ -341,6 +373,108 @@ void testSequentialMintreePrunesMatchDualReconstructionOnLargeFixture() {
     }
 }
 
+void testPublicPruneAndUpdateKeepsTreesSynchronized() {
+    auto input = make_large_demo_image();
+    auto adj = std::make_shared<AdjacencyRelation>(input->getNumRows(), input->getNumCols(), 1.0);
+
+    {
+        DynamicComponentTree maxTree(input, true, adj);
+        DynamicComponentTree minTree(input, false, adj);
+        DualMinMaxTreeIncrementalFilter<AltitudeType> adjust(&minTree, &maxTree, *adj);
+
+        const NodeId rootSubtree = firstStrictNonRootNode(maxTree);
+        require(rootSubtree != InvalidNode, "expected a strict max-tree subtree root");
+
+        adjust.pruneAndUpdate(&maxTree, &minTree, rootSubtree);
+
+        require_tree_consistency(minTree);
+        require(minTree.reconstructionImage()->isEqual(maxTree.reconstructionImage()),
+                "public pruneAndUpdate must synchronize min-tree after a max-tree prune");
+    }
+
+    {
+        DynamicComponentTree maxTree(input, true, adj);
+        DynamicComponentTree minTree(input, false, adj);
+        DualMinMaxTreeIncrementalFilter<AltitudeType> adjust(&minTree, &maxTree, *adj);
+
+        std::vector<NodeId> nodesToPrune = {firstStrictNonRootNode(minTree)};
+        require(nodesToPrune.front() != InvalidNode, "expected a strict min-tree subtree root");
+
+        adjust.pruneAndUpdate(&minTree, &maxTree,
+                              std::span<const NodeId>(nodesToPrune.data(), nodesToPrune.size()));
+
+        require_tree_consistency(maxTree);
+        require(maxTree.reconstructionImage()->isEqual(minTree.reconstructionImage()),
+                "public pruneAndUpdate span overload must synchronize max-tree after a min-tree prune");
+    }
+}
+
+void testPublicCleanApiRejectsInvalidNodes() {
+    auto input = make_demo_image();
+    auto adj = std::make_shared<AdjacencyRelation>(input->getNumRows(), input->getNumCols(), 1.5);
+
+    DynamicComponentTree maxTree(input, true, adj);
+    DynamicComponentTree minTree(input, false, adj);
+    DualMinMaxTreeIncrementalFilter<AltitudeType> adjust(&minTree, &maxTree, *adj);
+
+    requireThrows([&]() {
+        adjust.pruneAndUpdate(&maxTree, &minTree, maxTree.getRoot());
+    }, "public pruneAndUpdate must reject the primal root");
+
+    requireThrows([&]() {
+        adjust.mergeNodeIntoParentAndUpdate(&minTree, &maxTree, minTree.getRoot());
+    }, "public mergeNodeIntoParentAndUpdate must reject the primal root");
+}
+
+void requirePublicMergeNodeIntoParentSuccess(bool primalIsMinTree) {
+    auto input = make_large_demo_image();
+    auto adj = std::make_shared<AdjacencyRelation>(input->getNumRows(), input->getNumCols(), 1.0);
+
+    DynamicComponentTree referenceMaxTree(input, true, adj);
+    DynamicComponentTree referenceMinTree(input, false, adj);
+    const DynamicComponentTree &referencePrimalTree = primalIsMinTree ? referenceMinTree : referenceMaxTree;
+
+    std::vector<NodeId> candidateNodes;
+    for (NodeId nodeId = 0; nodeId < referencePrimalTree.getNumInternalNodeSlots(); ++nodeId) {
+        if (referencePrimalTree.isNode(nodeId) &&
+            referencePrimalTree.isAlive(nodeId) &&
+            !referencePrimalTree.isRoot(nodeId) &&
+            referencePrimalTree.getNumProperParts(nodeId) > 0) {
+            candidateNodes.push_back(nodeId);
+        }
+    }
+    require(!candidateNodes.empty(), "expected merge-node candidates");
+
+    for (NodeId nodeId : candidateNodes) {
+        DynamicComponentTree maxTree(input, true, adj);
+        DynamicComponentTree minTree(input, false, adj);
+        DualMinMaxTreeIncrementalFilter<AltitudeType> adjust(&minTree, &maxTree, *adj);
+        DynamicComponentTree *primalTree = primalIsMinTree ? &minTree : &maxTree;
+        DynamicComponentTree *dualTree = primalIsMinTree ? &maxTree : &minTree;
+
+        try {
+            adjust.mergeNodeIntoParentAndUpdate(primalTree, dualTree, nodeId);
+        } catch (const std::exception &) {
+            continue;
+        }
+
+        require_tree_consistency(*primalTree);
+        require_tree_consistency(*dualTree);
+        require(primalTree->reconstructionImage()->isEqual(dualTree->reconstructionImage()),
+                "public mergeNodeIntoParentAndUpdate must keep primal and dual reconstructions synchronized");
+        return;
+    }
+
+    require(false, primalIsMinTree
+        ? "expected at least one successful min-tree merge-node event"
+        : "expected at least one successful max-tree merge-node event");
+}
+
+void testPublicMergeNodeIntoParentAndUpdateKeepsTreesSynchronized() {
+    requirePublicMergeNodeIntoParentSuccess(true);
+    requirePublicMergeNodeIntoParentSuccess(false);
+}
+
 void testUpdateTreeKeepsFinalTreeConnectedAndAreaConsistent() {
     auto input = make_large_demo_image();
     auto adj = std::make_shared<AdjacencyRelation>(input->getNumRows(), input->getNumCols(), 1.0);
@@ -425,6 +559,9 @@ int main() {
         testDynamicAdjustmentMatchesNaiveBaseline();
         testDynamicAdjustmentMatchesNaiveOnRecordedSubtreeRegression();
         testSequentialMintreePrunesMatchDualReconstructionOnLargeFixture();
+        testPublicPruneAndUpdateKeepsTreesSynchronized();
+        testPublicCleanApiRejectsInvalidNodes();
+        testPublicMergeNodeIntoParentAndUpdateKeepsTreesSynchronized();
         testUpdateTreeKeepsFinalTreeConnectedAndAreaConsistent();
         testUpdateTreeRemainsStructurallyValidOnAllSharedRoots();
     } catch (const std::exception &e) {

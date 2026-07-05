@@ -783,6 +783,32 @@ public:
     }
 
     /**
+     * @brief Creates a detached live node at a prescribed altitude.
+     */
+    NodeId createDetachedNode(int altitude) {
+        NodeId nodeId = allocateNode();
+        if (nodeId != InvalidNode) {
+            altitude_[nodeId] = altitude;
+            return nodeId;
+        }
+
+        nodeId = static_cast<NodeId>(nodeParent_.size());
+        altitude_.push_back(altitude);
+        nodeParent_.push_back(nodeId);
+        firstChild_.push_back(InvalidNode);
+        lastChild_.push_back(InvalidNode);
+        nextSibling_.push_back(InvalidNode);
+        prevSibling_.push_back(InvalidNode);
+        numChildrenByNode_.push_back(0);
+        properHead_.push_back(InvalidNode);
+        properTail_.push_back(InvalidNode);
+        numProperPartsByNode_.push_back(0);
+        ++numNodes_;
+        ++nodeStructureVersion_;
+        return nodeId;
+    }
+
+    /**
      * @brief Releases an isolated node with no children and no proper parts.
      */
     void releaseNode(NodeId nodeId) {

@@ -150,17 +150,30 @@ struct GenerationStampSet {
     }
 
     /**
+     * @brief Grows the set while preserving the current generation.
+     */
+    void ensureSize(size_t newN) {
+        if (newN <= n) {
+            return;
+        }
+        stamp.resize(newN, 0);
+        n = newN;
+    }
+
+    /**
      * @brief Marks position `idx` in the current generation.
      */
     inline void mark(size_t idx) noexcept {
-        stamp[idx] = cur;
+        if (idx < n) {
+            stamp[idx] = cur;
+        }
     }
 
     /**
      * @brief Removes the mark from position `idx` in the current generation.
      */
     inline void unmark(size_t idx) noexcept {
-        if (stamp[idx] == cur) {
+        if (idx < n && stamp[idx] == cur) {
             stamp[idx] = 0;
         }
     }
@@ -169,6 +182,9 @@ struct GenerationStampSet {
      * @brief Tests whether `idx` is marked in the current generation.
      */
     inline bool isMarked(size_t idx) const noexcept {
+        if (idx >= n) {
+            return false;
+        }
         return stamp[idx] == cur;
     }
 
