@@ -1,6 +1,7 @@
 /build/
 /build-root-check/
 /build-tests/
+/build-dev-tools/
 /benchmark/build*/
 /dev-tools/build*/
 /tests/build*/

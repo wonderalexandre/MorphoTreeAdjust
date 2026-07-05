@@ -31,6 +31,7 @@ message(STATUS "Compiler: ${CMAKE_CXX_COMPILER}")
 message(STATUS "C++ Standard: C++${CMAKE_CXX_STANDARD}")
 
 option(MTA_INSTALL_PUBLIC_CORE_HEADERS "Install only the public C++ core headers." ON)
+option(MTA_BUILD_RESEARCH "Build MorphoTreeAdjust research targets." OFF)
 if(SKBUILD)
   set(MTA_PYTHON_PACKAGE_INSTALL_DIR "morphoTreeAdjust" CACHE PATH
     "Install directory for the Python package relative to the install prefix.")
@@ -106,4 +107,8 @@ if(MTA_INSTALL_PUBLIC_CORE_HEADERS)
     COMPONENT core_headers
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/MorphoTreeAdjust"
   )
+endif()
+
+if(MTA_BUILD_RESEARCH)
+  add_subdirectory(research)
 endif()
