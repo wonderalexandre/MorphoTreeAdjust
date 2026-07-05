@@ -366,7 +366,9 @@ private:
      * @param tree Tree that contains the edited node.
      * @param nodeId Node whose attribute must be updated.
      */
-    void computeAttributeOnTreeNode(DynamicComponentTree *tree, NodeId nodeId) {
+    void computeAttributeOnTreeNode(DynamicComponentTree *tree,
+                                    NodeId nodeId,
+                                    bool enforceDualUpdateInterval = true) {
         DynamicAttributeComputer *computer = nullptr;
         std::span<float> buffer;
         if (tree == mintree_) {
@@ -385,10 +387,12 @@ private:
             return;
         }
 
-        const PixelType level = static_cast<PixelType>(tree->getAltitude(nodeId));
-        if ((tree == maxtree_ && level < altitudeCa) || (tree == mintree_ && level > altitudeCa)) {
-            attributeUpdateMarks_.unmark(static_cast<std::size_t>(nodeId));
-            return;
+        if (enforceDualUpdateInterval) {
+            const PixelType level = static_cast<PixelType>(tree->getAltitude(nodeId));
+            if ((tree == maxtree_ && level < altitudeCa) || (tree == mintree_ && level > altitudeCa)) {
+                attributeUpdateMarks_.unmark(static_cast<std::size_t>(nodeId));
+                return;
+            }
         }
 
         computer->preProcessing(nodeId, buffer);
@@ -464,6 +468,17 @@ private:
         if (nodeId != InvalidNode) {
             attributeUpdateMarks_.mark(static_cast<std::size_t>(nodeId));
         }
+    }
+
+    void mergePrimalNodeIntoParentAndUpdateAttribute(DynamicComponentTree *primalTree,
+                                                     NodeId nodeId,
+                                                     NodeId parentId) {
+        notifyMoveProperParts(primalTree, parentId, nodeId);
+        primalTree->mergeNodeIntoParent(nodeId);
+        notifyNodeRemoved(primalTree, nodeId);
+
+        markAttributeUpdate(parentId);
+        computeAttributeOnTreeNode(primalTree, parentId, false);
     }
 
     /**
@@ -1081,7 +1096,7 @@ private:
         return targetNode;
     }
 
-    bool attachOrMergeCanonical(DynamicComponentTree *tree, NodeId parentId, NodeId childId) {
+    bool attachChildOrMergeSameLevel(DynamicComponentTree *tree, NodeId parentId, NodeId childId) {
         assert(tree != nullptr);
         if (parentId == InvalidNode || childId == InvalidNode || parentId == childId) {
             return false;
@@ -1093,7 +1108,7 @@ private:
 
         if (tree->getAltitude(parentId) == tree->getAltitude(childId)) {
             if (tree->isRoot(childId)) {
-                throw std::runtime_error("canonical attach cannot merge the current root into a same-level parent");
+                throw std::runtime_error("attachChildOrMergeSameLevel cannot merge the current root into a same-level parent");
             }
 
             mergedParentAndChildren(tree, parentId, childId);
@@ -1113,7 +1128,7 @@ private:
             return false;
         }
         if (tree->isRoot(childId)) {
-            throw std::runtime_error("canonical attach cannot attach the current root under a non-root parent");
+            throw std::runtime_error("attachChildOrMergeSameLevel cannot attach the current root under a non-root parent");
         }
 
         const NodeId oldParentId = tree->getNodeParent(childId);
@@ -1192,14 +1207,14 @@ private:
                     moveSelectedProperPartsToNode(dualTree, currentUnionNode, properPartSetC_);
 
                     for (auto nodeId : mergeNodesByLevel_.getFrontierNodesAboveB()) {
-                        attachOrMergeCanonical(dualTree, currentUnionNode, nodeId);
+                        attachChildOrMergeSameLevel(dualTree, currentUnionNode, nodeId);
                     }
                 }
 
                 if (previousLevelUnionNode != InvalidNode &&
                     dualTree->isAlive(previousLevelUnionNode) &&
                     !dualTree->hasChild(currentUnionNode, previousLevelUnionNode)) {
-                    attachOrMergeCanonical(dualTree, currentUnionNode, previousLevelUnionNode);
+                    attachChildOrMergeSameLevel(dualTree, currentUnionNode, previousLevelUnionNode);
                 }
 
                 markAttributeUpdate(currentUnionNode);
@@ -1274,47 +1289,45 @@ private:
         runExplicitRegionUpdate(dualTree, b, isMaxtree, nodeCa, allowTargetNodeCreation);
     }
 
-    void pruneAndUpdateCleanValidatedRoot(DynamicComponentTree *primalTree,
-                                          DynamicComponentTree *dualTree,
-                                          NodeId subtreeRoot,
-                                          bool isMaxtree) {
+    NodeId collectSubtreeRegionCForDualUpdate(DynamicComponentTree *primalTree,
+                                              DynamicComponentTree *dualTree,
+                                              NodeId subtreeRoot,
+                                              PixelType &b,
+                                              bool dualIsMaxtree) {
         const NodeId subtreeParentId = primalTree->getNodeParent(subtreeRoot);
         if (subtreeParentId == InvalidNode ||
             subtreeParentId == subtreeRoot ||
             !primalTree->isAlive(subtreeParentId)) {
-            throw std::runtime_error("pruneAndUpdate cannot locate the subtree parent");
+            throw std::runtime_error("pruneSubtreeAndUpdateDual cannot locate the subtree parent");
         }
 
-        const PixelType b = static_cast<PixelType>(primalTree->getAltitude(subtreeParentId));
+        b = static_cast<PixelType>(primalTree->getAltitude(subtreeParentId));
         const PixelType subtreeRootLevel = static_cast<PixelType>(primalTree->getAltitude(subtreeRoot));
         const bool strictPrimalEdge = primalTree->isMaxtree()
             ? (b < subtreeRootLevel)
             : (b > subtreeRootLevel);
         if (!strictPrimalEdge) {
             throw std::runtime_error(primalTree->isMaxtree()
-                ? "pruneAndUpdate requires a strict primal max-tree parent/subtree edge"
-                : "pruneAndUpdate requires a strict primal min-tree parent/subtree edge");
+                ? "pruneSubtreeAndUpdateDual requires a strict primal max-tree parent/subtree edge"
+                : "pruneSubtreeAndUpdateDual requires a strict primal min-tree parent/subtree edge");
         }
 
         NodeId nodeCa = InvalidNode;
         for (auto subtreeNodeId : primalTree->getNodeSubtree(subtreeRoot)) {
             for (auto pixelId : primalTree->getProperParts(subtreeNodeId)) {
-                if (pixelsInCMarks_.isMarked(static_cast<std::size_t>(pixelId))) {
-                    continue;
-                }
-
                 properPartSetC_.push_back(pixelId);
                 pixelsInCMarks_.mark(static_cast<std::size_t>(pixelId));
 
                 const NodeId ownerNodeId = dualTree->getSmallestComponent(pixelId);
-                if (ownerNodeId == InvalidNode || !dualTree->isAlive(ownerNodeId)) {
-                    throw std::runtime_error("pruneAndUpdate found a pixel without a live dual owner");
+                if (ownerNodeId == InvalidNode) {
+                    throw std::runtime_error("pruneSubtreeAndUpdateDual found a pixel without a dual owner");
                 }
+                assert(dualTree->isAlive(ownerNodeId));
 
                 const PixelType altitudeP = static_cast<PixelType>(dualTree->getAltitude(ownerNodeId));
                 if (nodeCa == InvalidNode ||
-                    ((isMaxtree && altitudeP < altitudeCa) ||
-                     (!isMaxtree && altitudeP > altitudeCa))) {
+                    ((dualIsMaxtree && altitudeP < altitudeCa) ||
+                     (!dualIsMaxtree && altitudeP > altitudeCa))) {
                     altitudeCa = altitudeP;
                     nodeCa = ownerNodeId;
                 }
@@ -1322,19 +1335,18 @@ private:
         }
 
         if (properPartSetC_.empty() || nodeCa == InvalidNode) {
-            throw std::runtime_error("pruneAndUpdate received an empty region C");
+            throw std::runtime_error("pruneSubtreeAndUpdateDual received an empty region C");
         }
 
-        runExplicitRegionUpdate(dualTree, b, isMaxtree, nodeCa, false);
-        primalTree->pruneNode(subtreeRoot);
+        return nodeCa;
     }
 
-    std::vector<std::vector<PixelId>> collectDirectProperPartComponents(
+    std::vector<std::vector<PixelId>> collectConnectedDirectProperPartComponents(
         const DynamicComponentTree *tree,
         NodeId nodeId) const {
         std::vector<std::vector<PixelId>> components;
         if (tree == nullptr || graph_ == nullptr) {
-            throw std::invalid_argument("mergeNodeIntoParentAndUpdate requires valid tree and adjacency relation");
+            throw std::invalid_argument("mergeNodeIntoParentAndUpdateDual requires valid tree and adjacency relation");
         }
 
         const int numPixels = tree->getNumTotalProperParts();
@@ -1347,7 +1359,7 @@ private:
 
         for (PixelId pixelId : tree->getProperParts(nodeId)) {
             if (pixelId < 0 || pixelId >= numPixels) {
-                throw std::runtime_error("mergeNodeIntoParentAndUpdate found an out-of-bounds proper part");
+                throw std::runtime_error("mergeNodeIntoParentAndUpdateDual found an out-of-bounds proper part");
             }
             const auto pixelIndex = static_cast<std::size_t>(pixelId);
             if (directComponentInRegionMarks_.isMarked(pixelIndex)) {
@@ -1396,20 +1408,20 @@ private:
     void requirePairedTrees(DynamicComponentTree *primalTree,
                             DynamicComponentTree *dualTree,
                             const char *apiName) const {
-        const std::string api = apiName == nullptr ? "operation" : std::string(apiName);
         if (primalTree == nullptr || dualTree == nullptr) {
-            throw std::invalid_argument(api + " requires valid primal and dual trees");
+            const char *api = apiName == nullptr ? "operation" : apiName;
+            throw std::invalid_argument(std::string(api) + " requires valid primal and dual trees");
         }
         if (!((primalTree == maxtree_ && dualTree == mintree_) ||
               (primalTree == mintree_ && dualTree == maxtree_))) {
-            throw std::invalid_argument(api + " requires the adjuster's paired primal/dual trees");
+            const char *api = apiName == nullptr ? "operation" : apiName;
+            throw std::invalid_argument(std::string(api) + " requires the adjuster's paired primal/dual trees");
         }
     }
 
     void requireValidNonRootNode(const DynamicComponentTree *tree,
                                  NodeId nodeId,
                                  const char *apiName) const {
-        const std::string api = apiName == nullptr ? "operation" : std::string(apiName);
         if (tree == nullptr ||
             nodeId == InvalidNode ||
             nodeId < 0 ||
@@ -1417,7 +1429,8 @@ private:
             !tree->isNode(nodeId) ||
             !tree->isAlive(nodeId) ||
             tree->isRoot(nodeId)) {
-            throw std::invalid_argument(api + " requires a live non-root node");
+            const char *api = apiName == nullptr ? "operation" : apiName;
+            throw std::invalid_argument(std::string(api) + " requires a live non-root node");
         }
     }
 
@@ -1425,7 +1438,7 @@ public:
     /**
      * @brief Creates the adjuster from a fixed dynamic min-tree / max-tree pair.
      * @details The pair passed here defines the lifetime association of the
-     * adjuster. Subsequent `prune*AndUpdate*` calls operate on this same pair
+     * adjuster. Subsequent prune/update calls operate on this same pair
      * and do not accept per-call tree overrides.
      * @param mintree Pointer to the dynamic min-tree owned externally.
      * @param maxtree Pointer to the dynamic max-tree owned externally.
@@ -1508,15 +1521,23 @@ public:
      * engine. It does not expose diagnostics and reports invalid input or
      * rejected events through exceptions.
      */
-    void pruneAndUpdate(DynamicComponentTree *primalTree,
-                        DynamicComponentTree *dualTree,
-                        NodeId subtreeRoot) {
-        requirePairedTrees(primalTree, dualTree, "pruneAndUpdate");
-        requireValidNonRootNode(primalTree, subtreeRoot, "pruneAndUpdate");
+    void pruneSubtreeAndUpdateDual(DynamicComponentTree *primalTree,
+                                   DynamicComponentTree *dualTree,
+                                   NodeId subtreeRoot) {
+        requirePairedTrees(primalTree, dualTree, "pruneSubtreeAndUpdateDual");
+        requireValidNonRootNode(primalTree, subtreeRoot, "pruneSubtreeAndUpdateDual");
 
         const bool isMaxtree = dualTree == maxtree_;
         initializeUpdateStepState(isMaxtree);
-        pruneAndUpdateCleanValidatedRoot(primalTree, dualTree, subtreeRoot, isMaxtree);
+        PixelType b{};
+        const NodeId nodeCa = collectSubtreeRegionCForDualUpdate(
+            primalTree,
+            dualTree,
+            subtreeRoot,
+            b,
+            isMaxtree);
+        runExplicitRegionUpdate(dualTree, b, isMaxtree, nodeCa, false);
+        primalTree->pruneNode(subtreeRoot);
     }
 
     /**
@@ -1524,15 +1545,23 @@ public:
      * @details Each root is processed as an independent explicit update step.
      * Invalid roots throw instead of being silently skipped.
      */
-    void pruneAndUpdate(DynamicComponentTree *primalTree,
-                        DynamicComponentTree *dualTree,
-                        std::span<const NodeId> nodesToPrune) {
-        requirePairedTrees(primalTree, dualTree, "pruneAndUpdate");
+    void pruneSubtreesAndUpdateDual(DynamicComponentTree *primalTree,
+                                    DynamicComponentTree *dualTree,
+                                    std::span<const NodeId> nodesToPrune) {
+        requirePairedTrees(primalTree, dualTree, "pruneSubtreesAndUpdateDual");
         const bool isMaxtree = dualTree == maxtree_;
         for (NodeId rootSubtree : nodesToPrune) {
-            requireValidNonRootNode(primalTree, rootSubtree, "pruneAndUpdate");
+            requireValidNonRootNode(primalTree, rootSubtree, "pruneSubtreesAndUpdateDual");
             initializeUpdateStepState(isMaxtree);
-            pruneAndUpdateCleanValidatedRoot(primalTree, dualTree, rootSubtree, isMaxtree);
+            PixelType b{};
+            const NodeId nodeCa = collectSubtreeRegionCForDualUpdate(
+                primalTree,
+                dualTree,
+                rootSubtree,
+                b,
+                isMaxtree);
+            runExplicitRegionUpdate(dualTree, b, isMaxtree, nodeCa, false);
+            primalTree->pruneNode(rootSubtree);
         }
     }
 
@@ -1542,21 +1571,21 @@ public:
      * components and each component is updated through the explicit region
      * engine. The primal merge is applied only after the dual updates succeed.
      */
-    void mergeNodeIntoParentAndUpdate(DynamicComponentTree *primalTree,
-                                      DynamicComponentTree *dualTree,
-                                      NodeId nodeId) {
-        requirePairedTrees(primalTree, dualTree, "mergeNodeIntoParentAndUpdate");
-        requireValidNonRootNode(primalTree, nodeId, "mergeNodeIntoParentAndUpdate");
+    void mergeNodeIntoParentAndUpdateDual(DynamicComponentTree *primalTree,
+                                          DynamicComponentTree *dualTree,
+                                          NodeId nodeId) {
+        requirePairedTrees(primalTree, dualTree, "mergeNodeIntoParentAndUpdateDual");
+        requireValidNonRootNode(primalTree, nodeId, "mergeNodeIntoParentAndUpdateDual");
 
         const NodeId parentId = primalTree->getNodeParent(nodeId);
         if (parentId == InvalidNode || parentId == nodeId || !primalTree->isAlive(parentId)) {
-            throw std::runtime_error("mergeNodeIntoParentAndUpdate cannot locate the primal parent");
+            throw std::runtime_error("mergeNodeIntoParentAndUpdateDual cannot locate the primal parent");
         }
 
         const PixelType b = static_cast<PixelType>(primalTree->getAltitude(parentId));
-        const auto components = collectDirectProperPartComponents(primalTree, nodeId);
+        const auto components = collectConnectedDirectProperPartComponents(primalTree, nodeId);
         if (components.empty()) {
-            throw std::runtime_error("mergeNodeIntoParentAndUpdate requires a non-empty direct proper-part region");
+            throw std::runtime_error("mergeNodeIntoParentAndUpdateDual requires a non-empty direct proper-part region");
         }
 
         for (const auto &component : components) {
@@ -1568,10 +1597,10 @@ public:
                 std::span<const PixelId>(component.data(), component.size()),
                 b,
                 true,
-                "mergeNodeIntoParentAndUpdate");
+                "mergeNodeIntoParentAndUpdateDual");
         }
 
-        primalTree->mergeNodeIntoParent(nodeId);
+        mergePrimalNodeIntoParentAndUpdateAttribute(primalTree, nodeId, parentId);
     }
 
     /**

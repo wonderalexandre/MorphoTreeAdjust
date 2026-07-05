@@ -261,6 +261,75 @@ void require_tree_consistency(const DynamicComponentTree &tree) {
     require(std::all_of(seen.begin(), seen.end(), [](bool v) { return v; }), "proper part partition is incomplete");
 }
 
+class RecordingAttributeComputer final : public DynamicAttributeComputer {
+private:
+    DynamicComponentTree *tree_ = nullptr;
+
+    void computeNode(NodeId nodeId, std::span<float> buffer) const {
+        preProcessing(nodeId, buffer);
+        for (NodeId childId : tree_->getChildren(nodeId)) {
+            computeNode(childId, buffer);
+            mergeProcessing(nodeId, childId, buffer);
+        }
+        postProcessing(nodeId, buffer);
+    }
+
+public:
+    mutable int moveProperPartsCount = 0;
+    mutable int nodeRemovedCount = 0;
+    mutable int postProcessingCount = 0;
+    mutable NodeId lastMoveTarget = InvalidNode;
+    mutable NodeId lastMoveSource = InvalidNode;
+    mutable NodeId lastRemovedNode = InvalidNode;
+    mutable NodeId lastPostProcessedNode = InvalidNode;
+
+    explicit RecordingAttributeComputer(DynamicComponentTree *tree)
+        : tree_(tree) {}
+
+    void resetCounters() const {
+        moveProperPartsCount = 0;
+        nodeRemovedCount = 0;
+        postProcessingCount = 0;
+        lastMoveTarget = InvalidNode;
+        lastMoveSource = InvalidNode;
+        lastRemovedNode = InvalidNode;
+        lastPostProcessedNode = InvalidNode;
+    }
+
+    void preProcessing(NodeId nodeId, std::span<float> buffer) const override {
+        buffer[static_cast<std::size_t>(nodeId)] =
+            static_cast<float>(tree_->getNumProperParts(nodeId));
+    }
+
+    void mergeProcessing(NodeId parentId, NodeId childId, std::span<float> buffer) const override {
+        buffer[static_cast<std::size_t>(parentId)] +=
+            buffer[static_cast<std::size_t>(childId)];
+    }
+
+    void postProcessing(NodeId nodeId, std::span<float>) const override {
+        ++postProcessingCount;
+        lastPostProcessedNode = nodeId;
+    }
+
+    void onMoveProperParts(NodeId targetId, NodeId sourceId) const override {
+        ++moveProperPartsCount;
+        lastMoveTarget = targetId;
+        lastMoveSource = sourceId;
+    }
+
+    void onNodeRemoved(NodeId nodeId) const override {
+        ++nodeRemovedCount;
+        lastRemovedNode = nodeId;
+    }
+
+    void compute(std::span<float> buffer) const {
+        if (tree_ == nullptr || tree_->getRoot() == InvalidNode) {
+            return;
+        }
+        computeNode(tree_->getRoot(), buffer);
+    }
+};
+
 void testUpdateTreeEmitsAdjustmentLog() {
     // With PRINT_LOG enabled, the adjuster should log the main
     // elements of the incremental step: `tau_S`, `F_lambda`, and `nodeCa`.
@@ -373,7 +442,7 @@ void testSequentialMintreePrunesMatchDualReconstructionOnLargeFixture() {
     }
 }
 
-void testPublicPruneAndUpdateKeepsTreesSynchronized() {
+void testPublicPruneSubtreeAndUpdateDualKeepsTreesSynchronized() {
     auto input = make_large_demo_image();
     auto adj = std::make_shared<AdjacencyRelation>(input->getNumRows(), input->getNumCols(), 1.0);
 
@@ -385,11 +454,11 @@ void testPublicPruneAndUpdateKeepsTreesSynchronized() {
         const NodeId rootSubtree = firstStrictNonRootNode(maxTree);
         require(rootSubtree != InvalidNode, "expected a strict max-tree subtree root");
 
-        adjust.pruneAndUpdate(&maxTree, &minTree, rootSubtree);
+        adjust.pruneSubtreeAndUpdateDual(&maxTree, &minTree, rootSubtree);
 
         require_tree_consistency(minTree);
         require(minTree.reconstructionImage()->isEqual(maxTree.reconstructionImage()),
-                "public pruneAndUpdate must synchronize min-tree after a max-tree prune");
+                "public pruneSubtreeAndUpdateDual must synchronize min-tree after a max-tree prune");
     }
 
     {
@@ -400,12 +469,12 @@ void testPublicPruneAndUpdateKeepsTreesSynchronized() {
         std::vector<NodeId> nodesToPrune = {firstStrictNonRootNode(minTree)};
         require(nodesToPrune.front() != InvalidNode, "expected a strict min-tree subtree root");
 
-        adjust.pruneAndUpdate(&minTree, &maxTree,
-                              std::span<const NodeId>(nodesToPrune.data(), nodesToPrune.size()));
+        adjust.pruneSubtreesAndUpdateDual(&minTree, &maxTree,
+                                          std::span<const NodeId>(nodesToPrune.data(), nodesToPrune.size()));
 
         require_tree_consistency(maxTree);
         require(maxTree.reconstructionImage()->isEqual(minTree.reconstructionImage()),
-                "public pruneAndUpdate span overload must synchronize max-tree after a min-tree prune");
+                "public pruneSubtreesAndUpdateDual must synchronize max-tree after a min-tree prune");
     }
 }
 
@@ -418,15 +487,15 @@ void testPublicCleanApiRejectsInvalidNodes() {
     DualMinMaxTreeIncrementalFilter<AltitudeType> adjust(&minTree, &maxTree, *adj);
 
     requireThrows([&]() {
-        adjust.pruneAndUpdate(&maxTree, &minTree, maxTree.getRoot());
-    }, "public pruneAndUpdate must reject the primal root");
+        adjust.pruneSubtreeAndUpdateDual(&maxTree, &minTree, maxTree.getRoot());
+    }, "public pruneSubtreeAndUpdateDual must reject the primal root");
 
     requireThrows([&]() {
-        adjust.mergeNodeIntoParentAndUpdate(&minTree, &maxTree, minTree.getRoot());
-    }, "public mergeNodeIntoParentAndUpdate must reject the primal root");
+        adjust.mergeNodeIntoParentAndUpdateDual(&minTree, &maxTree, minTree.getRoot());
+    }, "public mergeNodeIntoParentAndUpdateDual must reject the primal root");
 }
 
-void requirePublicMergeNodeIntoParentSuccess(bool primalIsMinTree) {
+void requirePublicMergeNodeIntoParentAndUpdateDualSuccess(bool primalIsMinTree) {
     auto input = make_large_demo_image();
     auto adj = std::make_shared<AdjacencyRelation>(input->getNumRows(), input->getNumCols(), 1.0);
 
@@ -453,7 +522,7 @@ void requirePublicMergeNodeIntoParentSuccess(bool primalIsMinTree) {
         DynamicComponentTree *dualTree = primalIsMinTree ? &maxTree : &minTree;
 
         try {
-            adjust.mergeNodeIntoParentAndUpdate(primalTree, dualTree, nodeId);
+            adjust.mergeNodeIntoParentAndUpdateDual(primalTree, dualTree, nodeId);
         } catch (const std::exception &) {
             continue;
         }
@@ -461,7 +530,7 @@ void requirePublicMergeNodeIntoParentSuccess(bool primalIsMinTree) {
         require_tree_consistency(*primalTree);
         require_tree_consistency(*dualTree);
         require(primalTree->reconstructionImage()->isEqual(dualTree->reconstructionImage()),
-                "public mergeNodeIntoParentAndUpdate must keep primal and dual reconstructions synchronized");
+                "public mergeNodeIntoParentAndUpdateDual must keep primal and dual reconstructions synchronized");
         return;
     }
 
@@ -470,9 +539,91 @@ void requirePublicMergeNodeIntoParentSuccess(bool primalIsMinTree) {
         : "expected at least one successful max-tree merge-node event");
 }
 
-void testPublicMergeNodeIntoParentAndUpdateKeepsTreesSynchronized() {
-    requirePublicMergeNodeIntoParentSuccess(true);
-    requirePublicMergeNodeIntoParentSuccess(false);
+void testPublicMergeNodeIntoParentAndUpdateDualKeepsTreesSynchronized() {
+    requirePublicMergeNodeIntoParentAndUpdateDualSuccess(true);
+    requirePublicMergeNodeIntoParentAndUpdateDualSuccess(false);
+}
+
+void requirePublicMergeNodeIntoParentAndUpdateDualUpdatesPrimalAttributeState(bool primalIsMinTree) {
+    auto input = make_large_demo_image();
+    auto adj = std::make_shared<AdjacencyRelation>(input->getNumRows(), input->getNumCols(), 1.0);
+
+    DynamicComponentTree referenceMaxTree(input, true, adj);
+    DynamicComponentTree referenceMinTree(input, false, adj);
+    const DynamicComponentTree &referencePrimalTree = primalIsMinTree ? referenceMinTree : referenceMaxTree;
+
+    std::vector<NodeId> candidateNodes;
+    for (NodeId nodeId = 0; nodeId < referencePrimalTree.getNumInternalNodeSlots(); ++nodeId) {
+        if (referencePrimalTree.isNode(nodeId) &&
+            referencePrimalTree.isAlive(nodeId) &&
+            !referencePrimalTree.isRoot(nodeId) &&
+            referencePrimalTree.getNumProperParts(nodeId) > 0) {
+            candidateNodes.push_back(nodeId);
+        }
+    }
+    require(!candidateNodes.empty(), "expected merge-node candidates for attribute hook test");
+
+    for (NodeId nodeId : candidateNodes) {
+        DynamicComponentTree maxTree(input, true, adj);
+        DynamicComponentTree minTree(input, false, adj);
+        DualMinMaxTreeIncrementalFilter<AltitudeType> adjust(&minTree, &maxTree, *adj);
+        RecordingAttributeComputer maxComputer(&maxTree);
+        RecordingAttributeComputer minComputer(&minTree);
+        std::vector<float> maxBuffer(static_cast<std::size_t>(maxTree.getNumInternalNodeSlots()), 0.0f);
+        std::vector<float> minBuffer(static_cast<std::size_t>(minTree.getNumInternalNodeSlots()), 0.0f);
+        maxComputer.compute(std::span<float>(maxBuffer));
+        minComputer.compute(std::span<float>(minBuffer));
+        maxComputer.resetCounters();
+        minComputer.resetCounters();
+        adjust.setAttributeComputer(minComputer, maxComputer,
+                                    std::span<float>(minBuffer), std::span<float>(maxBuffer));
+
+        DynamicComponentTree *primalTree = primalIsMinTree ? &minTree : &maxTree;
+        DynamicComponentTree *dualTree = primalIsMinTree ? &maxTree : &minTree;
+        RecordingAttributeComputer &primalComputer = primalIsMinTree ? minComputer : maxComputer;
+        std::vector<float> &primalBuffer = primalIsMinTree ? minBuffer : maxBuffer;
+
+        const NodeId parentId = primalTree->getNodeParent(nodeId);
+        if (parentId == InvalidNode || parentId == nodeId || !primalTree->isAlive(parentId)) {
+            continue;
+        }
+
+        try {
+            adjust.mergeNodeIntoParentAndUpdateDual(primalTree, dualTree, nodeId);
+        } catch (const std::exception &) {
+            continue;
+        }
+
+        require(primalComputer.moveProperPartsCount == 1,
+                "public merge-node update must notify the primal attribute about the direct proper-part merge");
+        require(primalComputer.lastMoveTarget == parentId,
+                "public merge-node update must notify the primal merge target");
+        require(primalComputer.lastMoveSource == nodeId,
+                "public merge-node update must notify the primal merge source");
+        require(primalComputer.nodeRemovedCount == 1,
+                "public merge-node update must notify the primal attribute about the removed node");
+        require(primalComputer.lastRemovedNode == nodeId,
+                "public merge-node update must notify the removed primal node id");
+        require(primalComputer.postProcessingCount >= 1 &&
+                    primalComputer.lastPostProcessedNode == parentId,
+                "public merge-node update must recompute the impacted primal parent");
+
+        DynamicAreaComputer expectedComputer(primalTree);
+        const auto expected = expectedComputer.compute();
+        require(primalBuffer[static_cast<std::size_t>(parentId)] ==
+                    expected[static_cast<std::size_t>(parentId)],
+                "public merge-node update must leave the impacted primal parent attribute exact");
+        return;
+    }
+
+    require(false, primalIsMinTree
+        ? "expected at least one successful min-tree merge-node attribute update"
+        : "expected at least one successful max-tree merge-node attribute update");
+}
+
+void testPublicMergeNodeIntoParentAndUpdateDualUpdatesPrimalAttributeState() {
+    requirePublicMergeNodeIntoParentAndUpdateDualUpdatesPrimalAttributeState(true);
+    requirePublicMergeNodeIntoParentAndUpdateDualUpdatesPrimalAttributeState(false);
 }
 
 void testUpdateTreeKeepsFinalTreeConnectedAndAreaConsistent() {
@@ -559,9 +710,10 @@ int main() {
         testDynamicAdjustmentMatchesNaiveBaseline();
         testDynamicAdjustmentMatchesNaiveOnRecordedSubtreeRegression();
         testSequentialMintreePrunesMatchDualReconstructionOnLargeFixture();
-        testPublicPruneAndUpdateKeepsTreesSynchronized();
+        testPublicPruneSubtreeAndUpdateDualKeepsTreesSynchronized();
         testPublicCleanApiRejectsInvalidNodes();
-        testPublicMergeNodeIntoParentAndUpdateKeepsTreesSynchronized();
+        testPublicMergeNodeIntoParentAndUpdateDualKeepsTreesSynchronized();
+        testPublicMergeNodeIntoParentAndUpdateDualUpdatesPrimalAttributeState();
         testUpdateTreeKeepsFinalTreeConnectedAndAreaConsistent();
         testUpdateTreeRemainsStructurallyValidOnAllSharedRoots();
     } catch (const std::exception &e) {
