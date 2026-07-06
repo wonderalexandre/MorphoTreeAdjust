@@ -1,13 +1,12 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <memory>
-#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <vector>
 
-#define PRINT_LOG 1
 #include "../morphoTreeAdjust/include/AdjacencyRelation.hpp"
 #include "../morphoTreeAdjust/include/Common.hpp"
 #include "../morphoTreeAdjust/include/AttributeComputer.hpp"
@@ -95,15 +94,6 @@ ImageUInt8Ptr loadPgmImage(const std::string &path) {
     in.read(reinterpret_cast<char *>(image->rawData()), static_cast<std::streamsize>(numRows * numCols));
     require(in.good(), "failed to read PGM raster: " + path);
     return image;
-}
-
-NodeId firstNonRootNode(const DynamicComponentTree &tree) {
-    for (int nodeId : tree.getNodeSubtree(tree.getRoot())) {
-        if (!tree.isRoot(nodeId)) {
-            return nodeId;
-        }
-    }
-    return InvalidNode;
 }
 
 NodeId firstStrictNonRootNode(const DynamicComponentTree &tree) {
@@ -261,6 +251,59 @@ void require_tree_consistency(const DynamicComponentTree &tree) {
     require(std::all_of(seen.begin(), seen.end(), [](bool v) { return v; }), "proper part partition is incomplete");
 }
 
+/**
+ * @brief Ensures the tested hierarchy is canonical with respect to level edges.
+ */
+void require_no_same_level_parent_child_edges(const DynamicComponentTree &tree, const std::string &context) {
+    for (int nodeId = 0; nodeId < tree.getNumInternalNodeSlots(); ++nodeId) {
+        if (!tree.isAlive(nodeId)) {
+            continue;
+        }
+
+        for (NodeId childId : tree.getChildren(nodeId)) {
+            require(tree.getAltitude(nodeId) != tree.getAltitude(childId),
+                    context + ": tree must not contain same-level parent-child edges");
+        }
+    }
+}
+
+std::size_t attributeRuntimeCapacity(const DynamicComponentTree &tree) {
+    return static_cast<std::size_t>(tree.getNumInternalNodeSlots() + tree.getNumTotalProperParts());
+}
+
+int computeSupportSize(const DynamicComponentTree &tree, NodeId rootId) {
+    int supportSize = 0;
+    for (NodeId nodeId : tree.getNodeSubtree(rootId)) {
+        supportSize += tree.getNumProperParts(nodeId);
+    }
+    return supportSize;
+}
+
+PixelId computeSupportMinPixel(const DynamicComponentTree &tree, NodeId rootId) {
+    PixelId supportMinPixel = std::numeric_limits<PixelId>::max();
+    for (NodeId nodeId : tree.getNodeSubtree(rootId)) {
+        for (PixelId pixelId : tree.getProperParts(nodeId)) {
+            supportMinPixel = std::min(supportMinPixel, pixelId);
+        }
+    }
+    return supportMinPixel;
+}
+
+void requireSupportSignatureMatchesTree(const DynamicComponentTree &tree,
+                                        const DynamicBoundingBoxComputer &computer,
+                                        const std::string &context) {
+    for (NodeId nodeId = 0; nodeId < tree.getNumInternalNodeSlots(); ++nodeId) {
+        if (!tree.isNode(nodeId) || !tree.isAlive(nodeId)) {
+            continue;
+        }
+
+        require(computer.supportSize(nodeId) == computeSupportSize(tree, nodeId),
+                context + ": support size must match the live tree");
+        require(computer.supportMinPixel(nodeId) == computeSupportMinPixel(tree, nodeId),
+                context + ": support min pixel must match the live tree");
+    }
+}
+
 class RecordingAttributeComputer final : public DynamicAttributeComputer {
 private:
     DynamicComponentTree *tree_ = nullptr;
@@ -330,27 +373,6 @@ public:
     }
 };
 
-void testUpdateTreeEmitsAdjustmentLog() {
-    // With PRINT_LOG enabled, the adjuster should log the main
-    // elements of the incremental step: `tau_S`, `F_lambda`, and `nodeCa`.
-    auto input = make_demo_image();
-    auto adj = std::make_shared<AdjacencyRelation>(input->getNumRows(), input->getNumCols(), 1.5);
-    DynamicComponentTree maxTree(input, true, adj);
-    DynamicComponentTree minTree(input, false, adj);
-    DualMinMaxTreeIncrementalFilter<AltitudeType> adjust(&minTree, &maxTree, *adj);
-    adjust.setRuntimePostConditionValidationEnabled(true);
-
-    const NodeId rootSubtree = firstNonRootNode(maxTree);
-    require(rootSubtree != InvalidNode, "expected a non-root subtree in the max-tree");
-
-    adjust.updateTree(&minTree, rootSubtree);
-    const std::string log = adjust.getOutputLog();
-    require(!log.empty(), "PRINT_LOG must produce a non-empty log");
-    require(log.find("Proper parts (tau_S): [") != std::string::npos, "log must include the tau_S section");
-    require(log.find("F_λ = {") != std::string::npos, "log must include the F_lambda section");
-    require(log.find("nodeCa: Id:") != std::string::npos, "log must include the nodeCa description");
-}
-
 void testDynamicAdjustmentMatchesNaiveBaseline() {
     // In a small case, the incremental min/max flow should produce the same
     // reconstruction as the naive prune-then-rebuild strategy.
@@ -361,7 +383,6 @@ void testDynamicAdjustmentMatchesNaiveBaseline() {
     DynamicComponentTree maxTree(input, true, adj);
     DynamicComponentTree minTree(input, false, adj);
     DualMinMaxTreeIncrementalFilter<AltitudeType> adjust(&minTree, &maxTree, *adj);
-    adjust.setRuntimePostConditionValidationEnabled(true);
     DynamicAreaComputer maxAreaComputer(&maxTree);
     DynamicAreaComputer minAreaComputer(&minTree);
     std::vector<float> maxArea((size_t) maxTree.getNumInternalNodeSlots(), 0.0f);
@@ -394,7 +415,6 @@ void testDynamicAdjustmentMatchesNaiveOnRecordedSubtreeRegression() {
     DynamicComponentTree maxTree(input, true, adj);
     DynamicComponentTree minTree(input, false, adj);
     DualMinMaxTreeIncrementalFilter<AltitudeType> adjust(&minTree, &maxTree, *adj);
-    adjust.setRuntimePostConditionValidationEnabled(true);
     DynamicAreaComputer maxAreaComputer(&maxTree);
     DynamicAreaComputer minAreaComputer(&minTree);
     std::vector<float> maxArea((size_t) maxTree.getNumInternalNodeSlots(), 0.0f);
@@ -457,6 +477,7 @@ void testPublicPruneSubtreeAndUpdateDualKeepsTreesSynchronized() {
         adjust.pruneSubtreeAndUpdateDual(&maxTree, &minTree, rootSubtree);
 
         require_tree_consistency(minTree);
+        require_no_same_level_parent_child_edges(minTree, "public pruneSubtreeAndUpdateDual min-tree");
         require(minTree.reconstructionImage()->isEqual(maxTree.reconstructionImage()),
                 "public pruneSubtreeAndUpdateDual must synchronize min-tree after a max-tree prune");
     }
@@ -473,6 +494,7 @@ void testPublicPruneSubtreeAndUpdateDualKeepsTreesSynchronized() {
                                           std::span<const NodeId>(nodesToPrune.data(), nodesToPrune.size()));
 
         require_tree_consistency(maxTree);
+        require_no_same_level_parent_child_edges(maxTree, "public pruneSubtreesAndUpdateDual max-tree");
         require(maxTree.reconstructionImage()->isEqual(minTree.reconstructionImage()),
                 "public pruneSubtreesAndUpdateDual must synchronize max-tree after a min-tree prune");
     }
@@ -529,6 +551,8 @@ void requirePublicMergeNodeIntoParentAndUpdateDualSuccess(bool primalIsMinTree) 
 
         require_tree_consistency(*primalTree);
         require_tree_consistency(*dualTree);
+        require_no_same_level_parent_child_edges(*dualTree,
+                "public mergeNodeIntoParentAndUpdateDual dual tree");
         require(primalTree->reconstructionImage()->isEqual(dualTree->reconstructionImage()),
                 "public mergeNodeIntoParentAndUpdateDual must keep primal and dual reconstructions synchronized");
         return;
@@ -626,6 +650,62 @@ void testPublicMergeNodeIntoParentAndUpdateDualUpdatesPrimalAttributeState() {
     requirePublicMergeNodeIntoParentAndUpdateDualUpdatesPrimalAttributeState(false);
 }
 
+void requirePublicMergeNodeIntoParentAndUpdateDualKeepsBoundingBoxSupportSignatureExact(bool primalIsMinTree) {
+    auto input = make_large_demo_image();
+    auto adj = std::make_shared<AdjacencyRelation>(input->getNumRows(), input->getNumCols(), 1.0);
+
+    DynamicComponentTree referenceMaxTree(input, true, adj);
+    DynamicComponentTree referenceMinTree(input, false, adj);
+    const DynamicComponentTree &referencePrimalTree = primalIsMinTree ? referenceMinTree : referenceMaxTree;
+
+    std::vector<NodeId> candidateNodes;
+    for (NodeId nodeId = 0; nodeId < referencePrimalTree.getNumInternalNodeSlots(); ++nodeId) {
+        if (referencePrimalTree.isNode(nodeId) &&
+            referencePrimalTree.isAlive(nodeId) &&
+            !referencePrimalTree.isRoot(nodeId) &&
+            referencePrimalTree.getNumProperParts(nodeId) > 0) {
+            candidateNodes.push_back(nodeId);
+        }
+    }
+    require(!candidateNodes.empty(), "expected merge-node candidates for support signature test");
+
+    for (NodeId nodeId : candidateNodes) {
+        DynamicComponentTree maxTree(input, true, adj);
+        DynamicComponentTree minTree(input, false, adj);
+        DualMinMaxTreeIncrementalFilter<AltitudeType> adjust(&minTree, &maxTree, *adj);
+        DynamicBoundingBoxComputer maxComputer(&maxTree, AREA_PER_BOX_PERIMETER);
+        DynamicBoundingBoxComputer minComputer(&minTree, AREA_PER_BOX_PERIMETER);
+        std::vector<float> maxBuffer(attributeRuntimeCapacity(maxTree), 0.0f);
+        std::vector<float> minBuffer(attributeRuntimeCapacity(minTree), 0.0f);
+        maxComputer.compute(std::span<float>(maxBuffer));
+        minComputer.compute(std::span<float>(minBuffer));
+        adjust.setAttributeComputer(minComputer, maxComputer,
+                                    std::span<float>(minBuffer), std::span<float>(maxBuffer));
+
+        DynamicComponentTree *primalTree = primalIsMinTree ? &minTree : &maxTree;
+        DynamicComponentTree *dualTree = primalIsMinTree ? &maxTree : &minTree;
+
+        try {
+            adjust.mergeNodeIntoParentAndUpdateDual(primalTree, dualTree, nodeId);
+        } catch (const std::exception &) {
+            continue;
+        }
+
+        requireSupportSignatureMatchesTree(maxTree, maxComputer, "max-tree bbox signature");
+        requireSupportSignatureMatchesTree(minTree, minComputer, "min-tree bbox signature");
+        return;
+    }
+
+    require(false, primalIsMinTree
+        ? "expected at least one successful min-tree support signature update"
+        : "expected at least one successful max-tree support signature update");
+}
+
+void testPublicMergeNodeIntoParentAndUpdateDualKeepsBoundingBoxSupportSignatureExact() {
+    requirePublicMergeNodeIntoParentAndUpdateDualKeepsBoundingBoxSupportSignatureExact(true);
+    requirePublicMergeNodeIntoParentAndUpdateDualKeepsBoundingBoxSupportSignatureExact(false);
+}
+
 void testUpdateTreeKeepsFinalTreeConnectedAndAreaConsistent() {
     auto input = make_large_demo_image();
     auto adj = std::make_shared<AdjacencyRelation>(input->getNumRows(), input->getNumCols(), 1.0);
@@ -706,7 +786,6 @@ void testUpdateTreeRemainsStructurallyValidOnAllSharedRoots() {
 
 int main() {
     try {
-        testUpdateTreeEmitsAdjustmentLog();
         testDynamicAdjustmentMatchesNaiveBaseline();
         testDynamicAdjustmentMatchesNaiveOnRecordedSubtreeRegression();
         testSequentialMintreePrunesMatchDualReconstructionOnLargeFixture();
@@ -714,6 +793,7 @@ int main() {
         testPublicCleanApiRejectsInvalidNodes();
         testPublicMergeNodeIntoParentAndUpdateDualKeepsTreesSynchronized();
         testPublicMergeNodeIntoParentAndUpdateDualUpdatesPrimalAttributeState();
+        testPublicMergeNodeIntoParentAndUpdateDualKeepsBoundingBoxSupportSignatureExact();
         testUpdateTreeKeepsFinalTreeConnectedAndAreaConsistent();
         testUpdateTreeRemainsStructurallyValidOnAllSharedRoots();
     } catch (const std::exception &e) {

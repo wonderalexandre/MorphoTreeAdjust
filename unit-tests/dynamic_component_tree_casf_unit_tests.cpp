@@ -22,6 +22,12 @@ void require(bool condition, const std::string &message) {
     }
 }
 
+void require_near(float actual, float expected, float epsilon, const std::string &message) {
+    if (std::fabs(actual - expected) > epsilon) {
+        throw std::runtime_error(message);
+    }
+}
+
 ImageUInt8Ptr make_demo_image() {
     auto image = ImageUInt8::create(12, 12);
     const std::vector<uint8_t> raw = {
@@ -182,6 +188,60 @@ std::vector<float> compute_attribute(DynamicComponentTree &tree, Attribute attri
     return computer.compute();
 }
 
+float compute_bruteforce_bbox_attribute(const DynamicComponentTree &tree,
+                                        NodeId nodeId,
+                                        Attribute attribute) {
+    int xmin = std::numeric_limits<int>::max();
+    int xmax = std::numeric_limits<int>::min();
+    int ymin = std::numeric_limits<int>::max();
+    int ymax = std::numeric_limits<int>::min();
+    int area = 0;
+
+    for (NodeId subtreeNodeId : tree.getNodeSubtree(nodeId)) {
+        for (PixelId pixelId : tree.getProperParts(subtreeNodeId)) {
+            const auto [row, col] = ImageUtils::to2D(pixelId, tree.getNumColsOfImage());
+            xmin = std::min(xmin, col);
+            xmax = std::max(xmax, col);
+            ymin = std::min(ymin, row);
+            ymax = std::max(ymax, row);
+            ++area;
+        }
+    }
+
+    if (area == 0) {
+        return 0.0f;
+    }
+
+    const float width = static_cast<float>(xmax - xmin + 1);
+    const float height = static_cast<float>(ymax - ymin + 1);
+    const float areaValue = static_cast<float>(area);
+    if (attribute == BOX_WIDTH) {
+        return width;
+    }
+    if (attribute == BOX_HEIGHT) {
+        return height;
+    }
+    if (attribute == DIAGONAL_LENGTH) {
+        return std::sqrt(width * width + height * height);
+    }
+    if (attribute == AREA_PER_BOX_PERIMETER) {
+        return areaValue / (2.0f * width + 2.0f * height);
+    }
+    if (attribute == RECTANGULARITY) {
+        return areaValue / (width * height);
+    }
+    if (attribute == BOX_ASPECT_RATIO) {
+        return std::max(width, height) / std::min(width, height);
+    }
+    if (attribute == BOX_ELONGATION) {
+        return 1.0f - (std::min(width, height) / std::max(width, height));
+    }
+    if (attribute == AREA_PER_BOX_DIAGONAL_SQUARED) {
+        return areaValue / (width * width + height * height);
+    }
+    throw std::runtime_error("unexpected attribute in brute-force bbox computation");
+}
+
 ImageUInt8Ptr apply_naive_threshold(ImageUInt8Ptr input,
                                     AdjacencyRelationPtr adj,
                                     int threshold,
@@ -285,6 +345,37 @@ void test_bounding_box_sequences_match_naive_baseline() {
     }
 }
 
+void test_bounding_box_derived_attributes_match_bruteforce() {
+    auto input = make_demo_image();
+    auto adj = std::make_shared<AdjacencyRelation>(input->getNumRows(), input->getNumCols(), 1.0);
+    DynamicComponentTree tree(input, true, adj);
+
+    for (Attribute attribute : {
+             BOX_WIDTH,
+             BOX_HEIGHT,
+             DIAGONAL_LENGTH,
+             AREA_PER_BOX_PERIMETER,
+             RECTANGULARITY,
+             BOX_ASPECT_RATIO,
+             BOX_ELONGATION,
+             AREA_PER_BOX_DIAGONAL_SQUARED,
+         }) {
+        DynamicBoundingBoxComputer computer(&tree, attribute);
+        const auto values = computer.compute();
+        for (NodeId nodeId = 0; nodeId < tree.getNumInternalNodeSlots(); ++nodeId) {
+            if (!tree.isAlive(nodeId)) {
+                continue;
+            }
+            const float expected = compute_bruteforce_bbox_attribute(tree, nodeId, attribute);
+            require_near(
+                values[static_cast<std::size_t>(nodeId)],
+                expected,
+                1e-5f,
+                "bbox-derived attribute must match brute-force subtree geometry");
+        }
+    }
+}
+
 void test_bounding_box_dirty_target_move_matches_fresh_recompute() {
     auto input = make_demo_image();
     auto adj = std::make_shared<AdjacencyRelation>(input->getNumRows(), input->getNumCols(), 1.0);
@@ -375,24 +466,36 @@ void test_tree_accessors_expose_internal_trees() {
             "ComponentTreeCasf min-tree accessor must expose the internal tree state");
 }
 
-void test_non_increasing_box_area_perimeter_matches_naive_baseline() {
+void test_non_increasing_bbox_derived_attributes_match_naive_baseline() {
     auto input = make_demo_image();
     auto adj = std::make_shared<AdjacencyRelation>(input->getNumRows(), input->getNumCols(), 1.0);
-    const std::vector<float> thresholds = {0.25f, 0.4f, 0.75f};
+    struct Case {
+        Attribute attribute;
+        std::vector<float> thresholds;
+    };
+    const std::vector<Case> cases = {
+        {AREA_PER_BOX_PERIMETER, {0.25f, 0.4f, 0.75f}},
+        {RECTANGULARITY, {0.35f, 0.6f, 0.85f}},
+        {BOX_ASPECT_RATIO, {1.0f, 1.25f, 1.75f}},
+        {BOX_ELONGATION, {0.05f, 0.25f, 0.5f}},
+        {AREA_PER_BOX_DIAGONAL_SQUARED, {0.15f, 0.3f, 0.45f}},
+    };
 
-    ComponentTreeCasfNonIncreasing<AltitudeType> runner(
-        input,
-        adj,
-        AREA_PER_BOX_PERIMETER);
-    const auto filtered = runner.filter(thresholds);
+    for (const auto &testCase : cases) {
+        ComponentTreeCasfNonIncreasing<AltitudeType> runner(
+            input,
+            adj,
+            testCase.attribute);
+        const auto filtered = runner.filter(testCase.thresholds);
 
-    const auto baseline = run_naive_non_increasing_sequence(
-        input,
-        adj,
-        thresholds,
-        AREA_PER_BOX_PERIMETER);
-    require(filtered->isEqual(baseline),
-            "non-increasing CASF by box area/perimeter must match the naive rebuild baseline");
+        const auto baseline = run_naive_non_increasing_sequence(
+            input,
+            adj,
+            testCase.thresholds,
+            testCase.attribute);
+        require(filtered->isEqual(baseline),
+                "non-increasing CASF by bbox-derived attribute must match the naive rebuild baseline");
+    }
 }
 
 } // namespace
@@ -401,12 +504,13 @@ int main() {
     try {
         test_area_sequence_matches_naive_baseline();
         test_bounding_box_sequences_match_naive_baseline();
+        test_bounding_box_derived_attributes_match_bruteforce();
         test_bounding_box_dirty_target_move_matches_fresh_recompute();
         test_casf_is_deterministic_and_empty_sequence_is_noop();
         test_area_stress_matches_naive_sequence_on_structured_images();
         test_naive_and_hybrid_modes_match_baseline();
         test_tree_accessors_expose_internal_trees();
-        test_non_increasing_box_area_perimeter_matches_naive_baseline();
+        test_non_increasing_bbox_derived_attributes_match_naive_baseline();
     } catch (const std::exception &e) {
         std::cerr << "dynamic_component_tree_casf_unit_tests: FAIL\n" << e.what() << "\n";
         return 1;

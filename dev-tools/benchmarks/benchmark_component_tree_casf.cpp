@@ -404,7 +404,6 @@ public:
                                      maxAreaComputer_,
                                      std::span<float>(minArea_),
                                      std::span<float>(maxArea_));
-        adjust_.setRuntimePostConditionValidationEnabled(false);
     }
 
     ImageUInt8Ptr filter(const std::vector<int> &thresholds,

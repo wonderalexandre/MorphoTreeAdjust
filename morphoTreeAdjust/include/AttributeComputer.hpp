@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <limits>
 #include <span>
 #include <utility>
 #include <vector>
@@ -10,22 +11,42 @@
 #include "Common.hpp"
 #include "DynamicComponentTree.hpp"
 
+/**
+ * @brief Scalar attributes supported by the dynamic attribute computers.
+ *
+ * `ComponentTreeCasfNonIncreasing` accepts the bounding-box-derived entries
+ * whose values are not order-preserving on the component tree:
+ * `AREA_PER_BOX_PERIMETER`, `RECTANGULARITY`, `BOX_ASPECT_RATIO`,
+ * `BOX_ELONGATION`, and `AREA_PER_BOX_DIAGONAL_SQUARED`.
+ */
 enum class Attribute {
-    AREA,
-    BOX_WIDTH,
-    BOX_HEIGHT,
-    DIAGONAL_LENGTH,
-    AREA_PER_BOX_PERIMETER,
+    AREA, ///< Number of pixels in the node subtree.
+    BOX_WIDTH, ///< Width of the bounding box that covers the node subtree.
+    BOX_HEIGHT, ///< Height of the bounding box that covers the node subtree.
+    DIAGONAL_LENGTH, ///< Euclidean diagonal length of the subtree bounding box.
+    AREA_PER_BOX_PERIMETER, ///< Subtree area divided by `2 * width + 2 * height`.
+    RECTANGULARITY, ///< Subtree area divided by bounding-box area.
+    BOX_ASPECT_RATIO, ///< Longer bounding-box side divided by shorter side.
+    BOX_ELONGATION, ///< `1 - shorter_side / longer_side` for the bounding box.
+    AREA_PER_BOX_DIAGONAL_SQUARED, ///< Subtree area divided by `width^2 + height^2`.
 };
 using enum Attribute;
 
+/**
+ * @brief Aggregated bounding-box state for all proper parts in a node subtree.
+ *
+ * This summary is the persistent geometric signature used both to compute the
+ * selected scalar attribute and to sort merge candidates deterministically in
+ * the non-increasing CASF path.
+ */
 struct DynamicBoundingBoxState {
-    int xmin = 0;
-    int xmax = -1;
-    int ymin = 0;
-    int ymax = -1;
-    int area = 0;
-    bool empty = true;
+    int xmin = 0; ///< Minimum column of the subtree support.
+    int xmax = -1; ///< Maximum column of the subtree support.
+    int ymin = 0; ///< Minimum row of the subtree support.
+    int ymax = -1; ///< Maximum row of the subtree support.
+    int area = 0; ///< Number of pixels in the subtree support.
+    PixelId minPixel = std::numeric_limits<PixelId>::max(); ///< Smallest support pixel id.
+    bool empty = true; ///< Whether the subtree support is empty.
 };
 
 /**
@@ -417,17 +438,18 @@ public:
  * rebuild.
  */
 struct DynamicBoundingBoxLocalSummary {
-    int xmin = 0;
-    int xmax = -1;
-    int ymin = 0;
-    int ymax = -1;
-    int area = 0;
-    int xminCount = 0;
-    int xmaxCount = 0;
-    int yminCount = 0;
-    int ymaxCount = 0;
-    bool empty = true;
-    bool dirty = true;
+    int xmin = 0; ///< Minimum column among the node's direct proper parts.
+    int xmax = -1; ///< Maximum column among the node's direct proper parts.
+    int ymin = 0; ///< Minimum row among the node's direct proper parts.
+    int ymax = -1; ///< Maximum row among the node's direct proper parts.
+    int area = 0; ///< Number of direct proper parts represented by this summary.
+    PixelId minPixel = std::numeric_limits<PixelId>::max(); ///< Smallest direct pixel id.
+    int xminCount = 0; ///< Number of direct proper parts that currently touch `xmin`.
+    int xmaxCount = 0; ///< Number of direct proper parts that currently touch `xmax`.
+    int yminCount = 0; ///< Number of direct proper parts that currently touch `ymin`.
+    int ymaxCount = 0; ///< Number of direct proper parts that currently touch `ymax`.
+    bool empty = true; ///< Whether the node has no direct proper parts in this summary.
+    bool dirty = true; ///< Whether the summary must be rebuilt before it can be trusted.
 };
 
 /**
@@ -436,7 +458,8 @@ struct DynamicBoundingBoxLocalSummary {
  * @details This policy defines:
  * - how to maintain the local bounding box of direct proper parts;
  * - how to derive the subtree summary from the local state and the children;
- * - how to convert the final summary into `width`, `height`, or `diagonal`.
+ * - how to convert the final summary into width, height, diagonal, or one of
+ *   the non-order-preserving bounding-box ratios used by the public CASF path.
  *
  * The current strategy uses a lightweight local summary with border counts and
  * a `dirty` fallback when removing a pixel exhausts some extremum.
@@ -458,6 +481,7 @@ private:
         local.ymin = numRows_;
         local.ymax = -1;
         local.area = 0;
+        local.minPixel = std::numeric_limits<PixelId>::max();
         local.xminCount = 0;
         local.xmaxCount = 0;
         local.yminCount = 0;
@@ -482,11 +506,13 @@ private:
             local.yminCount = 1;
             local.ymaxCount = 1;
             local.area = 1;
+            local.minPixel = pixelId;
             local.empty = false;
             return;
         }
 
         ++local.area;
+        local.minPixel = std::min(local.minPixel, pixelId);
         if (col < local.xmin) {
             local.xmin = col;
             local.xminCount = 1;
@@ -534,6 +560,7 @@ private:
         }
 
         target.area += source.area;
+        target.minPixel = std::min(target.minPixel, source.minPixel);
         if (source.xmin < target.xmin) {
             target.xmin = source.xmin;
             target.xminCount = source.xminCount;
@@ -595,6 +622,7 @@ private:
         }
 
         state.area += other.area;
+        state.minPixel = std::min(state.minPixel, other.minPixel);
         state.xmin = std::min(state.xmin, other.xmin);
         state.xmax = std::max(state.xmax, other.xmax);
         state.ymin = std::min(state.ymin, other.ymin);
@@ -614,7 +642,7 @@ public:
     /**
      * @brief Builds the policy for a tree and a specific geometric measure.
      * @param tree Tree whose geometry defines the image domain.
-     * @param attribute Derived measure to produce: width, height, or diagonal.
+     * @param attribute Derived bounding-box measure to produce.
      */
     DynamicBoundingBoxPolicy(DynamicComponentTree *tree, Attribute attribute)
         : attribute_(attribute),
@@ -649,6 +677,7 @@ public:
         subtree.ymin = local.ymin;
         subtree.ymax = local.ymax;
         subtree.area = local.area;
+        subtree.minPixel = local.minPixel;
         subtree.empty = local.empty;
     }
 
@@ -661,9 +690,9 @@ public:
 
     /**
      * @brief Converts the final subtree summary into the scalar attribute value.
-     * @details The same policy serves `bbox_width`, `bbox_height`, and
-     * `bbox_diagonal`, and `area_per_box_perimeter`; only the final
-     * projection on the rectangle changes.
+     * @details The same policy serves all bounding-box-derived attributes;
+     * only the final projection on the rectangle changes. The ratio attributes
+     * are the ones exposed by `ComponentTreeCasfNonIncreasing`.
      */
     float value(const SubtreeSummary &subtree) const {
         if (subtree.empty) {
@@ -672,6 +701,7 @@ public:
 
         const float width = static_cast<float>(subtree.xmax - subtree.xmin + 1);
         const float height = static_cast<float>(subtree.ymax - subtree.ymin + 1);
+        const float area = static_cast<float>(subtree.area);
         if (attribute_ == BOX_WIDTH) {
             return width;
         }
@@ -681,8 +711,25 @@ public:
         if (attribute_ == AREA_PER_BOX_PERIMETER) {
             const float perimeter = 2.0f * width + 2.0f * height;
             return perimeter > 0.0f
-                ? static_cast<float>(subtree.area) / perimeter
+                ? area / perimeter
                 : 0.0f;
+        }
+        if (attribute_ == RECTANGULARITY) {
+            const float boxArea = width * height;
+            return boxArea > 0.0f ? area / boxArea : 0.0f;
+        }
+        if (attribute_ == BOX_ASPECT_RATIO) {
+            const float shorterSide = std::min(width, height);
+            const float longerSide = std::max(width, height);
+            return shorterSide > 0.0f ? longerSide / shorterSide : 0.0f;
+        }
+        if (attribute_ == BOX_ELONGATION) {
+            const float longerSide = std::max(width, height);
+            return longerSide > 0.0f ? 1.0f - (std::min(width, height) / longerSide) : 0.0f;
+        }
+        if (attribute_ == AREA_PER_BOX_DIAGONAL_SQUARED) {
+            const float diagonalSquared = width * width + height * height;
+            return diagonalSquared > 0.0f ? area / diagonalSquared : 0.0f;
         }
         return std::sqrt(width * width + height * height);
     }
@@ -745,6 +792,7 @@ public:
             bool exhaustsXmax = false;
             bool exhaustsYmin = false;
             bool exhaustsYmax = false;
+            const bool exhaustsMinPixel = pixelId == source.minPixel;
 
             if (col == source.xmin) {
                 if (source.xminCount <= 1) {
@@ -778,7 +826,8 @@ public:
                 }
             }
 
-            const bool needsDirty = exhaustsXmin || exhaustsXmax || exhaustsYmin || exhaustsYmax;
+            const bool needsDirty =
+                exhaustsXmin || exhaustsXmax || exhaustsYmin || exhaustsYmax || exhaustsMinPixel;
             if (needsDirty) {
                 source.dirty = true;
             }
@@ -792,12 +841,8 @@ public:
  * @brief Computer for geometric attributes derived from the bounding box of each node.
  *
  * The class traverses the tree and maintains, for each node, the bounding box
- * that covers all proper parts in its subtree. From that box, it produces one
- * of the attributes listed in `Attribute`:
- * - width;
- * - height;
- * - diagonal;
- * - area divided by the bounding-box perimeter.
+ * that covers all proper parts in its subtree. From that box, it produces the
+ * bounding-box-derived attributes listed in `Attribute`.
  */
 class DynamicBoundingBoxComputer : public DynamicSummaryComputer<DynamicBoundingBoxPolicy> {
 private:
@@ -816,6 +861,7 @@ private:
         local.ymin = 0;
         local.ymax = -1;
         local.area = 0;
+        local.minPixel = std::numeric_limits<PixelId>::max();
         local.xminCount = 0;
         local.xmaxCount = 0;
         local.yminCount = 0;
@@ -836,6 +882,7 @@ private:
         subtree.ymin = 0;
         subtree.ymax = -1;
         subtree.area = 0;
+        subtree.minPixel = std::numeric_limits<PixelId>::max();
         subtree.empty = true;
     }
 
@@ -860,5 +907,42 @@ public:
         }
         resetLocalSummary(nodeId);
         resetSubtreeSummary(nodeId);
+    }
+
+    /**
+     * @brief Returns the current subtree support size for `nodeId`.
+     * @details The non-increasing CASF candidate ordering uses this value as a
+     * deterministic tie-breaker after altitude and minimum support pixel.
+     */
+    int supportSize(NodeId nodeId) const {
+        if (tree() == nullptr ||
+            nodeId == InvalidNode ||
+            nodeId < 0 ||
+            static_cast<std::size_t>(nodeId) >=
+                static_cast<std::size_t>(tree()->getNumInternalNodeSlots()) ||
+            !tree()->isNode(nodeId) ||
+            !tree()->isAlive(nodeId)) {
+            return 0;
+        }
+        return subtreeSummary(nodeId).area;
+    }
+
+    /**
+     * @brief Returns the smallest pixel id in the current subtree support.
+     * @details This signature is maintained incrementally together with the
+     * bounding box and gives the non-increasing CASF path a stable ordering
+     * independent of the traversal order of children.
+     */
+    PixelId supportMinPixel(NodeId nodeId) const {
+        if (tree() == nullptr ||
+            nodeId == InvalidNode ||
+            nodeId < 0 ||
+            static_cast<std::size_t>(nodeId) >=
+                static_cast<std::size_t>(tree()->getNumInternalNodeSlots()) ||
+            !tree()->isNode(nodeId) ||
+            !tree()->isAlive(nodeId)) {
+            return std::numeric_limits<PixelId>::max();
+        }
+        return subtreeSummary(nodeId).minPixel;
     }
 };

@@ -6,8 +6,6 @@
 #include <cstddef>
 #include <limits>
 #include <span>
-#include <sstream>
-#include <string>
 #include <type_traits>
 #include <vector>
 
@@ -15,10 +13,6 @@
 #include "AttributeComputer.hpp"
 #include "Common.hpp"
 #include "DynamicComponentTree.hpp"
-
-#ifndef PRINT_LOG
-#define PRINT_LOG 0
-#endif
 
 /**
  * @brief Leaf-by-leaf incremental updater for the dynamic min-tree / max-tree pair.
@@ -226,7 +220,6 @@ private:
     GenerationStampSet climbedNodeMarks_;
     GenerationStampSet attributeUpdateMarks_;
     PixelType altitudeCa_ = PixelType{};
-    std::ostringstream outputLog_;
 
     /** @brief Returns the primal tree corresponding to the current adjustment direction. */
     DynamicComponentTree *getPrimalTree(bool isMaxtree) {
@@ -475,14 +468,6 @@ private:
         }
     }
 
-    /** @brief Writes a compact textual description of a node to the log. */
-    void appendNodeState(DynamicComponentTree *tree, NodeId nodeId) {
-        outputLog_ << "id:" << nodeId
-                   << ", level:" << tree->getAltitude(nodeId)
-                   << ", |cnps|:" << tree->getNumProperParts(nodeId)
-                   << ", |children|:" << tree->getNumChildren(nodeId);
-    }
-
     /** @brief Collects the subtree in post-order to ensure leaves are removed first. */
     static void collectPostOrderNodes(const DynamicComponentTree &tree, NodeId nodeId, std::vector<NodeId> &out) {
         for (NodeId childId : tree.getChildren(nodeId)) {
@@ -516,17 +501,6 @@ public:
         assert(graph_ != nullptr);
         assert(mintree_->getNumRowsOfImage() == maxtree_->getNumRowsOfImage());
         assert(mintree_->getNumColsOfImage() == maxtree_->getNumColsOfImage());
-    }
-
-    /** @brief Clears the textual log used when `PRINT_LOG` is active. */
-    void clearOutputLog() {
-        outputLog_.str("");
-        outputLog_.clear();
-    }
-
-    /** @brief Returns the current contents of the debug log. */
-    std::string getOutputLog() const {
-        return outputLog_.str();
     }
 
     /** @brief Exposes the adjacent nodes collected in the current step. */
@@ -677,32 +651,6 @@ public:
         assert(nodeCa != InvalidNode);
         altitudeCa_ = altitudeCa;
 
-        if (PRINT_LOG) {
-            clearOutputLog();
-            outputLog_ << "Atributo(leaf)= " << primalTree->getNumProperParts(leafId) << ", nivel(leaf)= " << static_cast<double>(primalTree->getAltitude(leafId)) << ", nivel(parent(leaf))= " << static_cast<double>(primalTree->getAltitude(leafParent)) << "\n";
-            outputLog_ << "b: " << static_cast<double>(b) << "\n";
-            outputLog_ << "Proper parts (tau_L): [";
-            bool first = true;
-            for (auto rep : primalTree->getProperParts(leafId)) {
-                const NodeId nodeTau = dualTree->getSmallestComponent(rep);
-                if (nodeTau == InvalidNode) {
-                    continue;
-                }
-                if (!first) {
-                    outputLog_ << "\t";
-                }
-                first = false;
-                outputLog_ << "\t(id:" << nodeTau << ", level:" << static_cast<double>(dualTree->getAltitude(nodeTau)) << ", |cnps|:" << dualTree->getNumProperParts(nodeTau) << ", rep:" << rep << "), \n";
-            }
-            outputLog_ << "]\n";
-            if (isMaxtree) {
-                outputLog_ << "Intervalo: [" << static_cast<double>(altitudeCa) << ", " << static_cast<double>(b) << "]\n";
-            } else {
-                outputLog_ << "Intervalo: [" << static_cast<double>(b) << ", " << static_cast<double>(altitudeCa) << "]\n";
-            }
-            outputLog_ << "nodeCa: Id:" << nodeCa << "; level:" << static_cast<double>(altitudeCa) << "; |cnps|:" << dualTree->getNumProperParts(nodeCa) << "\n";
-        }
-
         buildMergedAndNestedCollections(dualTree, primalTree, leafId, nodeCa, b, isMaxtree);
 
         PixelType mergeLevel = mergeNodesByLevel_.firstMergeLevel();
@@ -762,17 +710,6 @@ public:
                         if (ownerId == nodeCa) {
                             nodeCaRemoved = true;
                         }
-                    }
-                }
-
-                if (PRINT_LOG) {
-                    outputLog_ << "frontier attach @b: unionNode=(";
-                    appendNodeState(dualTree, unionNode);
-                    outputLog_ << "), frontier_count=" << mergeNodesByLevel_.getFrontierNodesAboveB().size() << "\n";
-                    for (auto nodeId : mergeNodesByLevel_.getFrontierNodesAboveB()) {
-                        outputLog_ << "\tfrontier->union: frontier=(";
-                        appendNodeState(dualTree, nodeId);
-                        outputLog_ << ") -> unionNode=" << unionNode << "\n";
                     }
                 }
 

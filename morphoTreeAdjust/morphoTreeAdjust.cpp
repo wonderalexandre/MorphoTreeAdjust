@@ -6,9 +6,9 @@
 #include "include/DynamicComponentTree.hpp"
 #include "include/DualMinMaxTreeIncrementalFilter.hpp"
 
+#include <cctype>
 #include <memory>
 #include <span>
-#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -77,8 +77,31 @@ Attribute parse_attribute_string(const std::string &attribute) {
         normalized == "box_area_perimeter_ratio" || normalized == "box-area-perimeter-ratio") {
         return AREA_PER_BOX_PERIMETER;
     }
+    if (normalized == "rectangularity" ||
+        normalized == "bbox_rectangularity" || normalized == "bbox-rectangularity" ||
+        normalized == "box_fill_ratio" || normalized == "box-fill-ratio") {
+        return RECTANGULARITY;
+    }
+    if (normalized == "box_aspect_ratio" || normalized == "box-aspect-ratio" ||
+        normalized == "bbox_aspect_ratio" || normalized == "bbox-aspect-ratio" ||
+        normalized == "aspect_ratio" || normalized == "aspect-ratio") {
+        return BOX_ASPECT_RATIO;
+    }
+    if (normalized == "box_elongation" || normalized == "box-elongation" ||
+        normalized == "bbox_elongation" || normalized == "bbox-elongation" ||
+        normalized == "elongation") {
+        return BOX_ELONGATION;
+    }
+    if (normalized == "area_per_box_diagonal_squared" || normalized == "area-per-box-diagonal-squared" ||
+        normalized == "area_per_bbox_diagonal_squared" || normalized == "area-per-bbox-diagonal-squared" ||
+        normalized == "box_diagonal_squared_ratio" || normalized == "box-diagonal-squared-ratio") {
+        return AREA_PER_BOX_DIAGONAL_SQUARED;
+    }
 
-    throw std::runtime_error("Unknown attribute. Expected one of: area, bbox_width, bbox_height, bbox_diagonal, area_per_box_perimeter.");
+    throw std::runtime_error(
+        "Unknown attribute. Expected one of: area, bbox_width, bbox_height, bbox_diagonal, "
+        "area_per_box_perimeter, rectangularity, box_aspect_ratio, box_elongation, "
+        "area_per_box_diagonal_squared.");
 }
 
 std::vector<NodeId> alive_nodes(const DynamicComponentTree &tree) {
@@ -206,7 +229,6 @@ public:
     std::vector<float> getMaxArea() const { return liveNodeAreaSnapshot(*maxtree_, maxArea_); }
     std::shared_ptr<DynamicComponentTree> getMinTree() const { return mintree_; }
     std::shared_ptr<DynamicComponentTree> getMaxTree() const { return maxtree_; }
-    std::string getOutputLog() const { return adjust_.getOutputLog(); }
 };
 
 class PyComponentTreeCasf : public std::enable_shared_from_this<PyComponentTreeCasf> {
@@ -372,8 +394,7 @@ void init_dual_min_max_tree_incremental_filter(py::module_ &m) {
         .def_property_readonly("minTree", &PyDualMinMaxTreeIncrementalFilter::getMinTree)
         .def_property_readonly("maxTree", &PyDualMinMaxTreeIncrementalFilter::getMaxTree)
         .def_property_readonly("minArea", &PyDualMinMaxTreeIncrementalFilter::getMinArea)
-        .def_property_readonly("maxArea", &PyDualMinMaxTreeIncrementalFilter::getMaxArea)
-        .def("log", &PyDualMinMaxTreeIncrementalFilter::getOutputLog);
+        .def_property_readonly("maxArea", &PyDualMinMaxTreeIncrementalFilter::getMaxArea);
 }
 
 void init_component_tree_casf(py::module_ &m) {

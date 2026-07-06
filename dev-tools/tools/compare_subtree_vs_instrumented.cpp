@@ -111,7 +111,6 @@ static RunResult runBase(ImageUInt8Ptr image, double radioAdj, const std::vector
     DynamicComponentTree maxTree(image, true, adj);
     DynamicComponentTree minTree(image, false, adj);
     DualMinMaxTreeIncrementalFilter<AltitudeType> adjust(&minTree, &maxTree, *adj);
-    adjust.setRuntimePostConditionValidationEnabled(true);
 
     Stopwatch phase1UpdateSw;
     Stopwatch phase2UpdateSw;
@@ -150,7 +149,6 @@ static RunResult runInstrumented(ImageUInt8Ptr image, double radioAdj, const std
     DynamicComponentTree maxTree(image, true, adj);
     DynamicComponentTree minTree(image, false, adj);
     DualMinMaxTreeIncrementalFilterInstrumented<AltitudeType> adjust(&minTree, &maxTree, *adj);
-    adjust.setRuntimePostConditionValidationEnabled(true);
 
     Stopwatch phase1UpdateSw;
     Stopwatch phase2UpdateSw;

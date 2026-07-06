@@ -7,9 +7,6 @@
 #include <cstdlib>
 #include <limits>
 #include <span>
-#include <sstream>
-#include <string>
-#include <cstdio>
 #include <stdexcept>
 #include <type_traits>
 #include <vector>
@@ -18,10 +15,6 @@
 #include "AttributeComputer.hpp"
 #include "Common.hpp"
 #include "DynamicComponentTree.hpp"
-
-#ifndef PRINT_LOG
-#define PRINT_LOG 0
-#endif
 
 /**
  * @brief Optional metrics collected during a `subtree` step.
@@ -392,9 +385,6 @@ private:
     std::vector<PixelId> properPartSetC_;
     std::vector<NodeId> nodesPendingRemoval_;
 
-    // Optional textual log for detailed debugging of the incremental step.
-    std::ostringstream outputLog_;
-
     // Optional instrumentation used by benchmarks and comparators.
     DynamicSubtreeMetrics *metrics_ = nullptr;
     MetricsHooks hooks_{};
@@ -418,7 +408,6 @@ private:
     std::size_t finalizeDuplicateCountCandidateRootCurrentStep_ = 0;
     std::size_t absorbDuplicateCountRootCurrentStep_ = 0;
     std::size_t absorbDuplicateCountNonRootCurrentStep_ = 0;
-    bool runtimePostConditionValidationEnabled_ = false;
     PixelType altitudeCa = PixelType{};
 
     enum class AttributeRecomputeSite {
@@ -443,15 +432,6 @@ private:
         if (metrics_ && hooks_.resume) {
             hooks_.resume(hooks_.context);
         }
-    }
-
-    /**
-     * @brief Writes a compact textual description of a node to the log.
-     * @param tree Tree that contains `nodeId`.
-     * @param nodeId Node described in the log.
-     */
-    void appendNodeState(DynamicComponentTree *tree, NodeId nodeId) {
-        outputLog_ << "id:" << nodeId << ", level:" << tree->getAltitude(nodeId) << ", |cnps|:" << tree->getNumProperParts(nodeId) << ", |children|:" << tree->getNumChildren(nodeId);
     }
 
     /**
@@ -860,24 +840,9 @@ private:
             if (removedMarks_.isMarked(nodeCa)) {
                 // If `nodeCa` was emptied, the final union node must occupy its
                 // topological position in the updated hierarchy.
-                if (PRINT_LOG) {
-                    outputLog_ << "nodeCa was removed; reconnecting the final union node.\n";
-                    outputLog_ << "\tfinal union node: (";
-                    appendNodeState(dualTree, finalUnionNode);
-                    outputLog_ << ")\n";
-                    outputLog_ << "\tnodeCa: (";
-                    appendNodeState(dualTree, nodeCa);
-                    outputLog_ << ")\n";
-                }
-
                 if (!dualTree->isRoot(nodeCa)) {
                     const NodeId nodeCaParentId = dualTree->getNodeParent(nodeCa);
                     bool finalUnionNodeChanged = false;
-                    if (PRINT_LOG) {
-                        outputLog_ << "\tparent(nodeCa): (";
-                        appendNodeState(dualTree, nodeCaParentId);
-                        outputLog_ << ")\n";
-                    }
 
                     if (!dualTree->isRoot(finalUnionNode)) {
                         disconnect(dualTree, finalUnionNode, false);
@@ -978,40 +943,22 @@ private:
 
     /**
      * @brief Checks the structural post-condition of `updateTree`.
-     * @details When enabled at runtime, the check guarantees that no live node
-     * remains without proper parts at the end of the step. In case of
-     * violation, the routine prints up to 16 examples and throws an exception.
+     * @details In debug builds, guarantees that no live node remains without
+     * proper parts at the end of the step. In release builds this routine has
+     * no runtime cost.
      */
     void assertAllAliveNodesHaveProperParts(DynamicComponentTree *tree) const {
+#ifndef NDEBUG
         assert(tree != nullptr);
-        if (!runtimePostConditionValidationEnabled_) {
-            return;
-        }
-
-        int offenders = 0;
         for (NodeId nodeId = 0; nodeId < tree->getNumInternalNodeSlots(); ++nodeId) {
             if (!tree->isNode(nodeId) || !tree->isAlive(nodeId)) {
                 continue; // Nonexistent or dead nodes do not participate in the post-condition.
             }
-            if (tree->getNumProperParts(nodeId) > 0) {
-                continue; // Live nodes with proper parts satisfy the post-condition.
-            }
-            if (offenders < 16) {
-                std::fprintf(stderr,
-                             "DualMinMaxTreeIncrementalFilter post-condition failed: alive node without proper parts"
-                             " id=%d parent=%d altitude=%d children=%d root=%d removed_marked=%d\n",
-                             nodeId,
-                             tree->getNodeParent(nodeId),
-                             tree->getAltitude(nodeId),
-                             tree->getNumChildren(nodeId),
-                             tree->getRoot(),
-                             removedMarks_.isMarked(nodeId) ? 1 : 0);
-            }
-            ++offenders;
+            assert(tree->getNumProperParts(nodeId) > 0);
         }
-        if (offenders != 0) {
-            throw std::runtime_error("DualMinMaxTreeIncrementalFilter post-condition failed: alive nodes without proper parts");
-        }
+#else
+        (void) tree;
+#endif
     }
 
     /**
@@ -1096,7 +1043,6 @@ private:
      * @param properPartSetC Set `C` collected from the subtree removed in the primal tree.
      */
     void moveSelectedProperPartsToNode(DynamicComponentTree *tree, NodeId unionNode, const std::vector<PixelId> &properPartSetC) {
-        bool startedNodesToBeRemovedLog = false;
         for (auto pixelId : properPartSetC) {
             const NodeId ownerId = tree->getSmallestComponent(pixelId);
             if (ownerId == InvalidNode || ownerId == unionNode) {
@@ -1110,19 +1056,7 @@ private:
                 removedMarks_.mark(ownerId);
                 removedNodesPendingAbsorption_.push_back(ownerId);
                 ++removedCountCurrentStep_;
-
-                if (PRINT_LOG && !startedNodesToBeRemovedLog) {
-                    outputLog_ << "\tNodes to be removed from tree: ";
-                    startedNodesToBeRemovedLog = true;
-                }
-                if (PRINT_LOG) {
-                    outputLog_ << "(id:" << ownerId << ", level: " << tree->getAltitude(ownerId) << ", |cnps|: " << tree->getNumProperParts(ownerId) << ", |children|: " << tree->getNumChildren(ownerId) << "), ";
-                }
             }
-        }
-
-        if (PRINT_LOG && startedNodesToBeRemovedLog) {
-            outputLog_ << std::endl;
         }
     }
     
@@ -1172,30 +1106,6 @@ public:
     void setMetricsAreaBuffer(DynamicComponentTree *tree, std::span<const float> areaBuffer) {
         metricsAreaTree_ = tree;
         metricsAreaBuffer_ = areaBuffer;
-    }
-
-    /**
-     * @brief Enables or disables the structural check at the end of `updateTree`.
-     * @details When enabled, `assertAllAliveNodesHaveProperParts` runs in any
-     * build type.
-     */
-    void setRuntimePostConditionValidationEnabled(bool enabled) {
-        runtimePostConditionValidationEnabled_ = enabled;
-    }
-
-    /**
-     * @brief Clears the textual log from the last adjustment.
-     */
-    void clearOutputLog() {
-        outputLog_.str("");
-        outputLog_.clear();
-    }
-
-    /**
-     * @brief Returns the textual log from the last adjustment.
-     */
-    std::string getOutputLog() const {
-        return outputLog_.str();
     }
 
     /**
@@ -1370,31 +1280,6 @@ public:
         }
         assert(nodeCa != InvalidNode);
         assert(!properPartSetC_.empty());
-        if (PRINT_LOG) {
-            clearOutputLog();
-            outputLog_ << "Attribute(rSubtree)= " << static_cast<int>(properPartSetC_.size()) << ", level(rSubtree)= " << static_cast<double>(primalTree->getAltitude(subtreeRoot)) << ", level(parent(rSubtree))= " << static_cast<double>(primalTree->getAltitude(subtreeParentId)) << "\n";
-            outputLog_ << "b: " << static_cast<double>(b) << "\n";
-            outputLog_ << "Proper parts (tau_S): [";
-            bool first = true;
-            for (auto rep : properPartSetC_) {
-                const NodeId nodeTau = dualTree->getSmallestComponent(rep);
-                if (nodeTau == InvalidNode) {
-                    continue; // Reps without a live component are omitted from the diagnostic log.
-                }
-                if (!first) {
-                    outputLog_ << "\t";
-                }
-                first = false;
-                outputLog_ << "\t(id:" << nodeTau << ", level:" << static_cast<double>(dualTree->getAltitude(nodeTau)) << ", |cnps|:" << dualTree->getNumProperParts(nodeTau) << ", rep:" << rep << "), \n";
-            }
-            outputLog_ << "]\n";
-            if (isMaxtree) {
-                outputLog_ << "Intervalo: [" << static_cast<double>(altitudeCa) << ", " << static_cast<double>(b) << "]\n";
-            } else {
-                outputLog_ << "Intervalo: [" << static_cast<double>(b) << ", " << static_cast<double>(altitudeCa) << "]\n";
-            }
-            outputLog_ << "nodeCa: Id:" << nodeCa << "; level:" << static_cast<double>(altitudeCa) << "; |cnps|:" << dualTree->getNumProperParts(nodeCa) << "\n";
-        }
 
         // Phase 2: build the per-level merge buckets and the frontier roots above b.
         buildMergedAndNestedCollections(dualTree, properPartSetC_, b, isMaxtree);
@@ -1403,28 +1288,6 @@ public:
         std::size_t loopIterations = 0;
         std::size_t totalMerged = 0;
         std::size_t mergedCalls = 0;
-
-        // Optional diagnostic log of the collection built for the sweep.
-        if (PRINT_LOG) {
-            outputLog_ << "F_λ = { ";
-            int lambda = (int) b;
-            while (lambda != altitudeCa) {
-                auto &mergeNodesAtLevel = mergeNodesByLevel_.getMergedNodes(lambda);
-                if (!mergeNodesAtLevel.empty()) {
-                    outputLog_ << lambda << ":[ ";
-                    for (auto node : mergeNodesAtLevel) {
-                        outputLog_ << "Id:" << node << " ";
-                    }
-                    outputLog_ << "] ";
-                }
-                lambda = isMaxtree ? (lambda - 1) : (lambda + 1);
-            }
-            outputLog_ << "}\nF_{λ>b} = {";
-            for (auto node : mergeNodesByLevel_.getFrontierNodesAboveB()) {
-                outputLog_ << " Id:" << node << " ";
-            }
-            outputLog_ << "}\n";
-        }
 
         // Phase 3: level sweep between b and a, merging active buckets and
         // propagating the union node built at each level.
@@ -1453,13 +1316,6 @@ public:
                         currentUnionNode = nodeId;
                         if (metrics_) {
                             ++totalMerged;
-                        }
-
-                        if (PRINT_LOG) {
-                            outputLog_ << "F_{" << static_cast<int>(currentMergeLevel) << "} = \n";
-                            outputLog_ << "\t(";
-                            appendNodeState(dualTree, currentUnionNode);
-                            outputLog_ << ") " << std::endl;
                         }
 
                         if (!dualTree->isRoot(currentUnionNode)) {
@@ -1520,20 +1376,6 @@ public:
                     // reattached under that same node.
                     moveSelectedProperPartsToNode(dualTree, currentUnionNode, properPartSetC_);
 
-                    if (PRINT_LOG) {
-                        outputLog_ << "\t\tApos adicionar as proper parts de S: (";
-                        appendNodeState(dualTree, currentUnionNode);
-                        outputLog_ << ") " << std::endl;
-                        outputLog_ << "\t\tfrontier attach @b: unionNode=(";
-                        appendNodeState(dualTree, currentUnionNode);
-                        outputLog_ << "), frontier_count=" << mergeNodesByLevel_.getFrontierNodesAboveB().size() << "\n";
-                        for (auto nodeId : mergeNodesByLevel_.getFrontierNodesAboveB()) {
-                            outputLog_ << "\t\t\tfrontier->union: frontier=(";
-                            appendNodeState(dualTree, nodeId);
-                            outputLog_ << ") -> unionNode=" << currentUnionNode << "\n";
-                        }
-                    }
-
                     for (auto nodeId : mergeNodesByLevel_.getFrontierNodesAboveB()) {
                         disconnect(dualTree, nodeId, false);
                         dualTree->attachNode(currentUnionNode, nodeId);
@@ -1548,12 +1390,6 @@ public:
                     dualTree->attachNode(currentUnionNode, previousLevelUnionNode);
                 }
 
-                if (PRINT_LOG) {
-                    outputLog_ << "\tnodeUnion = union(F_{" << static_cast<int>(currentMergeLevel) << "}) = ";
-                    appendNodeState(dualTree, currentUnionNode);
-                    outputLog_ << std::endl;
-                }
-
                 markAttributeUpdate(currentUnionNode);
                 computeAttributeOnTreeNode(dualTree, currentUnionNode, AttributeRecomputeSite::Sweep);
 
@@ -1566,9 +1402,7 @@ public:
         // nodes that became temporarily empty during the sweep.
         const NodeId finalUnionNode = previousLevelUnionNode;
         finalizeUpdateTreeAndContractRemovedNodes(dualTree, nodeCa, finalUnionNode);
-        if (runtimePostConditionValidationEnabled_) {
-            assertAllAliveNodesHaveProperParts(dualTree);
-        }
+        assertAllAliveNodesHaveProperParts(dualTree);
 
         if (metrics_) {
             pauseMetrics();

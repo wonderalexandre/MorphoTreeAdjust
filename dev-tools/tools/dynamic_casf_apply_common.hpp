@@ -28,6 +28,11 @@ inline const char *attributeName(Attribute attribute) {
         case BOX_WIDTH: return "bbox_width";
         case BOX_HEIGHT: return "bbox_height";
         case DIAGONAL_LENGTH: return "bbox_diagonal";
+        case AREA_PER_BOX_PERIMETER: return "area_per_box_perimeter";
+        case RECTANGULARITY: return "rectangularity";
+        case BOX_ASPECT_RATIO: return "box_aspect_ratio";
+        case BOX_ELONGATION: return "box_elongation";
+        case AREA_PER_BOX_DIAGONAL_SQUARED: return "area_per_box_diagonal_squared";
     }
     return "area";
 }
@@ -44,6 +49,42 @@ inline Attribute parseAttributeName(const std::string &value) {
     }
     if (value == "bbox_diagonal" || value == "box_diagonal" || value == "bbox") {
         return DIAGONAL_LENGTH;
+    }
+    if (value == "area_per_box_perimeter" ||
+        value == "box_area_perimeter_ratio" ||
+        value == "box-area-perimeter-ratio" ||
+        value == "bbox_compactness") {
+        return AREA_PER_BOX_PERIMETER;
+    }
+    if (value == "rectangularity" ||
+        value == "bbox_rectangularity" ||
+        value == "bbox-rectangularity" ||
+        value == "box-fill-ratio" ||
+        value == "box_fill_ratio") {
+        return RECTANGULARITY;
+    }
+    if (value == "box_aspect_ratio" ||
+        value == "box-aspect-ratio" ||
+        value == "bbox_aspect_ratio" ||
+        value == "bbox-aspect-ratio" ||
+        value == "aspect-ratio" ||
+        value == "aspect_ratio") {
+        return BOX_ASPECT_RATIO;
+    }
+    if (value == "box_elongation" ||
+        value == "box-elongation" ||
+        value == "bbox_elongation" ||
+        value == "bbox-elongation" ||
+        value == "elongation") {
+        return BOX_ELONGATION;
+    }
+    if (value == "area_per_box_diagonal_squared" ||
+        value == "area-per-box-diagonal-squared" ||
+        value == "area_per_bbox_diagonal_squared" ||
+        value == "area-per-bbox-diagonal-squared" ||
+        value == "box-diagonal-squared-ratio" ||
+        value == "box_diagonal_squared_ratio") {
+        return AREA_PER_BOX_DIAGONAL_SQUARED;
     }
     throw std::runtime_error("Invalid attribute: " + value);
 }

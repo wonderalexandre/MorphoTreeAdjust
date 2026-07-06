@@ -58,8 +58,8 @@ int main() {
     ComponentTreeCasfNonIncreasing<AltitudeType> nonIncreasingCasf(
         image->clone(),
         adj,
-        AREA_PER_BOX_PERIMETER);
-    auto nonIncreasingFiltered = nonIncreasingCasf.filter(std::vector<float>{0.25f});
+        RECTANGULARITY);
+    auto nonIncreasingFiltered = nonIncreasingCasf.filter(std::vector<float>{0.75f});
     require(nonIncreasingFiltered != nullptr,
             "ComponentTreeCasfNonIncreasing must return a valid filtered image");
     require(nonIncreasingFiltered->getNumRows() == image->getNumRows(),
