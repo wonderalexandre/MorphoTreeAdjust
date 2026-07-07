@@ -46,6 +46,7 @@ endfunction()
 
 if(MTA_BUILD_BENCHMARKS)
   add_mta_benchmark_target(jmiv2026_benchmark benchmarks/jmiv2026_benchmark.cpp)
+  add_mta_benchmark_target(full_casf_icdar_benchmark benchmarks/full_casf_icdar_benchmark.cpp)
   add_mta_google_benchmark_target(
     benchmark_component_tree_casf
     benchmarks/google_benchmark_main.cpp

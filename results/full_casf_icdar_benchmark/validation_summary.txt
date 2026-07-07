@@ -1,0 +1,21 @@
+Full CASF ICDAR benchmark validation
+raw_csv=/Users/wonderalexandre/GitHub/MorphoTreeAdjust/results/full_casf_icdar_benchmark/full_casf_icdar_raw.csv
+actual_rows=12228
+expected_rows=12228
+row_count_ok=True
+success_failures=0
+classic_rows_without_match_true=0
+classic_pair_mismatches=0
+counts_by_resolution_method:
+  icdar_1080p,classic_new_public,1019
+  icdar_1080p,classic_old_legacy,1019
+  icdar_1080p,non_increasing_box_aspect_ratio,1019
+  icdar_1080p,non_increasing_rectangularity,1019
+  icdar_480p,classic_new_public,1019
+  icdar_480p,classic_old_legacy,1019
+  icdar_480p,non_increasing_box_aspect_ratio,1019
+  icdar_480p,non_increasing_rectangularity,1019
+  icdar_720p,classic_new_public,1019
+  icdar_720p,classic_old_legacy,1019
+  icdar_720p,non_increasing_box_aspect_ratio,1019
+  icdar_720p,non_increasing_rectangularity,1019
