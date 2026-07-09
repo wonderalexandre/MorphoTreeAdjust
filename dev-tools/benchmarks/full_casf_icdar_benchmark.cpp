@@ -27,12 +27,12 @@ namespace common = dynamic_casf_apply_common;
 using Clock = std::chrono::steady_clock;
 
 struct Options {
-    fs::path datasetRoot = "/Users/wonderalexandre/GitHub/MorphoTreeAdjust_likeHigra/tests/dat";
-    fs::path outputDir = "/Users/wonderalexandre/GitHub/MorphoTreeAdjust/results/full_casf_icdar_benchmark";
+    fs::path datasetRoot;
+    fs::path outputDir = "results/full_casf_icdar_benchmark";
     fs::path rectangularityThresholdFile =
-        "/Users/wonderalexandre/GitHub/MorphoTreeAdjust/results/non_increasing_bbox_attributes_benchmark/thresholds/rectangularity_50_thresholds.txt";
+        "results/non_increasing_bbox_attributes_benchmark/thresholds/rectangularity_50_thresholds.txt";
     fs::path boxAspectThresholdFile =
-        "/Users/wonderalexandre/GitHub/MorphoTreeAdjust/results/non_increasing_bbox_attributes_benchmark/thresholds/box_aspect_ratio_50_thresholds.txt";
+        "results/non_increasing_bbox_attributes_benchmark/thresholds/box_aspect_ratio_50_thresholds.txt";
     std::vector<std::string> resolutions = {"icdar_480p", "icdar_720p", "icdar_1080p"};
     std::vector<std::string> methods = {
         "classic_old_legacy",
@@ -760,6 +760,10 @@ static Options parseOptions(int argc, char **argv) {
 int main(int argc, char **argv) {
     try {
         Options options = parseOptions(argc, argv);
+        if (options.datasetRoot.empty()) {
+            throw std::runtime_error(
+                "dataset root is required; pass --dataset-root or set dataset_root in the config file");
+        }
         const auto rectangularityThresholds = options.rectangularityThresholds.empty()
             ? loadThresholdsOrFallback(options.rectangularityThresholdFile, rectangularityFallbackThresholds())
             : options.rectangularityThresholds;

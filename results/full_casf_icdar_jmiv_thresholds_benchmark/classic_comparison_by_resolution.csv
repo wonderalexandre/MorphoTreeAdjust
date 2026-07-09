@@ -1,4 +1,0 @@
-resolution,n,missing_pairs,checksum_mismatch_count,changed_pixels_mismatch_count,mean_abs_mismatch_count,new_slower_count,new_faster_count,old_total_ms_mean,new_total_ms_mean,new_minus_old_total_ms_mean,new_over_old_total_ratio_mean,old_filter_ms_mean,new_filter_ms_mean,new_minus_old_filter_ms_mean,new_over_old_filter_ratio_mean
-icdar_1080p,1019,0,0,0,0,983,36,545.953467,596.777596,50.824129,1.083969,319.049249,371.021717,51.972468,1.146367
-icdar_480p,1019,0,0,0,0,797,222,106.899180,109.905478,3.006298,1.026488,62.478676,65.571179,3.092503,1.043061
-icdar_720p,1019,0,0,0,0,941,78,228.155257,241.577566,13.422309,1.053797,127.816044,142.028288,14.212244,1.099698

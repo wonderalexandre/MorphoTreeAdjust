@@ -38,3 +38,12 @@ __pycache__/
 /tests/dat/icdar_720p
 
 /research/
+
+# Generated benchmark and inspection artifacts.
+/results/casf_clean_canonical_ab_benchmark/
+/results/casf_local_collapse_ab_benchmark/
+/results/casf_visual_samples_jmiv*/
+/results/full_casf_icdar_benchmark*/
+/results/full_casf_icdar_jmiv_thresholds_benchmark*/
+/results/non_increasing_area_per_box_perimeter_*/
+/results/non_increasing_bbox_attributes_benchmark/
