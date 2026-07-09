@@ -16,7 +16,7 @@
 #include "../../morphoTreeAdjust/include/AttributeComputer.hpp"
 #include "../../morphoTreeAdjust/include/Common.hpp"
 #include "../../morphoTreeAdjust/include/DynamicComponentTree.hpp"
-#include "../../morphoTreeAdjust/include/DualMinMaxTreeIncrementalFilterInstrumented.hpp"
+#include "../../morphoTreeAdjust/include/DualMinMaxTreeIncrementalFilter.hpp"
 
 namespace {
 
@@ -381,7 +381,7 @@ private:
     AdjacencyRelationPtr adjacency_;
     DynamicComponentTree maxTree_;
     DynamicComponentTree minTree_;
-    DualMinMaxTreeIncrementalFilterInstrumented<AltitudeType> adjust_;
+    DualMinMaxTreeIncrementalFilter<AltitudeType> adjust_;
     DynamicAreaComputer maxAreaComputer_;
     DynamicAreaComputer minAreaComputer_;
     std::vector<float> maxArea_;

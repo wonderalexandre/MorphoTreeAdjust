@@ -20,7 +20,7 @@
 #include "../../morphoTreeAdjust/include/AttributeComputer.hpp"
 #include "../../morphoTreeAdjust/include/Common.hpp"
 #include "../../morphoTreeAdjust/include/DynamicComponentTree.hpp"
-#include "../../morphoTreeAdjust/include/DualMinMaxTreeIncrementalFilterInstrumented.hpp"
+#include "../../morphoTreeAdjust/include/DualMinMaxTreeIncrementalFilter.hpp"
 
 #include "../external/stb/stb_image.h"
 
@@ -61,6 +61,36 @@ struct ThresholdMetrics {
     long long numPixelBorders = 0;
     long long area = 0;
     int numSubtrees = 0;
+    bool valid = false;
+};
+
+struct DynamicSubtreeMetrics {
+    int a = 0;
+    int b = 0;
+    long long area_subtree = 0;
+    std::size_t count_proper_parts = 0;
+    std::size_t count_nodes_Fb = 0;
+    std::size_t count_total_nodes_merged = 0;
+    std::size_t count_total_nodes_and_children_merged = 0;
+    std::size_t count_total_nodes_removed = 0;
+    std::size_t count_adjacent_nodes = 0;
+    std::size_t count_attribute_recomputations = 0;
+    std::size_t count_unique_nodes_attribute_recomputed = 0;
+    std::size_t count_children_scanned_in_attribute_recomputations = 0;
+    std::size_t count_attribute_recomputations_sweep = 0;
+    std::size_t count_attribute_recomputations_finalize = 0;
+    std::size_t count_attribute_recomputations_absorb = 0;
+    std::size_t count_attribute_recomputations_skipped_preserved = 0;
+    std::size_t count_finalize_duplicates_final_union_node = 0;
+    std::size_t count_finalize_duplicates_node_ca = 0;
+    std::size_t count_finalize_duplicates_node_ca_parent = 0;
+    std::size_t count_finalize_duplicates_candidate_root = 0;
+    std::size_t count_absorb_duplicates_root = 0;
+    std::size_t count_absorb_duplicates_non_root = 0;
+    long long area_tau_star = 0;
+    std::size_t loop_iterations = 0;
+    double avg_area_nodes_merged = 0.0;
+    long long max_area_nodes_merged = 0;
     bool valid = false;
 };
 
@@ -131,12 +161,6 @@ struct FlatzonePartition {
     int count = 0;
 };
 
-struct TimerHooksContext {
-    Stopwatch *phase = nullptr;
-    Stopwatch *iter = nullptr;
-    Stopwatch *total = nullptr;
-};
-
 static inline double elapsedMs(const Stopwatch &sw) {
     return std::chrono::duration_cast<std::chrono::duration<double, std::milli>>(sw.elapsed()).count();
 }
@@ -144,38 +168,6 @@ static inline double elapsedMs(const Stopwatch &sw) {
 static inline double elapsedUsToMsRounded(const Stopwatch &sw) {
     const auto us = std::chrono::duration_cast<std::chrono::microseconds>(sw.elapsed()).count();
     return static_cast<double>(us) / 1000.0;
-}
-
-static void pauseTimerHooks(void *ctx) {
-    auto *timers = static_cast<TimerHooksContext *>(ctx);
-    if (timers == nullptr) {
-        return;
-    }
-    if (timers->phase != nullptr && timers->phase->running()) {
-        timers->phase->pause();
-    }
-    if (timers->iter != nullptr && timers->iter->running()) {
-        timers->iter->pause();
-    }
-    if (timers->total != nullptr && timers->total->running()) {
-        timers->total->pause();
-    }
-}
-
-static void resumeTimerHooks(void *ctx) {
-    auto *timers = static_cast<TimerHooksContext *>(ctx);
-    if (timers == nullptr) {
-        return;
-    }
-    if (timers->phase != nullptr && !timers->phase->running()) {
-        timers->phase->resume();
-    }
-    if (timers->iter != nullptr && !timers->iter->running()) {
-        timers->iter->resume();
-    }
-    if (timers->total != nullptr && !timers->total->running()) {
-        timers->total->resume();
-    }
 }
 
 static void printUsage(const char *argv0) {
@@ -1014,7 +1006,7 @@ static MethodResult runOurSubtreeMethod(ImageUInt8Ptr image, const BenchOptions 
         buildMinSw.pause();
         buildSw.pause();
 
-        DualMinMaxTreeIncrementalFilterInstrumented<AltitudeType> adjust(&minTree, &maxTree, *adj);
+        DualMinMaxTreeIncrementalFilter<AltitudeType> adjust(&minTree, &maxTree, *adj);
         auto minAttributeComputer = makeIncrementalAttributeComputer(&minTree, options.attributeMode);
         auto maxAttributeComputer = makeIncrementalAttributeComputer(&maxTree, options.attributeMode);
         std::vector<float> minAreaBuffer = computeAttributeVector(&minTree, options.attributeMode);
@@ -1034,11 +1026,6 @@ static MethodResult runOurSubtreeMethod(ImageUInt8Ptr image, const BenchOptions 
             Stopwatch phase1Sw;
             phase1Sw.start();
             const auto attributeMax = computeAttributeVector(&maxTree, options.attributeMode);
-            std::vector<float> targetAreaPhase1;
-            if (collectMetrics) {
-                DynamicAreaComputer targetAreaComputer(&minTree);
-                targetAreaPhase1 = targetAreaComputer.compute();
-            }
             const auto nodesToPruneMax = getNodesThreshold(&maxTree, attributeMax, threshold);
             phase1Sw.pause();
             iterSw.pause();
@@ -1054,47 +1041,25 @@ static MethodResult runOurSubtreeMethod(ImageUInt8Ptr image, const BenchOptions 
 
             Stopwatch phase1UpdateSw;
             Stopwatch phase1PruneSw;
-            TimerHooksContext hooks{&phase1Sw, &iterSw, &totalSw};
-            DynamicSubtreeMetrics phase1MetricsAcc;
-            int phase1MetricsCount = 0;
             for (NodeId subtreeRoot : nodesToPruneMax) {
                 if (subtreeRoot == InvalidNode || subtreeRoot == maxTree.getRoot() || !maxTree.isAlive(subtreeRoot)) {
                     continue;
                 }
-                DynamicSubtreeMetrics metrics;
-                if (collectMetrics) {
-                    adjust.setMetricsAreaBuffer(&minTree, std::span<const float>(targetAreaPhase1));
-                    adjust.setMetrics(&metrics, &hooks, pauseTimerHooks, resumeTimerHooks);
-                } else {
-                    adjust.setMetricsAreaBuffer(nullptr, {});
-                    adjust.setMetrics(nullptr);
-                }
                 phase1UpdateSw.resume();
                 adjust.updateTree(&minTree, subtreeRoot);
                 phase1UpdateSw.pause();
-                if (metrics.valid) {
-                    addSubtreeMetrics(phase1MetricsAcc, metrics);
-                    ++phase1MetricsCount;
-                }
                 phase1PruneSw.resume();
                 maxTree.pruneNode(subtreeRoot);
                 phase1PruneSw.pause();
             }
-            adjust.setMetrics(nullptr);
             phase1Sw.pause();
             iter.phase1Ms = elapsedMs(phase1Sw);
             iter.phase1UpdateMs = elapsedUsToMsRounded(phase1UpdateSw);
             iter.phase1PruningMs = elapsedUsToMsRounded(phase1PruneSw);
-            iter.phase1AlgMetrics = finalizeAggregatedSubtreeMetrics(phase1MetricsAcc, phase1MetricsCount);
 
             Stopwatch phase2Sw;
             phase2Sw.start();
             const auto attributeMin = computeAttributeVector(&minTree, options.attributeMode);
-            std::vector<float> targetAreaPhase2;
-            if (collectMetrics) {
-                DynamicAreaComputer targetAreaComputer(&maxTree);
-                targetAreaPhase2 = targetAreaComputer.compute();
-            }
             const auto nodesToPruneMin = getNodesThreshold(&minTree, attributeMin, threshold);
             phase2Sw.pause();
             iterSw.pause();
@@ -1110,38 +1075,21 @@ static MethodResult runOurSubtreeMethod(ImageUInt8Ptr image, const BenchOptions 
 
             Stopwatch phase2UpdateSw;
             Stopwatch phase2PruneSw;
-            hooks = TimerHooksContext{&phase2Sw, &iterSw, &totalSw};
-            DynamicSubtreeMetrics phase2MetricsAcc;
-            int phase2MetricsCount = 0;
             for (NodeId subtreeRoot : nodesToPruneMin) {
                 if (subtreeRoot == InvalidNode || subtreeRoot == minTree.getRoot() || !minTree.isAlive(subtreeRoot)) {
                     continue;
                 }
-                DynamicSubtreeMetrics metrics;
-                if (collectMetrics) {
-                    adjust.setMetricsAreaBuffer(&maxTree, std::span<const float>(targetAreaPhase2));
-                    adjust.setMetrics(&metrics, &hooks, pauseTimerHooks, resumeTimerHooks);
-                } else {
-                    adjust.setMetricsAreaBuffer(nullptr, {});
-                    adjust.setMetrics(nullptr);
-                }
                 phase2UpdateSw.resume();
                 adjust.updateTree(&maxTree, subtreeRoot);
                 phase2UpdateSw.pause();
-                if (metrics.valid) {
-                    addSubtreeMetrics(phase2MetricsAcc, metrics);
-                    ++phase2MetricsCount;
-                }
                 phase2PruneSw.resume();
                 minTree.pruneNode(subtreeRoot);
                 phase2PruneSw.pause();
             }
-            adjust.setMetrics(nullptr);
             phase2Sw.pause();
             iter.phase2Ms = elapsedMs(phase2Sw);
             iter.phase2UpdateMs = elapsedUsToMsRounded(phase2UpdateSw);
             iter.phase2PruningMs = elapsedUsToMsRounded(phase2PruneSw);
-            iter.phase2AlgMetrics = finalizeAggregatedSubtreeMetrics(phase2MetricsAcc, phase2MetricsCount);
 
             iterSw.pause();
             iter.totalMs = elapsedMs(iterSw);
