@@ -36,3 +36,5 @@ __pycache__/
 /tests/dat/icdar_360p
 /tests/dat/icdar_480p
 /tests/dat/icdar_720p
+
+/research/
