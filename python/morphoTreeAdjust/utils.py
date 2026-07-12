@@ -1,3 +1,16 @@
+"""Console and Matplotlib helpers for inspecting component trees.
+
+The helpers accept the current :class:`DynamicComponentTree` binding and, where
+noted, the legacy object-oriented tree API used by older notebooks.  Dynamic
+trees expose nodes as integer IDs; legacy trees expose node objects with
+attributes such as ``children`` and ``value``.
+
+Plotting helpers create or reuse Matplotlib figures, may print explanatory text,
+and may call :func:`matplotlib.pyplot.show`.  They do not modify the component
+tree.  Import this module explicitly with ``from morphoTreeAdjust import utils``;
+its names are not re-exported by the package root.
+"""
+
 from __future__ import annotations
 
 import numpy as np
@@ -6,6 +19,17 @@ import matplotlib.patches as patches
 from itertools import zip_longest
 import re
 from math import inf
+
+__all__ = [
+    "PrintTree",
+    "printTree",
+    "computeCentroid",
+    "showLevelSets",
+    "showTree",
+    "showNode",
+    "showSubtree",
+    "treeRows",
+]
 
 try:
     import morphoTreeAdjust as mta  # package; exposes binding classes
@@ -195,14 +219,41 @@ class _TreeFormatter:
 
 
 class PrintTree:
-    """Prints the tree to the console in vertical format."""
+    """Render an arbitrary rooted tree as a vertical console diagram.
+
+    This generic formatter is also used by :func:`printTree`.  It only reads the
+    node passed to it and delegates traversal and value formatting to the two
+    configured callables.
+    """
 
     def __init__(self, get_children=None, get_val=None, *, color: str = ""):
+        """Configure how children and labels are obtained.
+
+        Args:
+            get_children: Callable returning an iterable of direct children.
+                Defaults to reading ``node.children``.
+            get_val: Callable returning the displayed value.  Defaults to
+                reading ``node.value``.
+            color: Optional ANSI prefix applied to every node label.
+        """
         self.default_get_children = get_children or (lambda x: x.children)
         self.default_get_node_val = get_val or (lambda x: x.value)
         self.default_color = color
 
     def __call__(self, node, *, color: str = None):
+        """Print the subtree rooted at ``node``.
+
+        Args:
+            node: Root accepted by the configured traversal callables.
+            color: ANSI prefix for this call.  ``None`` uses the constructor
+                value; an empty string disables coloring.
+
+        Returns:
+            ``None``.  The formatted diagram is written to standard output.
+
+        Exceptions raised by ``get_children`` or ``get_val`` propagate to the
+        caller.
+        """
         fmt = _TreeFormatter(
             get_children=self.default_get_children,
             get_val=self.default_get_node_val,
@@ -212,6 +263,25 @@ class PrintTree:
 
 
 def printTree(root, attrs=['id', 'level', 'area']):
+    """Print a dynamic or legacy component tree as a vertical diagram.
+
+    For a dynamic tree, ``root`` is the tree object and traversal starts at its
+    integer ``root`` ID.  Supported labels are ``id``, ``level``/``altitude``,
+    ``area``, ``parent``, ``children``, ``num_children``, and ``subtree_size``;
+    an unsupported label is displayed as ``<unsupported:...>``.  For the legacy
+    API, ``root`` is a node object and each name in ``attrs`` is read directly
+    from that object.
+
+    Args:
+        root: A ``DynamicComponentTree`` or a legacy root node.
+        attrs: Attribute names displayed in each node label.
+
+    Returns:
+        ``None``.  The tree is written to standard output.
+
+    Raises:
+        AttributeError: If a requested legacy attribute is absent.
+    """
     if _is_dynamic_tree(root):
         tree = root
         _printTree = PrintTree(
@@ -230,6 +300,21 @@ def printTree(root, attrs=['id', 'level', 'area']):
 
 
 def computeCentroid(pixels, num_cols):
+    """Choose the input pixel nearest to its continuous centroid.
+
+    Pixels use row-major linear indexing.  Ties are resolved by the smallest
+    linear pixel index, making the result deterministic.
+
+    Args:
+        pixels: Non-empty iterable supporting ``len`` and repeated iteration.
+        num_cols: Positive number of image columns.
+
+    Returns:
+        A ``(row, column)`` tuple for a pixel contained in ``pixels``.
+
+    Raises:
+        ZeroDivisionError: If ``pixels`` is empty.
+    """
     n = len(pixels)
     
     # 1) continuous centroid
@@ -254,6 +339,27 @@ def computeCentroid(pixels, num_cols):
     return best_r, best_c
 
 def showLevelSets(img_f):
+    """Display upper and lower level sets for a grayscale image.
+
+    One row is created for each distinct value.  The left column overlays the
+    pixels equal to an ascending threshold on ``image > threshold``; the right
+    column does the analogous operation for descending thresholds and
+    ``image < threshold``.  The function prints a short legend and calls
+    :func:`matplotlib.pyplot.show`.
+
+    Args:
+        img_f: Non-empty two-dimensional NumPy-compatible image with at least
+            two distinct values.
+
+    Returns:
+        ``None``.
+
+    Raises:
+        ValueError: If NumPy cannot determine the extrema, for example for an
+            empty image.
+        IndexError: The current layout cannot index the axes produced for an
+            image with only one distinct value.
+    """
     print("Upper and lower level sets where in the black (highlighted are cnps) are foreground pixels and white are background pixels")
     t_values = np.unique(img_f)
     len = np.size(t_values)
@@ -290,6 +396,24 @@ def showLevelSets(img_f):
 
 
 def showTree(tree):
+    """Display a reconstructed image and print its component-tree hierarchy.
+
+    The dynamic API labels every currently live integer node ID at the centroid
+    of its connected component.  The legacy API labels representative
+    flatzones discovered through ``root.postOrderTraversal()``.  A Matplotlib
+    figure is created and shown, explanatory text is printed, and then
+    :func:`printTree` writes the hierarchy.
+
+    Args:
+        tree: A ``DynamicComponentTree`` or a compatible legacy tree.
+
+    Returns:
+        ``None``.
+
+    Raises:
+        ZeroDivisionError: If a node selected for labeling has no pixels.
+        AttributeError: If ``tree`` implements neither supported API.
+    """
     if _is_dynamic_tree(tree):
         if(tree.isMaxtree):
             print("Image and its max-tree representation. The indices of max-tree nodes are shown as labels on the image.")
@@ -349,6 +473,36 @@ def showTree(tree):
 
     
 def showNode(tree, node, showCNPs=False):
+    """Display the current image with one component highlighted.
+
+    With the dynamic API, ``node`` is a live integer ID and the highlighted
+    mask is its full connected component, as returned by ``getPixelsOfCC``;
+    this includes the node's proper parts and all descendant components.  The
+    dynamic binding does not expose CNP objects, so ``showCNPs=True`` currently
+    places a marker on *every pixel of that connected component*, not only on
+    direct proper parts/CNPs.
+
+    With the legacy API, ``node`` is a node object, ``reconstructionNode``
+    supplies the displayed image, and ``showCNPs=True`` marks ``node.cnps``.
+    The dynamic path creates a figure and calls ``plt.show``; the legacy path
+    draws on the current axes and leaves showing the figure to the caller.
+
+    Args:
+        tree: A ``DynamicComponentTree`` or a compatible legacy tree.
+        node: Live node ID for the dynamic API, or node object for the legacy
+            API.
+        showCNPs: Whether to draw the additional pixel markers described above.
+
+    Returns:
+        ``None``.
+
+    Raises:
+        AttributeError: If a legacy object lacks a required method.
+
+    Note:
+        Dynamic node IDs are not defensively validated by the binding.  Passing
+        a stale, released, or out-of-domain ID is unsupported.
+    """
     if _is_dynamic_tree(tree):
         pixels = _dynamic_tree_pixels(tree, node, use_subtree=False)
         image = _as_image(tree.reconstructionImage(), num_rows=tree.numRows, num_cols=tree.numCols)
@@ -391,6 +545,34 @@ def showNode(tree, node, showCNPs=False):
 
 
 def showSubtree(tree, node, showCNPs=False):
+    """Display the component represented by a dynamic subtree root.
+
+    For the dynamic API, the function walks ``getNodeSubtree(node)`` and masks
+    the connected-component pixels reported for those nodes.  Because each
+    connected component already includes its descendants, pixels may be
+    visited more than once without changing the final mask.  As in
+    :func:`showNode`, ``showCNPs=True`` marks all collected component pixels;
+    it does not isolate direct proper parts/CNPs.
+
+    The legacy API has no separate subtree implementation here and delegates to
+    :func:`showNode`.
+
+    Args:
+        tree: A ``DynamicComponentTree`` or a compatible legacy tree.
+        node: Live dynamic node ID or legacy node object.
+        showCNPs: Whether to draw the additional pixel markers described above.
+
+    Returns:
+        ``None``.
+
+    Raises:
+        AttributeError: If a legacy object lacks a method required by
+            :func:`showNode`.
+
+    Note:
+        Dynamic node IDs are not defensively validated by the binding.  Passing
+        a stale, released, or out-of-domain ID is unsupported.
+    """
     if _is_dynamic_tree(tree):
         pixels = _dynamic_tree_pixels(tree, node, use_subtree=True)
         image = _as_image(tree.reconstructionImage(), num_rows=tree.numRows, num_cols=tree.numCols)
@@ -422,6 +604,23 @@ def showSubtree(tree, node, showCNPs=False):
 
 
 def treeRows(tree):
+    """Return a tabular snapshot of all currently live dynamic-tree nodes.
+
+    Each dictionary contains ``node``, ``altitude``, ``parent``, ``children``,
+    ``num_pixels``, and ``is_leaf``.  ``subtree_size`` is also included when the
+    binding exposes ``getNodeSubtree``.  Lists and IDs are snapshots: later
+    mutations can release and reuse node IDs, so regenerate the rows after a
+    change instead of treating them as live references.
+
+    Args:
+        tree: A ``DynamicComponentTree`` instance.
+
+    Returns:
+        A list of dictionaries, one per live node ID.
+
+    Raises:
+        TypeError: If ``tree`` does not implement the dynamic tree API.
+    """
     if not _is_dynamic_tree(tree):
         raise TypeError("treeRows currently supports only the dynamic tree API.")
 

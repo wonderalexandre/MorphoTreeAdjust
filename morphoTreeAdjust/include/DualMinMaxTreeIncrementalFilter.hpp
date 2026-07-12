@@ -72,6 +72,8 @@
  * Use:
  *
  * - `P_C`: number of pixels in `properPartSetC`;
+ * - `E_C`: total adjacency-stencil positions examined for those pixels
+ *   (`E_C <= P_C * D` for maximum stencil size `D`);
  * - `A_C`: number of adjacent nodes collected around `C`;
  * - `M_C`: total number of nodes placed in `mergeNodesByLevel`;
  * - `K_C`: number of nodes actually removed/merged/reconnected in the step.
@@ -84,14 +86,20 @@
  * - building the paths up to `nodeCa` and the per-level buckets;
  * - the merge-and-reconnect sweep.
  *
+ * Let `L = max(PixelType) + 1`, the number of representable altitude levels.
+ * `PixelType` must be an integral type whose lowest value is zero; the dense
+ * implementation allocates one merge bucket for every one of those levels.
  * In asymptotic notation, a typical step looks like:
  *
- * - `O(P_C + A_C + M_C + K_C)`,
+ * - `O(L + P_C + E_C + A_C + M_C + K_C)` time;
+ * - `O(L + N + P)` persistent workspace, where `N` is the paired trees'
+ *   node-id capacity and `P` is the full image domain used by pixel-indexed
+ *   generation stamps, plus the collections for the current affected region.
  *
- * without depending directly on the total number of pixels in the image,
- * except when the affected region grows to the whole domain. This local nature
- * is precisely what makes incremental adjustment advantageous relative to a
- * global rebuild.
+ * The structural work is local, but `firstMergeLevel()` still scans the full
+ * dense level domain once per adjustment step. The remaining terms do not
+ * depend directly on the total number of image pixels unless the affected
+ * region grows to the whole domain.
  *
  * Practical note:
  *
@@ -102,9 +110,18 @@
  * - the quality of the incremental update comes from trading a global cost for
  *   a cost proportional to the modified region.
  *
- * This implementation does not own the attribute buffers. The caller is
- * responsible for keeping them alive and indexed in the same global id space
- * as the associated `DynamicComponentTree`.
+ * This implementation owns none of the constructor arguments or attribute
+ * runtime registered later. The min-tree, max-tree, adjacency relation,
+ * attribute computers, and storage underlying both spans must outlive the
+ * adjuster. Attribute buffers are indexed by global `NodeId` and must cover all
+ * addressable slots in their corresponding trees. If a backing container is
+ * reallocated, or if tree growth requires a larger buffer, the caller must
+ * resize it and call `setAttributeComputer()` again before another update;
+ * otherwise the stored span is dangling or undersized.
+ *
+ * @tparam PixelType Integral altitude type whose minimum is zero. Because the
+ * implementation materializes `max(PixelType) + 1` buckets, wide types can be
+ * impractical or fail to instantiate due to memory requirements.
  */
 template<typename PixelType = AltitudeType>
 class DualMinMaxTreeIncrementalFilter {
@@ -216,7 +233,7 @@ public:
         /**
          * @brief Inserts a single node into the bucket of its own level.
          * @details This operation corresponds more directly to partition
-         * `{\Gamma_v^-}_{v \in I_C^*}` from Algorithm 2 of the paper: each
+         * @f$\{\Gamma_v^-\}_{v \in I_C^*}@f$ from Algorithm 2 of the paper: each
          * visited node enters only the bucket of its own level, without
          * immediately materializing the full path up to `nodeCa`.
          */
@@ -1447,12 +1464,19 @@ private:
 public:
     /**
      * @brief Creates the adjuster from a fixed dynamic min-tree / max-tree pair.
-     * @details The pair passed here defines the lifetime association of the
-     * adjuster. Subsequent prune/update calls operate on this same pair
-     * and do not accept per-call tree overrides.
-     * @param mintree Pointer to the dynamic min-tree owned externally.
-     * @param maxtree Pointer to the dynamic max-tree owned externally.
-     * @param graph Adjacency relation shared by both trees.
+     * @details The arguments are borrowed and define the adjuster's permanent
+     * operational pair. They must remain alive and at stable addresses until
+     * the adjuster is destroyed. The trees must be a min-tree and max-tree for
+     * the same image domain, current image state, and adjacency. Subsequent
+     * operations must preserve that pairing.
+     *
+     * Only the non-null tree pointers are assertion-checked here. Tree polarity,
+     * shared image state/domain, and adjacency consistency remain caller
+     * responsibilities.
+     *
+     * @param mintree Non-null pointer to the externally owned dynamic min-tree.
+     * @param maxtree Non-null pointer to the externally owned dynamic max-tree.
+     * @param graph Externally owned adjacency relation shared by both trees.
      */
     DualMinMaxTreeIncrementalFilter(DynamicComponentTree *mintree, DynamicComponentTree *maxtree, AdjacencyRelation &graph)
         : mintree_(mintree), maxtree_(maxtree), graph_(&graph),
@@ -1485,14 +1509,21 @@ public:
 
     /**
      * @brief Registers the incremental attribute computers and their external buffers.
-     * @details Buffer sizing and lifetime are the caller's responsibility. Each
-     * buffer must cover the full global id space of the corresponding tree.
-     * The registered computers and buffers must correspond to the same fixed
-     * min-tree / max-tree pair provided at construction time.
-     * @param computerMin Incremental attribute computer for the min-tree.
-     * @param computerMax Incremental attribute computer for the max-tree.
-     * @param bufferMin External buffer associated with the min-tree.
-     * @param bufferMax External buffer associated with the max-tree.
+     * @details The adjuster borrows the computers and the storage described by
+     * the spans; it does not copy or own them. Both computers and both backing
+     * allocations must outlive the adjuster (or remain alive until replaced by
+     * another registration). Each computer must be bound to the corresponding
+     * fixed tree, and each buffer must be indexed by global `NodeId` and cover
+     * every node slot the tree may address during an update.
+     *
+     * A span is not refreshed when its backing `std::vector` reallocates. After
+     * any reallocation, or whenever tree growth requires a larger buffer, resize
+     * first and call this method again before performing another update.
+     *
+     * @param computerMin Externally owned incremental computer bound to the min-tree.
+     * @param computerMax Externally owned incremental computer bound to the max-tree.
+     * @param bufferMin Borrowed writable buffer associated with the min-tree.
+     * @param bufferMax Borrowed writable buffer associated with the max-tree.
      */
     void setAttributeComputer(DynamicAttributeComputer &computerMin, DynamicAttributeComputer &computerMax, std::span<float> bufferMin, std::span<float> bufferMax) {
         attrComputerMin_ = &computerMin;
@@ -1504,8 +1535,22 @@ public:
     /**
      * @brief Prunes one subtree from a primal tree and updates the paired dual tree.
      * @details This is the clean public path for the explicit prune/update
-     * engine. It does not expose diagnostics and reports invalid input or
-     * rejected events through exceptions.
+     * engine. `primalTree` and `dualTree` must be the exact opposite members of
+     * the pair supplied to the constructor. `subtreeRoot` must be a live
+     * non-root node connected to its parent by a strict level edge, and its
+     * subtree must define a non-empty region whose pixels have live owners in
+     * the dual tree. The dual tree is updated while the primal subtree is still
+     * alive; the primal subtree is pruned only after that update succeeds.
+     *
+     * @param primalTree Borrowed pointer to one tree in this adjuster's pair.
+     * @param dualTree Borrowed pointer to the opposite tree in the pair.
+     * @param subtreeRoot Live non-root root of the primal subtree to remove.
+     * @throws std::invalid_argument If either tree is null, the trees are not
+     * this adjuster's exact pair, or `subtreeRoot` is not a live non-root node.
+     * @throws std::runtime_error If the strict parent edge, non-empty region,
+     * live dual ownership, or a required structural update cannot be satisfied.
+     * @warning This operation provides no rollback guarantee. If an exception
+     * occurs after a dual-tree mutation, the partial mutation remains applied.
      */
     void pruneSubtreeAndUpdateDual(DynamicComponentTree *primalTree, DynamicComponentTree *dualTree, NodeId subtreeRoot) {
         requirePairedTrees(primalTree, dualTree, "pruneSubtreeAndUpdateDual");
@@ -1527,7 +1572,20 @@ public:
     /**
      * @brief Prunes a batch of subtree roots from a primal tree and updates the paired dual tree.
      * @details Each root is processed as an independent explicit update step.
-     * Invalid roots throw instead of being silently skipped.
+     * Invalid roots throw instead of being silently skipped. The tree-pair and
+     * per-root preconditions are the same as for
+     * `pruneSubtreeAndUpdateDual()`; roots are interpreted in the current tree
+     * state after all earlier batch entries have completed.
+     *
+     * @param primalTree Borrowed pointer to one tree in this adjuster's pair.
+     * @param dualTree Borrowed pointer to the opposite tree in the pair.
+     * @param nodesToPrune Ordered roots to process one at a time.
+     * @throws std::invalid_argument If the pair is invalid or any root is not a
+     * live non-root node when its turn is reached.
+     * @throws std::runtime_error If any root violates the region/strict-edge
+     * requirements or its structural update cannot be completed.
+     * @warning The batch is not transactional. Completed roots, and any partial
+     * mutation made while processing the failing root, are not rolled back.
      */
     void pruneSubtreesAndUpdateDual(DynamicComponentTree *primalTree, DynamicComponentTree *dualTree, std::span<const NodeId> nodesToPrune) {
         requirePairedTrees(primalTree, dualTree, "pruneSubtreesAndUpdateDual");
@@ -1551,7 +1609,23 @@ public:
      * @brief Merges a primal node into its parent and updates the paired dual tree.
      * @details The direct proper parts of `nodeId` are split into connected
      * components and each component is updated through the explicit region
-     * engine. The primal merge is applied only after the dual updates succeed.
+     * engine. `primalTree` and `dualTree` must be the exact opposite members of
+     * this adjuster's pair. `nodeId` must be a live non-root node with a live
+     * parent and a non-empty direct proper-part region. Every proper part must
+     * be in the image domain and have a live owner in the dual tree. The primal
+     * merge is applied only after all dual-region updates succeed.
+     *
+     * @param primalTree Borrowed pointer to one tree in this adjuster's pair.
+     * @param dualTree Borrowed pointer to the opposite tree in the pair.
+     * @param nodeId Live non-root primal node contracted into its parent.
+     * @throws std::invalid_argument If the pair or node is invalid, or a region
+     * passed to the explicit update engine is invalid.
+     * @throws std::runtime_error If the parent/owner cannot be located, the
+     * direct region is empty or out of bounds, or a structural update fails.
+     * @warning This operation provides no rollback guarantee. When several
+     * connected components are processed, a later failure leaves earlier
+     * dual-tree component updates applied even though the primal merge has not
+     * yet occurred.
      */
     void mergeNodeIntoParentAndUpdateDual(DynamicComponentTree *primalTree, DynamicComponentTree *dualTree, NodeId nodeId) {
         requirePairedTrees(primalTree, dualTree, "mergeNodeIntoParentAndUpdateDual");
@@ -1596,6 +1670,17 @@ public:
      * @param properPartSetC Set `C` formed by the proper parts of the subtree removed in the primal tree.
      * @param b Altitude of the parent of the removed subtree in the primal tree.
      * @param isMaxtree `true` for the max-tree direction and `false` for the min-tree direction.
+     *
+     * @pre This is a low-level phase, not a self-contained update. The caller
+     * must first initialize the current step, populate `pixelsInCMarks_`, set
+     * `altitudeCa`, and ensure `properPartSetC` is non-empty.
+     * @pre `dualTree` must be the tree in this adjuster's fixed pair whose kind
+     * matches `isMaxtree`; every pixel in `properPartSetC` must be in its image
+     * domain, and `b` and all tree altitudes must be representable by
+     * `PixelType`.
+     * @warning Preconditions are enforced only partially by assertions. Calling
+     * this method outside the `updateTree()` protocol can corrupt temporary
+     * state or access invalid storage.
      */
     void buildMergedAndNestedCollections(DynamicComponentTree *dualTree, std::vector<PixelId> &properPartSetC, PixelType b, bool isMaxtree) {
         assert(dualTree != nullptr);
@@ -1669,12 +1754,29 @@ public:
      * 4. merges nodes level by level and moves set `C` when the sweep reaches `b`;
      * 5. reconnects the final union node in the updated hierarchy.
      *
-     * The method assumes that `subtreeRoot` is still alive in the primal tree
-     * at call time. Actual pruning in the primal occurs only after the dual has
-     * been adjusted, in the public `prune*AndUpdate*` wrappers.
+     * This is a low-level compatibility API. `dualTree` must be exactly one of
+     * the constructor's trees; the opposite constructor tree is inferred as
+     * the primal tree. `subtreeRoot` must identify a live, non-root primal node
+     * connected to a live parent by the strict level relationship expected by
+     * the tree kind. Its subtree must have a non-empty support, every support
+     * pixel must have a live dual owner, and all altitudes must fit in
+     * `PixelType`.
+     *
+     * The primal subtree must still be alive because this method reads it to
+     * construct set `C`. This method updates only the dual tree; it does not
+     * prune the primal tree. The `prune*AndUpdate*` wrappers deliberately call
+     * it before pruning.
      *
      * @param dualTree Dual hierarchy updated in place.
-     * @param subtreeRoot Root of the subtree to be removed in the primal tree.
+     * @param subtreeRoot Live non-root subtree in the inferred primal tree.
+     * @pre The fixed pair is synchronized before the update and the registered
+     * attribute runtime, if any, satisfies its sizing and lifetime contract.
+     * @warning Membership of `dualTree` in the fixed pair is not checked: any
+     * pointer other than the stored max-tree is treated as the stored min-tree.
+     * Other preconditions are primarily assertion-only. Invalid input can cause
+     * undefined behavior or structural corruption. The operation is not
+     * transactional and does not roll back a partial dual-tree mutation if an
+     * internal operation throws.
      */
     void updateTree(DynamicComponentTree *dualTree, NodeId subtreeRoot) {
         assert(dualTree != nullptr);
@@ -1824,6 +1926,11 @@ public:
      * The cost is the sum of `updateTree` and `pruneNode` for each valid root.
      *
      * @param nodesToPrune Roots of the subtrees removed from the max-tree.
+     * Invalid ids, the root, dead nodes, and nodes removed by an earlier entry
+     * are silently skipped. Each accepted root must otherwise satisfy the
+     * low-level `updateTree()` preconditions.
+     * @warning This legacy wrapper is not transactional and validates key
+     * structural assumptions only through assertions.
      */
     void pruneMaxTreeAndUpdateMinTree(std::vector<NodeId> &nodesToPrune) {
         assert(removedMarks_.stamp.size() >= static_cast<std::size_t>(std::max(mintree_ ? mintree_->getNumInternalNodeSlots() : 0, maxtree_ ? maxtree_->getNumInternalNodeSlots() : 0)));
@@ -1847,6 +1954,11 @@ public:
      * The cost is the sum of `updateTree` and `pruneNode` for each valid root.
      *
      * @param nodesToPrune Roots of the subtrees removed from the min-tree.
+     * Invalid ids, the root, dead nodes, and nodes removed by an earlier entry
+     * are silently skipped. Each accepted root must otherwise satisfy the
+     * low-level `updateTree()` preconditions.
+     * @warning This legacy wrapper is not transactional and validates key
+     * structural assumptions only through assertions.
      */
     void pruneMinTreeAndUpdateMaxTree(std::vector<NodeId> &nodesToPrune) {
         assert(removedMarks_.stamp.size() >= static_cast<std::size_t>(std::max(mintree_ ? mintree_->getNumInternalNodeSlots() : 0, maxtree_ ? maxtree_->getNumInternalNodeSlots() : 0)));
@@ -1860,12 +1972,18 @@ public:
     }
 
     /**
-     * @brief Returns the min-tree currently associated with the adjuster.
+     * @brief Returns mutable access to the borrowed min-tree.
+     * @return Non-owning pointer valid only while the externally owned tree lives.
+     * @warning Structural edits performed outside this adjuster can break the
+     * min/max synchronization and invalidate later update assumptions.
      */
     DynamicComponentTree *getMinTree() const { return mintree_; }
 
     /**
-     * @brief Returns the max-tree currently associated with the adjuster.
+     * @brief Returns mutable access to the borrowed max-tree.
+     * @return Non-owning pointer valid only while the externally owned tree lives.
+     * @warning Structural edits performed outside this adjuster can break the
+     * min/max synchronization and invalidate later update assumptions.
      */
     DynamicComponentTree *getMaxTree() const { return maxtree_; }
 };

@@ -17,15 +17,30 @@
 #include "DualMinMaxTreeIncrementalFilter.hpp"
 
 /**
- * @brief Clean public CASF implementation for non-order-preserving flat attributes.
+ * @brief Local-merge CASF for supported non-order-preserving flat attributes.
  *
- * The filter keeps a paired max-tree/min-tree representation and applies the
- * same threshold to both directions. Candidate nodes are merged locally into
- * their parents while `DualMinMaxTreeIncrementalFilter` updates the dual tree
- * and the registered attribute computers incrementally.
+ * This class accepts `AREA_PER_BOX_PERIMETER`, `RECTANGULARITY`,
+ * `BOX_ASPECT_RATIO`, `BOX_ELONGATION`, and
+ * `AREA_PER_BOX_DIAGONAL_SQUARED`. Unlike conventional subtree-pruning CASF,
+ * this path contracts each selected node locally into its parent and uses
+ * `DualMinMaxTreeIncrementalFilter` to keep the paired tree synchronized.
  *
- * This class intentionally exposes only the production path: it does not carry
- * diagnostic snapshots, benchmark counters, or research-only validation data.
+ * Candidate selection takes one deterministic snapshot at the beginning of
+ * each directional phase. A non-root node is selected when its value in that
+ * snapshot is less than or equal to the threshold; `NaN` is not selected.
+ * Candidates invalidated by an earlier contraction in the same phase are
+ * skipped, but surviving candidates are not threshold-tested again if their
+ * attribute changes. Every threshold processes the max-tree phase before
+ * taking the min-tree snapshot and processing the min-tree phase.
+ *
+ * Thresholds and repeated `filter()` calls are cumulative. This class neither
+ * exposes a reset operation nor rebuilds the pair between thresholds.
+ *
+ * @tparam PixelType Unsigned integral altitude type used by the incremental
+ * adjuster. Its level domain must start at zero.
+ *
+ * @warning Mutating either tree through a non-const getter bypasses paired-tree
+ * and attribute maintenance and can desynchronize later operations.
  */
 template<typename PixelType = AltitudeType>
 class ComponentTreeCasfNonIncreasing {
@@ -120,11 +135,12 @@ private:
     }
 
     /**
-     * @brief Collects nodes whose current attribute value is at or below `threshold`.
+     * @brief Snapshots nodes whose current attribute value is at or below `threshold`.
      *
      * The returned vector is owned by `work` and remains valid until the next
      * call. Candidates are sorted by altitude and by support signatures so the
-     * merge order is stable even when child traversal order changes.
+     * merge order is stable even when child traversal order changes. A `NaN`
+     * attribute value compares false and is not included.
      */
     static std::vector<NodeId> &collectMergeCandidates(const DynamicComponentTree &tree,
                                                        const std::vector<float> &attribute,
@@ -269,10 +285,12 @@ private:
     }
 
     /**
-     * @brief Applies one threshold to a single primal/dual tree direction.
+     * @brief Applies one snapshotted threshold phase to a primal/dual direction.
      *
      * `primalTree` supplies the candidates, while `dualTree` is updated by the
-     * adjuster so the max-tree/min-tree pair remains synchronized.
+     * adjuster so the max-tree/min-tree pair remains synchronized. Candidate
+     * attributes are not re-evaluated after every contraction in this phase;
+     * only candidates that cease to be live or mergeable are skipped.
      */
     void applyMergePhase(DynamicComponentTree *primalTree,
                          DynamicComponentTree *dualTree,
@@ -318,8 +336,16 @@ public:
     /**
      * @brief Builds the filter from an image and an adjacency radius.
      * @param image Input image used to initialize the paired component trees.
-     * @param radiusAdj Radius used to build the adjacency relation.
-     * @param attribute Non-order-preserving flat attribute used for pruning.
+     * The image is cloned and is not retained.
+     * @param radiusAdj Non-negative radius used to build the internally owned
+     * adjacency relation.
+     * @param attribute Non-order-preserving flat attribute used for local
+     * node selection and contraction. Accepted values are
+     * `AREA_PER_BOX_PERIMETER`, `RECTANGULARITY`, `BOX_ASPECT_RATIO`,
+     * `BOX_ELONGATION`, and `AREA_PER_BOX_DIAGONAL_SQUARED`.
+     * @throws std::runtime_error If `image` is null or `attribute` is unsupported.
+     * @throws std::invalid_argument If the image dimensions or radius cannot
+     * define a valid adjacency relation.
      */
     ComponentTreeCasfNonIncreasing(ImageUInt8Ptr image,
                                    double radiusAdj,
@@ -338,8 +364,15 @@ public:
     /**
      * @brief Builds the filter from an image and an existing adjacency relation.
      * @param image Input image used to initialize the paired component trees.
-     * @param adjacency Adjacency relation shared by both dynamic trees.
-     * @param attribute Non-order-preserving flat attribute used for pruning.
+     * The image is cloned and is not retained.
+     * @param adjacency Non-null adjacency retained through shared ownership by
+     * this class and both dynamic trees. It must describe the image domain.
+     * @param attribute Non-order-preserving flat attribute used for local
+     * node selection and contraction. Accepted values are
+     * `AREA_PER_BOX_PERIMETER`, `RECTANGULARITY`, `BOX_ASPECT_RATIO`,
+     * `BOX_ELONGATION`, and `AREA_PER_BOX_DIAGONAL_SQUARED`.
+     * @throws std::runtime_error If `image` or `adjacency` is null, or if
+     * `attribute` is unsupported.
      */
     ComponentTreeCasfNonIncreasing(ImageUInt8Ptr image,
                                    AdjacencyRelationPtr adjacency,
@@ -358,7 +391,23 @@ public:
      * @brief Applies all thresholds and returns the reconstructed filtered image.
      *
      * Thresholds are applied sequentially to the same mutable tree pair, so each
-     * value continues from the state produced by the previous one.
+     * value continues from the state produced by the previous one. For each
+     * threshold, max-tree candidates are snapshotted and merged first; min-tree
+     * candidates are snapshotted from the resulting state and merged second.
+     * A live non-root candidate is selected when its value at snapshot time is
+     * `<=` the threshold. `NaN` values are not selected at that point. Surviving
+     * candidates are not tested against the threshold again after earlier merges
+     * in the same phase, even if their recomputed value would differ. An empty
+     * sequence leaves the current state unchanged.
+     *
+     * @param thresholds Ordered floating-point thresholds.
+     * @return A newly reconstructed image representing the current min-tree.
+     * @throws std::invalid_argument If the paired update engine rejects an
+     * invalid tree, node, pixel region, or other violated precondition.
+     * @throws std::runtime_error If a required parent/owner cannot be found or
+     * a local paired-tree update cannot be completed.
+     * @warning Filtering is not transactional. If an exception is raised after
+     * an earlier contraction, that successful mutation is not rolled back.
      */
     ImageUInt8Ptr filter(const std::vector<float> &thresholds) {
         for (float threshold : thresholds) {
@@ -369,6 +418,15 @@ public:
 
     /**
      * @brief Applies all thresholds from a span and returns the reconstructed image.
+     * @param thresholds Ordered floating-point thresholds applied cumulatively.
+     * Candidate snapshots, comparison rules, exception behavior, and mutation
+     * order are identical to the `std::vector<float>` overload.
+     * @return A newly reconstructed image representing the current min-tree.
+     * @throws std::invalid_argument If the paired update engine rejects an
+     * invalid tree, node, pixel region, or other violated precondition.
+     * @throws std::runtime_error If a local paired-tree update cannot be completed.
+     * @warning Filtering is not transactional; completed contractions are not
+     * rolled back if a later operation throws.
      */
     ImageUInt8Ptr filter(std::span<const float> thresholds) {
         for (float threshold : thresholds) {
@@ -379,6 +437,7 @@ public:
 
     /**
      * @brief Reconstructs the current filtered image from the min-tree.
+     * @return A newly allocated image for the current cumulative state.
      */
     ImageUInt8Ptr reconstructImage() const {
         return mintree_->reconstructionImage();
@@ -386,6 +445,9 @@ public:
 
     /**
      * @brief Returns the mutable max-tree after the current filtering state.
+     * @return Reference valid until this CASF object is destroyed.
+     * @warning External structural edits bypass the dual update engine and
+     * attribute computers and can desynchronize subsequent filtering.
      */
     DynamicComponentTree &getMaxTree() {
         return *maxtree_;
@@ -393,6 +455,7 @@ public:
 
     /**
      * @brief Returns the read-only max-tree after the current filtering state.
+     * @return Reference valid until this CASF object is destroyed.
      */
     const DynamicComponentTree &getMaxTree() const {
         return *maxtree_;
@@ -400,6 +463,9 @@ public:
 
     /**
      * @brief Returns the mutable min-tree after the current filtering state.
+     * @return Reference valid until this CASF object is destroyed.
+     * @warning External structural edits bypass the dual update engine and
+     * attribute computers and can desynchronize subsequent filtering.
      */
     DynamicComponentTree &getMinTree() {
         return *mintree_;
@@ -407,6 +473,7 @@ public:
 
     /**
      * @brief Returns the read-only min-tree after the current filtering state.
+     * @return Reference valid until this CASF object is destroyed.
      */
     const DynamicComponentTree &getMinTree() const {
         return *mintree_;

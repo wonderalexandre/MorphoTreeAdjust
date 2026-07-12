@@ -62,7 +62,8 @@
  * Role in the pipeline:
  *
  * - serves as the primal and dual structure for the dynamic adjusters;
- * - supports CASF execution in `leaf` and `subtree` modes;
+ * - supports CASF execution through leaf, subtree, and local node-merge
+ *   adjustment paths;
  * - provides the proper parts and topology used by the dynamic adjusters and
  *   CASF routines built on top of this representation.
  *
@@ -344,9 +345,17 @@ public:
 
     /**
      * @brief Builds the tree directly from an image.
-     * @param image Grayscale image.
+     * @details The image is read only while the hierarchy is built and is not
+     * retained. The adjacency relation is retained through shared ownership.
+     * @param image Non-null grayscale image used to initialize the hierarchy.
      * @param isMaxtree `true` for max-tree, `false` for min-tree.
-     * @param adj Image adjacency relation.
+     * @param adj Non-null adjacency relation configured for the same image
+     * dimensions as `image`.
+     * @pre `image` and `adj` are non-null, and the adjacency domain matches
+     * `image->getNumRows()` by `image->getNumCols()`.
+     * @warning These preconditions are enforced only by assertions or assumed
+     * by the construction algorithm; violating them is undefined in release
+     * builds.
      */
     DynamicComponentTree(ImageUInt8Ptr image, bool isMaxtree, AdjacencyRelationPtr adj) {
         build(image, isMaxtree, adj);
@@ -354,9 +363,17 @@ public:
 
     /**
      * @brief Builds or rebuilds the entire hierarchy from the input image.
-     * @param image Base grayscale image.
+     * @details The image is consumed only for this rebuild and is not retained.
+     * The tree keeps shared ownership of `adj` for later topology queries.
+     * @param image Non-null base grayscale image.
      * @param isMaxtree `true` for max-tree, `false` for min-tree.
-     * @param adj Adjacency relation used during construction.
+     * @param adj Non-null adjacency relation used during construction and
+     * configured for the same image dimensions as `image`.
+     * @pre `image` and `adj` are non-null, and the adjacency domain matches
+     * `image->getNumRows()` by `image->getNumCols()`.
+     * @warning These preconditions are enforced only by assertions or assumed
+     * by the construction algorithm; violating them is undefined in release
+     * builds.
      */
     void build(ImageUInt8Ptr image, bool isMaxtree, AdjacencyRelationPtr adj) {
         assert(image != nullptr);
@@ -694,6 +711,13 @@ public:
      * @param targetNodeId Node that will receive the proper part.
      * @param sourceNodeId Node that currently owns the proper part.
      * @param pixelId Proper part/pixel to move.
+     * @pre `targetNodeId` and `sourceNodeId` are distinct live nodes of this
+     * tree.
+     * @pre `pixelId` belongs to the image domain and
+     * `getSmallestComponent(pixelId) == sourceNodeId`.
+     * @warning The method updates only the tree backend. Callers maintaining an
+     * external attribute cache must notify or update that cache after the
+     * transfer.
      */
     void moveProperPart(NodeId targetNodeId, NodeId sourceNodeId, PixelId pixelId) {
         const PixelId prevPixel = prevProperPart_[pixelId];
@@ -731,6 +755,17 @@ public:
 
     /**
      * @brief Moves all direct proper parts from `sourceNodeId` to `targetNodeId`.
+     * @details The source node remains live but becomes empty. The method runs
+     * in time linear in the number of proper parts transferred because every
+     * moved pixel receives a new owner.
+     * @param targetNodeId Live node that receives the direct proper parts.
+     * @param sourceNodeId Distinct live node whose direct proper parts are
+     * transferred.
+     * @pre `targetNodeId` and `sourceNodeId` are distinct live nodes of this
+     * tree.
+     * @warning The method updates only the tree backend. Attribute runtimes
+     * that need the pre-mutation ownership state must be notified before this
+     * call.
      */
     void moveProperParts(NodeId targetNodeId, NodeId sourceNodeId) {
         moveProperPartsInBackend(targetNodeId, sourceNodeId);
@@ -738,10 +773,17 @@ public:
     }
 
     /**
-     * @brief Sets a new root for the hierarchy.
-     *
-     * The given node becomes its own parent reference and the previous root,
-     * if any, is detached from its old position.
+     * @brief Selects an existing live node as the root of the reachable hierarchy.
+     * @details If `nodeId` is attached to a parent, it is detached first; its
+     * existing subtree is otherwise unchanged. This is not a reroot operation:
+     * ancestry links are not reversed and the previous root is not attached
+     * below the new one. Consequently, the old root and the rest of its live
+     * component may remain allocated but become unreachable from traversals
+     * starting at `getRoot()`.
+     * @param nodeId Live node whose existing subtree becomes the root component.
+     * @pre `nodeId` is a live node of this tree.
+     * @warning `getNumNodes()` continues to count live nodes outside the newly
+     * selected root component.
      */
     void setRoot(NodeId nodeId) {
         const NodeId oldRoot = getRoot();
@@ -810,6 +852,14 @@ public:
 
     /**
      * @brief Releases an isolated node with no children and no proper parts.
+     * @param nodeId Live, detached node whose slot will be returned to the free
+     * pool.
+     * @pre `nodeId` is live, is its own parent, is not `getRoot()`, has no
+     * children, and owns no direct proper parts.
+     * @warning The method does not enforce the non-root precondition and the
+     * remaining preconditions are assertion-only. Releasing the current root
+     * leaves `getRoot()` pointing to a dead slot. External persistent attribute
+     * caches must also receive `onNodeRemoved(nodeId)` before the slot is reused.
      */
     void releaseNode(NodeId nodeId) {
         assert(isAlive(nodeId));
@@ -822,9 +872,18 @@ public:
 
     /**
      * @brief Removes a child from its current parent, optionally releasing the node.
+     * @details If `childId` is not a live direct child of `parentId`, the method
+     * is a no-op. Without release, the child keeps its subtree and becomes the
+     * self-parented root of a detached component. With release, only the child
+     * slot is cleared and returned to the free pool.
      * @param parentId Expected parent of the node.
      * @param childId Child to remove.
      * @param releaseNodeFlag If `true`, the node slot is returned to the free pool.
+     * @pre When `releaseNodeFlag` is `true` and `childId` is a matching direct
+     * child, `childId` has no children and owns no direct proper parts.
+     * @warning Releasing a non-empty node leaves dangling topology or pixel
+     * ownership. This low-level method does not notify external attribute
+     * computers when a slot is released.
      */
     void removeChild(NodeId parentId, NodeId childId, bool releaseNodeFlag) {
         const bool wasDirectChild = isNode(childId) && isAlive(childId) && getNodeParent(childId) == parentId;
@@ -843,6 +902,14 @@ public:
 
     /**
      * @brief Attaches `nodeId` as the last child of `parentId`.
+     * @param parentId Live destination parent.
+     * @param nodeId Distinct live node that is currently detached and
+     * self-parented.
+     * @pre Both IDs are live and distinct, `nodeId` is detached, and `parentId`
+     * is not inside the subtree rooted at `nodeId`.
+     * @warning Preconditions are not checked. This method does not unlink an
+     * already attached node; violating the contract can create cycles or leave
+     * the old parent's child list inconsistent.
      */
     void attachNode(NodeId parentId, NodeId nodeId) {
         linkChildBack(parentId, nodeId);
@@ -852,6 +919,10 @@ public:
 
     /**
      * @brief Detaches a node from its current parent without releasing it.
+     * @param nodeId Live attached non-root node to detach.
+     * @pre `nodeId` has a distinct live parent and is not `getRoot()`.
+     * @warning Preconditions are not checked. Detaching the current root
+     * corrupts the root's child linkage and count.
      */
     void detachNode(NodeId nodeId) {
         unlinkChild(nodeId);
@@ -861,6 +932,12 @@ public:
 
     /**
      * @brief Moves an entire node to a new parent.
+     * @param nodeId Live attached non-root node to move.
+     * @param newParentId Live destination parent, distinct from `nodeId`.
+     * @pre `nodeId` has a distinct live parent, and `newParentId` is not inside
+     * the subtree rooted at `nodeId`.
+     * @warning Preconditions are not checked; an invalid move can create a
+     * cycle or corrupt either parent's child list.
      */
     void moveNode(NodeId nodeId, NodeId newParentId) {
         const NodeId oldParentId = getNodeParent(nodeId);
@@ -875,7 +952,15 @@ public:
     /**
      * @brief Moves all children of `sourceId` to `parentId`.
      *
-     * The relative order of the moved children is preserved in the final linkage.
+     * The relative order of the moved children is preserved and the group is
+     * appended after the destination's existing children.
+     * @param parentId Live destination node.
+     * @param sourceId Distinct live node whose direct children are transferred.
+     * @pre Both IDs are live and distinct, and `parentId` is outside the subtree
+     * rooted at `sourceId`.
+     * @warning Preconditions are not checked. In particular,
+     * `moveChildren(x, x)` can create a cyclic sibling list and a non-terminating
+     * parent-update traversal.
      */
     void moveChildren(NodeId parentId, NodeId sourceId) {
         const NodeId firstChildId = firstChild_[sourceId];
@@ -912,8 +997,17 @@ public:
     /**
      * @brief Removes an entire subtree, promoting its proper parts to the parent.
      *
-     * Each released node has its proper parts transferred directly to the
-     * parent of the pruned root before the slot is released.
+     * @details Every node in the subtree is detached and released. All direct
+     * proper parts found in that subtree are transferred to the original parent
+     * of `nodeId`, so the pixels remain owned by the tree even though the
+     * subtree topology disappears. Released `NodeId` values may later be reused.
+     * The work is linear in the number of removed nodes plus the number of
+     * proper parts transferred.
+     * @param nodeId Root of the subtree to remove.
+     * @pre `nodeId` is a live non-root node of this tree and its parent is live.
+     * @warning The method does not notify external attribute computers about
+     * moved proper parts or released nodes; callers maintaining such state must
+     * coordinate those updates separately.
      */
     void pruneNode(NodeId nodeId) {
         const NodeId parentId = getNodeParent(nodeId);
@@ -951,6 +1045,15 @@ public:
 
     /**
      * @brief Merges a node into its parent, preserving children and proper parts.
+     * @details The direct children and proper parts of `nodeId` are transferred
+     * to its parent, then the node slot is released for reuse. The method does
+     * not require equal parent/child altitudes and does not validate canonical
+     * component-tree level ordering. Its work is linear in the number of direct
+     * children plus direct proper parts moved.
+     * @param nodeId Live non-root node to absorb into its direct parent.
+     * @pre `nodeId` is live, is not the root, and has a live direct parent.
+     * @warning The method does not notify external attribute computers about
+     * the full proper-part move or the released node.
      */
     void mergeNodeIntoParent(NodeId nodeId) {
         const NodeId parentId = getNodeParent(nodeId);
@@ -979,6 +1082,32 @@ public:
         return image;
     }
 
+    /**
+     * @brief Selects a breadth-first frontier of subtrees at or below an area threshold.
+     * @details A node's area is the number of proper parts in its entire
+     * subtree. Starting at the root, nodes whose area is greater than
+     * `areaThreshold` are expanded; the first descendants on each path whose
+     * area is less than or equal to the threshold are returned and their
+     * descendants are not visited independently. The result therefore contains
+     * no ancestor/descendant pairs and does not mutate `tree`.
+     *
+     * Area is recomputed recursively for every frontier candidate rather than
+     * cached. For `N` nodes reachable from the root, the running time is
+     * `O(N^2)` in the worst case (for example, a chain whose nodes all exceed
+     * the threshold). The recursive area calculation uses `O(H)` stack space
+     * for tree height `H`, in addition to the breadth-first queue and result
+     * storage.
+     * @param tree Tree to inspect. A null pointer or a tree without a root
+     * produces an empty result.
+     * @param areaThreshold Maximum subtree area accepted into the returned
+     * frontier. A negative value produces an empty result.
+     * @param enableLog Whether to print the threshold and result counts to
+     * standard output.
+     * @return Frontier nodes in breadth-first traversal order.
+     * @warning The root itself is returned when its area is at most the
+     * threshold. Callers intending to pass results to `pruneNode` must handle
+     * that case separately because `pruneNode` requires a non-root node.
+     */
     static std::vector<NodeId> getNodesThreshold(DynamicComponentTree *tree,
                                                  int areaThreshold,
                                                  bool enableLog = false) {

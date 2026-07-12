@@ -23,7 +23,8 @@ using AdjacencyRelationPtr = std::shared_ptr<AdjacencyRelation>;
  * arbitrary symmetric offsets and provides a factory for rectangular
  * adjacency. It also offers a "forward" variant that emits only half of the
  * neighbors, which is useful for asymmetric scans and unique-edge
- * construction.
+ * construction. Every normalized stencil contains the origin exactly once;
+ * neighbor-only iteration skips it, but `getSize()` counts it.
  */
 class AdjacencyRelation {
 public:
@@ -62,18 +63,30 @@ public:
      * @param numRows Number of image rows.
      * @param numCols Number of image columns.
      * @param radius Neighborhood radius (1.0 ~= 4-connectivity, 1.5 ~= 8-connectivity).
+     * @throws std::invalid_argument If either image dimension is not positive
+     * or `radius` is negative.
      */
     AdjacencyRelation(int numRows, int numCols, double radius);
     /**
      * @brief Builds an adjacency relation from arbitrary symmetric offsets.
+     * @param numRows Positive number of image rows.
+     * @param numCols Positive number of image columns.
      * @param offsets List of offsets (deltaRow, deltaCol), which must contain the origin and be
      * centrally symmetric: if (dy,dx) belongs to the set, (-dy,-dx) must belong as well.
+     * Duplicate offsets are removed during normalization.
+     * @throws std::invalid_argument If either image dimension is not positive,
+     * the list is empty, the origin is missing, or the offsets are not
+     * centrally symmetric.
      */
     AdjacencyRelation(int numRows, int numCols, const std::vector<Offset> &offsets);
     /**
      * @brief Convenience helper for building a symmetric rectangular adjacency.
+     * @param numRows Positive number of image rows.
+     * @param numCols Positive number of image columns.
      * @param halfHeight Half-height of the rectangle.
      * @param halfWidth Half-width of the rectangle.
+     * @throws std::invalid_argument If either image dimension is not positive
+     * or either half-dimension is negative.
      */
     static AdjacencyRelation rectangular(int numRows, int numCols, int halfHeight, int halfWidth);
     /**
@@ -82,7 +95,10 @@ public:
      */
     int nextValid();
     /**
-     * @brief Returns the number of offsets in the current stencil.
+     * @brief Returns the total number of offsets in the current stencil.
+     * @details The count includes the origin `(0, 0)`. Consequently, a
+     * 4-neighborhood has size 5 and an 8-neighborhood has size 9, even though
+     * the neighbor-only traversal methods omit the origin.
      */
     int getSize();
     /**
@@ -128,9 +144,19 @@ public:
      */
     bool hasRadius() const noexcept;
 
+    /**
+     * @brief Returns the row displacement of a normalized stencil offset.
+     * @param index Offset position in `[0, getSize())`.
+     * @pre `index` is within the stencil bounds.
+     */
     int getOffsetRow(int index){
         return offsetRow[index];
     }
+    /**
+     * @brief Returns the column displacement of a normalized stencil offset.
+     * @param index Offset position in `[0, getSize())`.
+     * @pre `index` is within the stencil bounds.
+     */
     int getOffsetCol(int index){
         return offsetCol[index];
     }

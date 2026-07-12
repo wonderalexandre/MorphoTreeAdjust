@@ -14,13 +14,45 @@
 #include "DynamicComponentTree.hpp"
 #include "DualMinMaxTreeIncrementalFilter.hpp"
 
+/**
+ * @brief Conventional CASF over a synchronized dynamic max-tree/min-tree pair.
+ *
+ * This path is intended for the order-preserving attributes `AREA`,
+ * `BOX_WIDTH`, `BOX_HEIGHT`, and `DIAGONAL_LENGTH`. For the supported flat
+ * non-order-preserving bounding-box ratios, use
+ * `ComponentTreeCasfNonIncreasing` instead.
+ *
+ * A threshold performs a breadth-first frontier selection: nodes whose current
+ * attribute is greater than the threshold are expanded, and the first node at
+ * or below the threshold on each path becomes a candidate while its descendants
+ * are skipped. The root is never removed. If the root itself qualifies, it is
+ * the only candidate and that direction performs no pruning. For every
+ * threshold, the max-tree direction is processed before the min-tree direction.
+ * Thresholds and repeated calls to `filter()` are cumulative: the object keeps
+ * the mutable pair produced by all preceding operations.
+ *
+ * `Mode::Updating` edits the existing tree objects in place. `Mode::Naive`
+ * rebuilds and replaces both tree objects after every threshold, while
+ * `Mode::Hybrid` does so for the first threshold of each non-empty `filter()`
+ * call and then switches to the incremental path. Consequently, references returned by `getMaxTree()` or
+ * `getMinTree()` are invalidated whenever a naive rebuild occurs (and when the
+ * CASF object is destroyed).
+ *
+ * @tparam PixelType Unsigned integral altitude type used by the incremental
+ * adjuster. Its level domain must start at zero.
+ *
+ * @warning Mutating a tree obtained from a non-const getter bypasses CASF's
+ * paired-tree and attribute maintenance and can desynchronize subsequent
+ * filtering operations.
+ */
 template<typename PixelType = AltitudeType>
 class ComponentTreeCasf {
 public:
+    /** @brief Strategy used to execute a threshold sequence. */
     enum class Mode {
-        Updating,
-        Naive,
-        Hybrid,
+        Updating, ///< Incrementally update the existing paired trees.
+        Naive, ///< Reconstruct and replace both trees after every threshold.
+        Hybrid, ///< Rebuild for the first threshold of each non-empty call, then update incrementally.
     };
 
 private:
@@ -128,11 +160,37 @@ private:
     }
 
 public:
+    /**
+     * @brief Builds a conventional CASF and creates its adjacency from a radius.
+     * @param image Input image. Its pixels are cloned into the two dynamic trees;
+     * the input image itself is not retained.
+     * @param radiusAdj Non-negative Euclidean radius used by the internally
+     * owned adjacency relation.
+     * @param attribute Order-preserving attribute. Supported values are `AREA`,
+     * `BOX_WIDTH`, `BOX_HEIGHT`, and `DIAGONAL_LENGTH`.
+     * @pre `attribute` is one of the supported values; this constructor does
+     * not reject non-order-preserving values at runtime.
+     * @throws std::runtime_error If `image` is null.
+     * @throws std::invalid_argument If the image dimensions or radius cannot
+     * define a valid adjacency relation.
+     */
     ComponentTreeCasf(ImageUInt8Ptr image, double radiusAdj, Attribute attribute = AREA)
         : adjacency_(image ? std::make_shared<AdjacencyRelation>(image->getNumRows(), image->getNumCols(), radiusAdj) : nullptr), attribute_(attribute) {
         rebuildFromImage(image);
     }
 
+    /**
+     * @brief Builds a conventional CASF with an existing shared adjacency.
+     * @param image Input image. Its pixels are cloned into the two dynamic trees;
+     * the input image itself is not retained.
+     * @param adjacency Non-null adjacency retained through shared ownership. It
+     * must describe the same image domain as `image`.
+     * @param attribute Order-preserving attribute. Supported values are `AREA`,
+     * `BOX_WIDTH`, `BOX_HEIGHT`, and `DIAGONAL_LENGTH`.
+     * @pre `attribute` is one of the supported values and `adjacency` describes
+     * the same domain as `image`; these conditions are not fully runtime-checked.
+     * @throws std::runtime_error If `image` or `adjacency` is null.
+     */
     ComponentTreeCasf(ImageUInt8Ptr image, AdjacencyRelationPtr adjacency, Attribute attribute = AREA)
         : adjacency_(std::move(adjacency)), attribute_(attribute) {
         if (adjacency_ == nullptr) {
@@ -141,6 +199,13 @@ public:
         rebuildFromImage(image);
     }
 
+    /**
+     * @brief Parses a case-insensitive execution-mode token.
+     * @param mode `"updating"`, `"naive"`, or `"hybrid"`. The legacy
+     * misspelling `"updaing"` is also accepted as `Mode::Updating`.
+     * @return The corresponding execution mode.
+     * @throws std::runtime_error If the normalized token is not recognized.
+     */
     static Mode parseMode(std::string_view mode) {
         const std::string normalized = normalizeToken(mode);
         if (normalized == "updating" || normalized == "updaing") {
@@ -156,6 +221,29 @@ public:
         throw std::runtime_error("Unknown ComponentTreeCasf mode. Expected one of: updating, naive, hybrid.");
     }
 
+    /**
+     * @brief Applies a sequence of conventional CASF thresholds.
+     *
+     * Each threshold continues from the result of the preceding threshold and
+     * from any earlier `filter()` call. A node is eligible when its current
+     * attribute is less than or equal to the threshold, and descendants of an
+     * eligible node are not examined independently. The global root is never
+     * removed; if it qualifies, that direction stops without pruning a
+     * descendant. Within each threshold the max-tree direction runs before the
+     * min-tree direction. An empty sequence leaves the current state unchanged.
+     *
+     * In `Mode::Naive`, every threshold replaces the tree objects. In
+     * `Mode::Hybrid`, the first threshold of every non-empty call replaces them.
+     * References previously returned by the tree getters are invalid after
+     * either event.
+     *
+     * @param thresholds Ordered integer thresholds.
+     * @param mode Execution strategy; defaults to incremental updating.
+     * @return A newly reconstructed image representing the current min-tree.
+     * @warning Filtering is not transactional. An exception does not roll back
+     * thresholds, subtree operations, or tree replacements already completed;
+     * references can therefore be invalidated even when the call fails.
+     */
     ImageUInt8Ptr filter(const std::vector<int> &thresholds, Mode mode = Mode::Updating) {
         switch (mode) {
             case Mode::Updating:
@@ -181,22 +269,49 @@ public:
         return mintree_->reconstructionImage();
     }
 
+    /**
+     * @brief Applies thresholds using a case-insensitive mode token.
+     * @param thresholds Ordered integer thresholds applied cumulatively.
+     * @param mode Token accepted by `parseMode()`.
+     * @return A newly reconstructed image representing the current min-tree.
+     * @throws std::runtime_error If `mode` is unknown.
+     */
     ImageUInt8Ptr filter(const std::vector<int> &thresholds, std::string_view mode) {
         return filter(thresholds, parseMode(mode));
     }
 
+    /**
+     * @brief Returns mutable access to the current max-tree.
+     * @return Reference valid until the next naive rebuild or object destruction.
+     * @warning External structural edits bypass paired-tree and attribute
+     * synchronization and can make later filtering invalid.
+     */
     DynamicComponentTree &getMaxTree() {
         return *maxtree_;
     }
 
+    /**
+     * @brief Returns read-only access to the current max-tree.
+     * @return Reference valid until the next naive rebuild or object destruction.
+     */
     const DynamicComponentTree &getMaxTree() const {
         return *maxtree_;
     }
 
+    /**
+     * @brief Returns mutable access to the current min-tree.
+     * @return Reference valid until the next naive rebuild or object destruction.
+     * @warning External structural edits bypass paired-tree and attribute
+     * synchronization and can make later filtering invalid.
+     */
     DynamicComponentTree &getMinTree() {
         return *mintree_;
     }
 
+    /**
+     * @brief Returns read-only access to the current min-tree.
+     * @return Reference valid until the next naive rebuild or object destruction.
+     */
     const DynamicComponentTree &getMinTree() const {
         return *mintree_;
     }

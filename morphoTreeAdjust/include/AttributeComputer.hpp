@@ -60,6 +60,21 @@ struct DynamicBoundingBoxState {
  * `DualMinMaxTreeIncrementalFilter` depends only on this interface, which makes
  * it possible to swap the incremental attribute without changing the
  * structural-adjustment logic.
+ *
+ * Buffer contract:
+ *
+ * - attribute buffers are indexed directly by `NodeId`;
+ * - a full-tree computation requires at least
+ *   `tree->getNumInternalNodeSlots()` elements, including released slots;
+ * - every `std::span<float>` is borrowed only for the duration of the call and
+ *   is never retained by an attribute computer;
+ * - if the tree grows its node-slot domain, caller-owned buffers must be
+ *   resized before the next attribute operation.
+ *
+ * The proper-part hooks intentionally have asymmetric timing in the dynamic
+ * adjusters: `onMoveProperParts` is invoked before the corresponding bulk tree
+ * mutation, whereas `onMoveProperPart` is invoked after the single-pixel tree
+ * mutation. Implementations may rely on those respective ownership states.
  */
 class DynamicAttributeComputer {
 public:
@@ -72,6 +87,10 @@ public:
      * node's direct contribution into `buffer`. For attributes with persistent
      * summaries, this step may also synchronize internal caches before
      * structural aggregation.
+     * @param nodeId Live node whose direct contribution is initialized.
+     * @param buffer Borrowed, `NodeId`-indexed attribute storage valid for the
+     * duration of this call.
+     * @pre `buffer.size()` is greater than `nodeId`.
      */
     virtual void preProcessing(NodeId nodeId, std::span<float> buffer) const = 0;
 
@@ -81,6 +100,12 @@ public:
      * full recomputation of the child subtree have already happened. This
      * method therefore only needs to merge the child state into the parent
      * accumulator.
+     * @param parentId Live destination node.
+     * @param childId Live child whose subtree contribution is already
+     * consolidated.
+     * @param buffer Borrowed, `NodeId`-indexed attribute storage valid for the
+     * duration of this call.
+     * @pre `buffer` contains both `parentId` and `childId`.
      */
     virtual void mergeProcessing(NodeId parentId, NodeId childId, std::span<float> buffer) const = 0;
 
@@ -90,24 +115,37 @@ public:
      * contributions have already been aggregated. For attributes whose
      * authoritative value lives directly in `buffer`, this method can be a
      * no-op.
+     * @param nodeId Live node being finalized.
+     * @param buffer Borrowed, `NodeId`-indexed attribute storage valid for the
+     * duration of this call.
+     * @pre `buffer.size()` is greater than `nodeId`.
      */
     virtual void postProcessing(NodeId nodeId, std::span<float> buffer) const = 0;
 
     /**
-     * @brief Notifies a full merge of the direct proper parts of `sourceId` into `targetId`.
-     * @details The default implementation does nothing. Attributes that keep
-     * additional incremental state can override this hook to avoid reprocessing
-     * pixels after `moveProperParts(targetId, sourceId)`.
+     * @brief Prepares for a full merge of the direct proper parts from source to target.
+     * @details The first argument is the target node and the second is the
+     * source node. Dynamic adjusters invoke this hook immediately before
+     * `moveProperParts(target, source)`, while both nodes still expose their
+     * pre-transfer proper parts. Implementations must update their auxiliary
+     * state to represent the anticipated post-transfer state. The default
+     * implementation does nothing.
+     * @pre Target and source are distinct live nodes in the associated tree.
      */
     virtual void onMoveProperParts(NodeId, NodeId) const {
         /* no-op */
     }
 
     /**
-     * @brief Notifies the transfer of a single proper part from `sourceId` to `targetId`.
-     * @details The default implementation does nothing. Geometric attributes
-     * can use this hook to incrementally update the local state of the receiver
-     * node and mark the donor as locally inconsistent.
+     * @brief Observes a completed single-proper-part transfer from source to target.
+     * @details The arguments are target node, source node, and moved pixel, in
+     * that order. Dynamic adjusters invoke this hook immediately after
+     * `moveProperPart(target, source, pixel)`: the tree already reports the
+     * target as the pixel owner and the pixel is absent from the source's
+     * proper parts. Geometric attributes can update the receiver and mark the
+     * donor as locally inconsistent. The default implementation does nothing.
+     * @pre Target and source are distinct live nodes in the associated tree,
+     * and the target currently owns the moved pixel.
      */
     virtual void onMoveProperPart(NodeId, NodeId, PixelId) const {
         /* no-op */
@@ -135,6 +173,15 @@ public:
  * combined, and converted into the final scalar attribute value. The adjuster
  * sees only the `DynamicAttributeComputer` interface; all attribute-specific
  * logic remains encapsulated in the policy.
+ *
+ * The stored tree pointer is non-owning. The associated tree must outlive the
+ * computer, and caller-provided attribute spans must follow the size and
+ * lifetime contract of `DynamicAttributeComputer`. The computer also retains
+ * persistent local summaries: do not call `DynamicComponentTree::build()` on
+ * the associated object while the computer exists. Recreate the computer after
+ * a full tree rebuild. Incremental proper-part transfers and node removals must
+ * pass through the corresponding hooks/adjuster; `compute()` reaggregates the
+ * cached local summaries and does not discover unreported ownership changes.
  */
 template<class Policy>
 class DynamicSummaryComputer : public DynamicAttributeComputer {
@@ -209,8 +256,11 @@ private:
 protected:
     /**
      * @brief Builds the generic infrastructure and initializes the persistent summaries.
-     * @param tree Dynamic tree observed by the computer.
+     * @param tree Non-null dynamic tree observed through a non-owning pointer.
      * @param policy Policy that implements the attribute semantics.
+     * @pre `tree` remains alive and at a stable address for the lifetime of the
+     * computer, is not rebuilt with `DynamicComponentTree::build()`, and all
+     * incremental ownership changes are reported through the hooks.
      */
     DynamicSummaryComputer(DynamicComponentTree *tree, Policy policy)
         : tree_(tree),
@@ -286,10 +336,11 @@ public:
     }
 
     /**
-     * @brief Updates the local summaries after a full proper-part merge.
-     * @details This operation is used when the entire local set of `sourceId`
-     * is transferred to `targetId`, allowing a cheaper merge than reprocessing
-     * pixel by pixel.
+     * @brief Prepares the local summaries for an imminent full proper-part merge.
+     * @details The adjuster calls this override before mutating the tree. At
+     * entry, `sourceId` still owns its proper parts; the policy combines the
+     * cached local summaries and clears the source cache in anticipation of
+     * `moveProperParts(targetId, sourceId)`.
      */
     void onMoveProperParts(NodeId targetId, NodeId sourceId) const override {
         ensureStorage();
@@ -301,10 +352,11 @@ public:
     }
 
     /**
-     * @brief Updates the local summaries after transferring a single pixel.
-     * @details The policy decides how to incorporate the pixel into the
-     * receiver and how to handle the possible invalidation of the donor's local
-     * summary.
+     * @brief Updates the local summaries after a single-pixel tree mutation.
+     * @details At entry, `pixelId` already belongs to `targetId` in the tree and
+     * has been removed from `sourceId`. The policy decides how to incorporate
+     * the pixel into the receiver and whether the donor's local summary must be
+     * rebuilt.
      */
     void onMoveProperPart(NodeId targetId, NodeId sourceId, PixelId pixelId) const override {
         ensureStorage();
@@ -320,7 +372,8 @@ public:
      * @brief Computes the full attribute and returns a new buffer with the values.
      * @details Convenience method used in benchmarks, tools, and tests when the
      * entire attribute needs to be recomputed without relying on the
-     * incremental flow.
+     * incremental flow. The returned vector has one element per internal node
+     * slot; values for released or unreachable slots are not meaningful.
      */
     std::vector<float> compute() const {
         std::vector<float> buffer((size_t) (tree_ ? tree_->getNumInternalNodeSlots() : 0), 0.0f);
@@ -331,7 +384,11 @@ public:
     /**
      * @brief Recomputes the full tree attribute over a caller-provided `buffer`.
      * @details Unlike the adjuster's incremental flow, this routine visits the
-     * entire tree starting from the current root.
+     * entire tree starting from the current root. The span is borrowed only for
+     * this call and is not retained.
+     * @param buffer `NodeId`-indexed output storage.
+     * @pre If the tree has a root, `buffer.size()` is at least
+     * `tree()->getNumInternalNodeSlots()`.
      */
     void compute(std::span<float> buffer) const {
         if (tree_ == nullptr || tree_->getRoot() == InvalidNode) {
@@ -356,6 +413,9 @@ public:
  * incremental value is already handled directly in the external buffer and
  * does not benefit from the persistent-summary infrastructure used by
  * `bbox_*`.
+ *
+ * The tree pointer is non-owning and must remain valid for the lifetime of the
+ * computer. Caller-provided spans are never retained.
  */
 class DynamicAreaComputer : public DynamicAttributeComputer {
 private:
@@ -378,6 +438,8 @@ private:
 public:
     /**
      * @brief Builds the incremental area computer for a dynamic tree.
+     * @param tree Non-null tree observed through a non-owning pointer.
+     * @pre `tree` outlives the computer.
      */
     explicit DynamicAreaComputer(DynamicComponentTree *tree) : tree_(tree) {}
 
@@ -411,6 +473,8 @@ public:
 
     /**
      * @brief Computes the full tree area and returns a new buffer.
+     * @return One value per internal node slot; values for released or
+     * unreachable slots are not meaningful.
      */
     std::vector<float> compute() {
         std::vector<float> buffer((size_t) tree_->getNumInternalNodeSlots(), 0.0f);
@@ -420,6 +484,10 @@ public:
 
     /**
      * @brief Computes the full tree area on a caller-provided buffer.
+     * @param buffer Borrowed, `NodeId`-indexed output storage that is not
+     * retained after the call.
+     * @pre If the tree has a root, `buffer.size()` is at least
+     * `tree_->getNumInternalNodeSlots()`.
      */
     void compute(std::span<float> buffer) {
         if (tree_ == nullptr || tree_->getRoot() == InvalidNode) {
@@ -463,6 +531,12 @@ struct DynamicBoundingBoxLocalSummary {
  *
  * The current strategy uses a lightweight local summary with border counts and
  * a `dirty` fallback when removing a pixel exhausts some extremum.
+ *
+ * Valid configured attributes are `BOX_WIDTH`, `BOX_HEIGHT`,
+ * `DIAGONAL_LENGTH`, `AREA_PER_BOX_PERIMETER`, `RECTANGULARITY`,
+ * `BOX_ASPECT_RATIO`, `BOX_ELONGATION`, and
+ * `AREA_PER_BOX_DIAGONAL_SQUARED`. `AREA` must use `DynamicAreaComputer`
+ * instead; it is not a bounding-box projection.
  */
 class DynamicBoundingBoxPolicy {
 private:
@@ -635,14 +709,22 @@ public:
     using SubtreeSummary = DynamicBoundingBoxState;
 
     /**
-     * @brief Default constructor required by the generic infrastructure.
+     * @brief Creates an unconfigured placeholder policy.
+     * @warning This constructor exists for generic infrastructure. Do not use
+     * the resulting policy to compute attributes until it has been replaced by
+     * a policy configured with the tree-and-attribute constructor.
      */
     DynamicBoundingBoxPolicy() = default;
 
     /**
      * @brief Builds the policy for a tree and a specific geometric measure.
-     * @param tree Tree whose geometry defines the image domain.
-     * @param attribute Derived bounding-box measure to produce.
+     * @param tree Non-null tree whose geometry defines the image domain.
+     * @param attribute Derived bounding-box measure to produce. Valid values
+     * are `BOX_WIDTH`, `BOX_HEIGHT`, `DIAGONAL_LENGTH`,
+     * `AREA_PER_BOX_PERIMETER`, `RECTANGULARITY`, `BOX_ASPECT_RATIO`,
+     * `BOX_ELONGATION`, and `AREA_PER_BOX_DIAGONAL_SQUARED`.
+     * @pre `tree` is non-null and `attribute` belongs to the documented set.
+     * @warning The constructor does not validate the attribute at runtime.
      */
     DynamicBoundingBoxPolicy(DynamicComponentTree *tree, Attribute attribute)
         : attribute_(attribute),
@@ -693,6 +775,10 @@ public:
      * @details The same policy serves all bounding-box-derived attributes;
      * only the final projection on the rectangle changes. The ratio attributes
      * are the ones exposed by `ComponentTreeCasfNonIncreasing`.
+     * @param subtree Consolidated bounding-box state to project.
+     * @return Scalar value for the attribute selected at construction.
+     * @pre This policy was configured with one of its documented bounding-box
+     * attributes.
      */
     float value(const SubtreeSummary &subtree) const {
         if (subtree.empty) {
@@ -735,9 +821,11 @@ public:
     }
 
     /**
-     * @brief Updates the local summaries after a full proper-part merge.
-     * @details The destination receives the union of the local rectangles and
-     * the source is zeroed because it no longer owns direct proper parts.
+     * @brief Prepares local summaries for an imminent full proper-part merge.
+     * @details This method runs before the tree mutation. The destination cache
+     * receives the union of both current local rectangles and the source cache
+     * is reset in anticipation of losing all direct proper parts.
+     * @pre `tree` still reports the pre-transfer ownership state.
      */
     void moveLocalSummary(DynamicComponentTree *tree,
                           NodeId targetId,
@@ -761,6 +849,8 @@ public:
      * @details The receiver can always be updated exactly. The donor, however,
      * may enter `dirty` if the removed pixel was the last one supporting some
      * local extremum and the next extremum cannot be inferred without a rebuild.
+     * @pre The tree mutation is complete: `targetId` owns `pixelId` and
+     * `sourceId` no longer owns it.
      */
     void movePixel(DynamicComponentTree *tree,
                    NodeId targetId,
@@ -842,7 +932,15 @@ public:
  *
  * The class traverses the tree and maintains, for each node, the bounding box
  * that covers all proper parts in its subtree. From that box, it produces the
- * bounding-box-derived attributes listed in `Attribute`.
+ * bounding-box-derived attributes supported by `DynamicBoundingBoxPolicy`:
+ * `BOX_WIDTH`, `BOX_HEIGHT`, `DIAGONAL_LENGTH`,
+ * `AREA_PER_BOX_PERIMETER`, `RECTANGULARITY`, `BOX_ASPECT_RATIO`,
+ * `BOX_ELONGATION`, and `AREA_PER_BOX_DIAGONAL_SQUARED`.
+ *
+ * `AREA` is intentionally handled by `DynamicAreaComputer`. The stored tree
+ * pointer is non-owning, so the tree must outlive this computer. Attribute
+ * spans passed to inherited operations are borrowed only for each call and
+ * must cover the current internal node-slot domain.
  */
 class DynamicBoundingBoxComputer : public DynamicSummaryComputer<DynamicBoundingBoxPolicy> {
 private:
@@ -889,8 +987,12 @@ private:
 public:
     /**
      * @brief Builds the incremental computer for the `bbox_*` family.
-     * @param tree Observed dynamic tree.
-     * @param attribute Desired derived geometric measure.
+     * @param tree Non-null dynamic tree observed through a non-owning pointer.
+     * @param attribute Desired derived geometric measure from the set documented
+     * on `DynamicBoundingBoxPolicy`.
+     * @pre `tree` outlives the computer and `attribute` is one of the eight
+     * supported bounding-box-derived values.
+     * @warning The constructor does not validate the attribute at runtime.
      */
     DynamicBoundingBoxComputer(DynamicComponentTree *tree, Attribute attribute)
         : Base(tree, DynamicBoundingBoxPolicy{tree, attribute}) {}

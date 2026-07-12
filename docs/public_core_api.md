@@ -59,6 +59,13 @@ Use `ComponentTreeCasf` for the conventional subtree-pruning CASF path with
 order-preserving attributes. Its default attribute is `AREA`, and its
 thresholds are integers.
 
+The supported attributes for this path are `AREA`, `BOX_WIDTH`, `BOX_HEIGHT`,
+and `DIAGONAL_LENGTH`. The current low-level constructor accepts the generic
+`Attribute` enum and therefore does not reject every other value at the API
+boundary; passing a non-order-preserving attribute violates the algorithmic
+contract. Use `ComponentTreeCasfNonIncreasing` for the five ratio/shape
+attributes listed below.
+
 The C++ constructors accept either an adjacency radius or an existing shared
 adjacency relation:
 
@@ -78,8 +85,9 @@ Filtering accepts a sequence of integer thresholds and one of these modes:
   trees;
 - `Mode::Naive`: reconstruct and rebuild the component trees at every
   threshold;
-- `Mode::Hybrid`: use the naive path for the first threshold and incremental
-  updates for the remaining thresholds.
+- `Mode::Hybrid`: use the naive path for the first threshold of each non-empty
+  `filter()` call and incremental updates for the remaining thresholds in that
+  call.
 
 ```cpp
 auto output = casf.filter(
@@ -89,6 +97,21 @@ auto output = casf.filter(
 
 The string overload accepts `"updating"`, `"naive"`, or `"hybrid"`.
 `Updating` is the default mode.
+
+Filtering is stateful: every threshold and every later call continues from the
+current mutable min-tree/max-tree pair. `Naive` rebuilds and replaces both trees
+at every threshold, and `Hybrid` does so for its first threshold. Consequently,
+references, pointers, and Python tree views obtained through `getMinTree()`,
+`getMaxTree()`, `minTree`, or `maxTree` before one of those rebuilds are invalid.
+Reacquire the tree after `filter()` returns. Even in `Updating` mode, callers
+should treat exposed trees as read-only unless they also restore all registered
+attribute buffers and adjuster invariants.
+
+Candidate selection stops at the first node on each root-to-leaf path whose
+current attribute is at or below the threshold. If the root itself qualifies,
+that direction stops at the root and performs no pruning because the root is
+never removed. Filtering is not transactional: an exception does not undo
+thresholds, subtree edits, or rebuilds that already completed.
 
 ### `ComponentTreeCasfNonIncreasing`
 
@@ -125,10 +148,12 @@ ComponentTreeCasfNonIncreasing(
     Attribute attribute = AREA_PER_BOX_PERIMETER);
 ```
 
-Its thresholds are floating-point values. Nodes whose current attribute value
-is at or below a threshold are merge candidates. Thresholds are applied in
-order to the same mutable max-tree/min-tree pair, so a later threshold
-continues from the state produced by the earlier ones.
+Its thresholds are floating-point values. Each directional phase snapshots its
+candidates once: nodes whose value in that snapshot is at or below the threshold
+are selected, while `NaN` is not. A surviving candidate is not threshold-tested
+again after an earlier merge in the same phase changes its attribute. Thresholds
+are applied in order to the same mutable max-tree/min-tree pair, so a later
+threshold continues from the state produced by the earlier ones.
 
 ```cpp
 auto output = shapeCasf.filter(std::vector<float>{0.50f, 0.75f});
@@ -227,6 +252,16 @@ accepts `"updating"`, `"naive"`, or `"hybrid"`. For
 and there is no `mode` parameter. Both classes expose `getMinTree()`,
 `getMaxTree()`, `minTree`, and `maxTree`.
 
+The native bindings accept two-dimensional NumPy-compatible input and coerce it
+to a C-contiguous `uint8` array when necessary. This conversion may copy the
+input and may narrow values from another dtype. The returned filtered image owns
+its native image storage through a NumPy capsule.
+
+Tree objects returned by `ComponentTreeCasf` are views of internal state. Do not
+retain one across a `naive` filter call or the first threshold of a `hybrid`
+call; those modes rebuild the internal trees. Reacquire `minTree` or `maxTree`
+after filtering.
+
 Official example:
 
 - [examples/core_python_api_example.py](../examples/core_python_api_example.py)
@@ -241,6 +276,8 @@ Official notebooks:
 - prefer `MorphoTreeAdjust.hpp` in new C++ code;
 - choose `ComponentTreeCasf` for the conventional order-preserving path and
   `ComponentTreeCasfNonIncreasing` only for its five supported attributes;
+- treat CASF tree getters as read-only views and reacquire conventional CASF
+  views after `naive` or `hybrid` rebuilds;
 - keep integer threshold schedules separate from floating-point shape-attribute
   schedules;
 - use `sdist` or `wheel` for a complete Python distribution, including generated

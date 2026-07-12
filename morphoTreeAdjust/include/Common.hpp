@@ -214,12 +214,18 @@ public:
     FastQueue() = default;
 
     /**
-     * @brief Builds the queue with optional initial reserve.
+     * @brief Builds an empty queue with capacity for at least `n` total entries.
+     * @param n Requested total storage capacity, not an additional amount on
+     * top of the current capacity.
      */
     explicit FastQueue(size_t n) { data_.reserve(n); }
 
     /**
-     * @brief Reserves additional capacity.
+     * @brief Requests capacity for at least `n` total stored entries.
+     * @details This has the same semantics as `std::vector::reserve`: `n` is a
+     * total capacity target, not a number of entries to add to the current
+     * capacity. Existing queued and consumed entries are preserved.
+     * @param n Requested total capacity.
      */
     void reserve(size_t n) { data_.reserve(n); }
     /**
