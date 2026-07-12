@@ -30,5 +30,11 @@ int main() {
     ComponentTreeCasf<AltitudeType> casf(image->clone(), adj, AREA);
     auto filtered = casf.filter(std::vector<int>{1, 2}, ComponentTreeCasf<AltitudeType>::Mode::Updating);
 
-    return filtered == nullptr ? 1 : 0;
+    ComponentTreeCasfNonIncreasing<AltitudeType> shapeCasf(
+        image->clone(),
+        adj,
+        RECTANGULARITY);
+    auto shapeFiltered = shapeCasf.filter(std::vector<float>{0.75f});
+
+    return filtered == nullptr || shapeFiltered == nullptr ? 1 : 0;
 }

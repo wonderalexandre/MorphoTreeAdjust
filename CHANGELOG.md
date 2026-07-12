@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.1](https://github.com/wonderalexandre/MorphoTreeAdjust/compare/morphoTreeAdjust-v1.0.0...morphoTreeAdjust-v1.0.1) (2026-05-14)
+
+### Bug Fixes
+
+* fix incremental bounding-box cache updates ([72d2183](https://github.com/wonderalexandre/MorphoTreeAdjust/commit/72d2183400d9da056bcbe301742535339b553d52))
+
 ## [1.0.0](https://github.com/wonderalexandre/MorphoTreeAdjust/compare/v0.4.0...morphoTreeAdjust-v1.0.0) (2026-04-25)
 
 

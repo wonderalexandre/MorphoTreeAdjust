@@ -120,7 +120,7 @@ private:
     }
 
     /**
-     * @brief Collects nodes whose current attribute value is below `threshold`.
+     * @brief Collects nodes whose current attribute value is at or below `threshold`.
      *
      * The returned vector is owned by `work` and remains valid until the next
      * call. Candidates are sorted by altitude and by support signatures so the

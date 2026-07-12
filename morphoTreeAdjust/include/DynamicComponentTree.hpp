@@ -84,8 +84,8 @@
  * Main costs:
  *
  * - space: `Theta(P + N)`;
- * - local topology and metadata queries (`getParent`, `getAltitude`,
- *   `isLeaf`, `isAlive`, `getProperPartOwner`): `O(1)`;
+ * - local topology and metadata queries (`getNodeParent`, `getAltitude`,
+ *   `isLeaf`, `isAlive`, `getSmallestComponent`): `O(1)`;
  * - direct-child iteration: linear in the number of children;
  * - direct proper-part iteration: linear in the number of owned pixels;
  * - subtree iteration: linear in the number of visited nodes;

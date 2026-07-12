@@ -18,7 +18,9 @@ enum class CasfMode {
 static void printUsage(const char* argv0) {
     std::cerr << "Usage: " << argv0
               << " [--mode dynamic-subtree|dynamic-leaf|naive|compare]"
-              << " [--attribute area|bbox_width|bbox_height|bbox_diagonal]"
+              << " [--attribute area|bbox_width|bbox_height|bbox_diagonal|"
+                 "area_per_box_perimeter|rectangularity|box_aspect_ratio|"
+                 "box_elongation|area_per_box_diagonal_squared]"
               << " [--radio-adj <radius>]"
               << " [--iter-timing]"
               << " [--no-output]"

@@ -22,6 +22,15 @@ adjust = mta.DualMinMaxTreeIncrementalFilter(mintree, maxtree)
 casf = mta.ComponentTreeCasf(image, "area", adj)
 filtered = casf.filter([1, 2])
 
+shape_casf = mta.ComponentTreeCasfNonIncreasing(
+    image,
+    "rectangularity",
+    adj,
+)
+shape_filtered = shape_casf.filter([0.75])
+
 print("num nodes (max-tree):", maxtree.numNodes)
-print("filtered image:")
+print("area-filtered image:")
 print(filtered)
+print("rectangularity-filtered image:")
+print(shape_filtered)

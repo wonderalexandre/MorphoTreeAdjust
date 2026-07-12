@@ -47,7 +47,7 @@
  * Important internal conventions:
  *
  * - `nodeCa`: extremal node that represents set `C` at level `a`;
- * - `b`: altitude of the parent of the removed subtree in the dual tree;
+ * - `b`: altitude of the parent of the removed subtree in the primal tree;
  * - `frontierNodesAboveB`: roots that remain above `b` and must be
  *   reattached when the sweep reaches their altitude;
  * - `properPartSetC`: pixels directly removed/relocated in the dual tree.
@@ -1594,7 +1594,7 @@ public:
      *
      * @param dualTree Target tree updated in place.
      * @param properPartSetC Set `C` formed by the proper parts of the subtree removed in the primal tree.
-     * @param b Altitude of the parent of the removed subtree in the dual tree.
+     * @param b Altitude of the parent of the removed subtree in the primal tree.
      * @param isMaxtree `true` for the max-tree direction and `false` for the min-tree direction.
      */
     void buildMergedAndNestedCollections(DynamicComponentTree *dualTree, std::vector<PixelId> &properPartSetC, PixelType b, bool isMaxtree) {
